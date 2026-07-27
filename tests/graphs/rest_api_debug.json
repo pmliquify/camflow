@@ -1,0 +1,52 @@
+{
+  "nodes": [
+    {
+      "id": "left",
+      "type": "filesrc",
+      "parameters": {
+        "file": "tests/data/left.rg10",
+        "width": 320,
+        "height": 240,
+        "format": "RG10",
+        "repeat": true
+      }
+    },
+    {
+      "id": "right",
+      "type": "filesrc",
+      "parameters": {
+        "file": "tests/data/right.rg10",
+        "width": 320,
+        "height": 240,
+        "format": "RG10",
+        "repeat": true
+      }
+    },
+    {
+      "id": "join",
+      "type": "compositor",
+      "parameters": {
+        "left.xpos": 0,
+        "left.ypos": 0,
+        "right.xpos": 320,
+        "right.ypos": 0,
+        "right.alpha": 0.75,
+        "right.zorder": 1
+      }
+    },
+    {
+      "id": "output",
+      "type": "filesink",
+      "parameters": {
+        "file": "build/rest-debug.raw",
+        "appendSequence": true,
+        "appendTimestamp": true
+      }
+    }
+  ],
+  "edges": [
+    "left -> join",
+    "right -> join",
+    "join -> output"
+  ]
+}

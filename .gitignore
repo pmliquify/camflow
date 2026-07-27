@@ -1,0 +1,14 @@
+build*/
+archive/
+tests/output/
+tests/images/generated/
+docs/api/
+docs/doxygen-awesome/
+*.o
+*.a
+*.so
+*.user
+opencv/*/
+web/node_modules/
+web/dist/
+scripts/tasks.cfg

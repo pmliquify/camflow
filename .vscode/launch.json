@@ -1,0 +1,45 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "camflow runtime",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build-runtime/src/runtime/camflow",
+            "args": [
+                "--graph",
+                "tests/graphs/viewer_v4l2_to_tcp.json"
+            ],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "preLaunchTask": "Build runtime"
+        },
+        {
+            "name": "camflow runtime (remote imx8mp-var-dart)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build-runtime-arm64/src/runtime/camflow",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb-multiarch",
+            "miDebuggerServerAddress": "imx8mp-var-dart:2345",
+            "targetArchitecture": "arm64",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "sourceFileMap": {
+                "/workspace": "${workspaceFolder}"
+            }
+        }
+    ]
+}

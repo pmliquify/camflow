@@ -1,0 +1,41 @@
+{
+  "nodes": [
+    {
+      "id": "cam",
+      "type": "v4l2src",
+      "parameters": {
+        "device": "/dev/video0",
+        "fourcc": "RG10",
+        "bufferCount": 3,
+        "timeout": 1000000
+      }
+    },
+    {
+      "id": "store",
+      "type": "filesink",
+      "parameters": {
+        "directory": "out",
+        "appendSequence": true,
+        "appendTimestamp": true
+      }
+    },
+    {
+      "id": "gui",
+      "type": "tcpsink",
+      "parameters": {
+        "ip": "192.168.1.100",
+        "port": 9000
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "cam",
+      "to": "store"
+    },
+    {
+      "from": "cam",
+      "to": "gui"
+    }
+  ]
+}

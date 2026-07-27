@@ -1,0 +1,26 @@
+{
+  "nodes": [
+    {
+      "id": "input",
+      "type": "filesrc",
+      "parameters": {
+        "file": "tests/data/input.rg10",
+        "width": 640,
+        "height": 480,
+        "format": "RG10"
+      }
+    },
+    {
+      "id": "output",
+      "type": "filesink",
+      "parameters": {
+        "file": "build/test-output.raw",
+        "appendSequence": true,
+        "appendTimestamp": true
+      }
+    }
+  ],
+  "edges": [
+    "input.output -> output.input"
+  ]
+}

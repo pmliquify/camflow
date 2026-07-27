@@ -1,0 +1,51 @@
+PROJECT_NAME           = "camflow runtime"
+PROJECT_NUMBER         = "0.5.2"
+PROJECT_BRIEF          = "Modular real-time vision processing pipeline"
+OUTPUT_DIRECTORY       = "docs/api"
+CREATE_SUBDIRS         = NO
+ALLOW_UNICODE_NAMES    = NO
+OUTPUT_LANGUAGE        = English
+
+INPUT                  = \
+  "src"
+FILE_PATTERNS          = *.h *.hpp
+RECURSIVE              = YES
+EXCLUDE_PATTERNS       = */tests/* */third-party/* */build-*/*
+
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+HIDE_UNDOC_MEMBERS     = NO
+HIDE_UNDOC_CLASSES     = NO
+
+QUIET                  = NO
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
+
+GENERATE_HTML          = YES
+HTML_OUTPUT            = .
+HTML_FILE_EXTENSION    = .html
+HTML_DYNAMIC_MENUS     = YES
+DISABLE_INDEX          = NO
+GENERATE_TREEVIEW      = NO
+
+HTML_EXTRA_STYLESHEET  = \
+  "docs/doxygen-awesome/doxygen-awesome.css" \
+  "docs/doxygen-awesome/doxygen-awesome-sidebar-only.css" \
+  "docs/doxygen-awesome/doxygen-awesome-sidebar-only-darkmode-toggle.css"
+
+USE_MDFILE_AS_MAINPAGE = "README.md"
+MARKDOWN_SUPPORT       = YES
+AUTOLINK_SUPPORT       = YES
+
+HAVE_DOT               = YES
+CLASS_DIAGRAMS         = YES
+DOT_IMAGE_FORMAT       = svg
+INTERACTIVE_SVG        = YES
+DOT_GRAPH_MAX_NODES    = 100
+
+GENERATE_XML           = NO
+GENERATE_LATEX         = NO
+GENERATE_MAN           = NO
+GENERATE_RTF           = NO

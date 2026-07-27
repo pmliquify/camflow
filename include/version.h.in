@@ -1,0 +1,9 @@
+// Copyright (c) 2026 Peter Martienssen
+// SPDX-License-Identifier: MIT
+
+#pragma once
+
+#define CAMFLOW_VERSION "@PROJECT_VERSION@"
+#define CAMFLOW_GIT_COMMIT "@CAMFLOW_GIT_COMMIT@"
+#define CAMFLOW_BUILD_TIMESTAMP "@CAMFLOW_BUILD_TIMESTAMP@"
+#define CAMFLOW_BUILD_TYPE "@CMAKE_BUILD_TYPE@"

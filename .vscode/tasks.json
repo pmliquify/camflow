@@ -1,0 +1,77 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Camflow: Build and restart runtime (local)",
+            "type": "shell",
+            "command": "./scripts/tasks.sh",
+            "args": [
+                "build",
+                "run",
+                "dev",
+                "runtime"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Camflow: Run UI dev server (local)",
+            "type": "shell",
+            "command": "./scripts/tasks.sh",
+            "args": [
+                "run",
+                "dev",
+                "ui"
+            ],
+            "isBackground": true,
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Camflow: Build and restart runtime (remote)",
+            "type": "shell",
+            "command": "./scripts/tasks.sh",
+            "args": [
+                "build",
+                "deploy",
+                "run",
+                "arm64",
+                "runtime"
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        },
+        {
+            "label": "Camflow: Run UI dev server (remote)",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                "-lc",
+                "set -a && source ./scripts/tasks.cfg && set +a && runtime_url=\"http://${TARGET}:${PORT}\" && if ! curl -fsS --max-time 3 \"${runtime_url}/api/runtime\" >/dev/null; then echo \"Remote runtime not reachable at ${runtime_url}. Run the remote runtime task first or check TARGET and PORT in scripts/tasks.cfg.\" >&2; exit 1; fi && cd ./web && CAMFLOW_WEB_DEV_PORT=\"${UI_DEV_PORT:-8081}\" CAMFLOW_WEB_API_TARGET=\"${runtime_url}\" VITE_CAMFLOW_WS_TARGET=\"ws://${TARGET}:${PORT}\" npm run dev -- --host 0.0.0.0 --strictPort"
+            ],
+            "isBackground": true,
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            }
+        }
+    ]
+}

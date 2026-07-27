@@ -1,0 +1,9 @@
+{
+    "C_Cpp.clang_format_path": "/usr/bin/clang-format-15",
+    "C_Cpp.formatting": "clangFormat",
+    "editor.formatOnSave": true,
+    "files.associations": {
+        "*.conf": "bitbake",
+        "*.inc": "bitbake"
+    },
+}

@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - "**"
+
+permissions:
+  contents: read
+
+jobs:
+  runtime:
+    name: Runtime ${{ matrix.target.name }}
+    runs-on: ${{ matrix.target.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - name: linux-x86_64-opencv-4.12.0
+            runner: ubuntu-24.04
+            packages: cmake g++ ninja-build libeigen3-dev
+            opencv_arch: x86_64
+          - name: linux-arm64-opencv-4.12.0
+            runner: ubuntu-24.04-arm
+            packages: cmake g++ ninja-build libeigen3-dev
+            opencv_arch: arm64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.target.packages }}
+      - name: Cache OpenCV 4.12.0
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/opencv/4.12.0/linux-${{ matrix.target.opencv_arch }}
+          key: opencv-4.12.0-${{ matrix.target.name }}-${{ runner.os }}-${{ runner.arch }}
+      - name: Install OpenCV 4.12.0
+        run: .github/scripts/install-opencv-4.12.0.sh ${{ github.workspace }}/opencv/4.12.0/linux-${{ matrix.target.opencv_arch }} ${{ github.workspace }}/opencv/4.12.0/build-linux-${{ matrix.target.opencv_arch }}
+      - name: Configure runtime
+        run: |
+          cmake -S . -B build-runtime -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_RUNTIME=ON \
+            -DENABLE_GSTREAMER=OFF \
+            -DOpenCV_DIR=${{ github.workspace }}/opencv/4.12.0/linux-${{ matrix.target.opencv_arch }}/lib/cmake/opencv4
+      - name: Build runtime
+        run: cmake --build build-runtime --config Release --parallel
+      - name: Show runtime version
+        run: ./build-runtime/camflow --version

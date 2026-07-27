@@ -1,0 +1,43 @@
+{
+  "nodes": [
+    {
+      "id": "left",
+      "type": "filesrc",
+      "parameters": {
+        "file": "tests/images/compositor/box.png"
+      }
+    },
+    {
+      "id": "right",
+      "type": "filesrc",
+      "parameters": {
+        "file": "tests/images/compositor/box_in_scene.png"
+      }
+    },
+    {
+      "id": "join",
+      "type": "compositor",
+      "parameters": {
+        "left.xpos": 0,
+        "left.ypos": 0,
+        "left.alpha": 1.0,
+        "right.xpos": 180,
+        "right.ypos": 120,
+        "right.alpha": 0.65,
+        "right.zorder": 1
+      }
+    },
+    {
+      "id": "output",
+      "type": "filesink",
+      "parameters": {
+        "file": "tests/output/compositor.png"
+      }
+    }
+  ],
+  "edges": [
+    "left -> join",
+    "right -> join",
+    "join -> output"
+  ]
+}

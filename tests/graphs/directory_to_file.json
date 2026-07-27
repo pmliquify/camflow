@@ -1,0 +1,26 @@
+{
+  "nodes": [
+    {
+      "id": "input",
+      "type": "filesrc",
+      "parameters": {
+        "directory": "tests/data",
+        "width": 640,
+        "height": 480,
+        "format": "RG10",
+        "repeat": false
+      }
+    },
+    {
+      "id": "output",
+      "type": "filesink",
+      "parameters": {
+        "file": "build/directory-output.raw",
+        "appendSequence": true
+      }
+    }
+  ],
+  "edges": [
+    "input.output -> output.input"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "nodes": [
+    {
+      "id": "cam",
+      "type": "v4l2src",
+      "parameters": {
+        "device": "/dev/video0",
+        "fourcc": "RG10"
+      }
+    },
+    {
+      "id": "gui",
+      "type": "tcpsink",
+      "parameters": {
+        "ip": "macbook-pro",
+        "port": 9000
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "cam",
+      "to": "gui"
+    }
+  ]
+}

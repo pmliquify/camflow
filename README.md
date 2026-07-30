@@ -20,6 +20,7 @@ The runtime uses OpenCV 4.12 and links the needed OpenCV modules statically.
 - [JSON Graph Format](docs/graph_json.md)
 - [REST API](docs/rest_api.md)
 - [Web UI Service](docs/web_ui.md)
+- [Driver Release Test Automation Use Case](docs/driver_release_test_automation.md)
 - [Web UI Design](docs/ui_design.md)
 - [Documentation Guide](docs/documentation.md)
 - [Debugging](docs/debugging.md)

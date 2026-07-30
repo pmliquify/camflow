@@ -62,3 +62,4 @@ Nodes read their own parameters directly through `Node::parameter*` helpers.
 - [graph_json.md](graph_json.md)
 - [debugging.md](debugging.md)
 - [development.md](development.md)
+- [driver_release_test_automation.md](driver_release_test_automation.md)

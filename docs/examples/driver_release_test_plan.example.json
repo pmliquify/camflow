@@ -1,0 +1,164 @@
+{
+        "planVersion": "1.0",
+        "id": "driver-release-validation",
+        "title": "Dual-CSI camera driver release validation",
+        "policy": {
+                "concreteBenchConfigsInRepo": false
+        },
+        "bench": {
+                "platform": "Variscite DART-MX8M-PLUS Evaluation Kit",
+                "ports": [
+                        "CSI0",
+                        "CSI1"
+                ],
+                "releaseCameraTypes": [
+                        "IMX273",
+                        "IMX415",
+                        "IMX540",
+                        "IMX566",
+                        "IMX900"
+                ]
+        },
+        "dimensions": {
+                "cameraType": [
+                        "IMX273",
+                        "IMX415",
+                        "IMX540",
+                        "IMX566",
+                        "IMX900"
+                ],
+                "port": [
+                        "CSI0",
+                        "CSI1"
+                ],
+                "backend": [
+                        "ISI",
+                        "ISP"
+                ],
+                "lanes": [
+                        2,
+                        4
+                ],
+                "pixelFormat": [
+                        "RGGB",
+                        "RG10",
+                        "RG12"
+                ],
+                "triggerMode": [
+                        {
+                                "name": "freerun",
+                                "value": 0
+                        },
+                        {
+                                "name": "self",
+                                "value": 4
+                        }
+                ]
+        },
+        "matrix": {
+                "expectedRunCount": 240
+        },
+        "tests": [
+                {
+                        "id": "T01_FIRST10_VALID_STABLE",
+                        "pipelineTemplate": {
+                                "nodes": [
+                                        {
+                                                "id": "v4l2src0",
+                                                "type": "v4l2src",
+                                                "parameters": {
+                                                        "device": "${port.device}",
+                                                        "subdevice": "${port.subdevices.primary}",
+                                                        "subdevices": "${port.subdevices.all}",
+                                                        "sensorModel": "${cameraType}",
+                                                        "lanes": "${lanes}",
+                                                        "pixelformat": "${pixelFormat}",
+                                                        "triggerMode": "${triggerMode.value}",
+                                                        "backend": "${backend}"
+                                                }
+                                        },
+                                        {
+                                                "id": "framevalidate0",
+                                                "type": "framevalidate",
+                                                "parameters": {
+                                                        "frameCount": 10,
+                                                        "requireEqual": true,
+                                                        "saveErrorFrame": true,
+                                                        "errorFramePath": "${artifactsDir}/${runId}/error_frame.png"
+                                                }
+                                        }
+                                ],
+                                "edges": [
+                                        {
+                                                "from": "v4l2src0.image",
+                                                "to": "framevalidate0.image"
+                                        }
+                                ]
+                        },
+                        "measurement": {
+                                "warmupFrames": 5,
+                                "measureFrames": 10,
+                                "frameContextKeys": [
+                                        "framevalidate0.valid",
+                                        "framevalidate0.equal",
+                                        "framevalidate0.errorCount"
+                                ]
+                        }
+                },
+                {
+                        "id": "T02_MAX_FPS_1MS",
+                        "pipelineTemplate": {
+                                "nodes": [
+                                        {
+                                                "id": "v4l2src0",
+                                                "type": "v4l2src",
+                                                "parameters": {
+                                                        "device": "${port.device}",
+                                                        "subdevice": "${port.subdevices.primary}",
+                                                        "subdevices": "${port.subdevices.all}",
+                                                        "sensorModel": "${cameraType}",
+                                                        "lanes": "${lanes}",
+                                                        "pixelformat": "${pixelFormat}",
+                                                        "triggerMode": "${triggerMode.value}",
+                                                        "backend": "${backend}",
+                                                        "exposureTimeUs": 1000
+                                                }
+                                        }
+                                ],
+                                "edges": []
+                        },
+                        "measurement": {
+                                "warmupFrames": 30,
+                                "measureFrames": 300,
+                                "frameContextKeys": [
+                                        "v4l2src0.sequence",
+                                        "v4l2src0.timestampNs"
+                                ],
+                                "derivedMetrics": [
+                                        "fps.avg",
+                                        "fps.max",
+                                        "fps.p95"
+                                ]
+                        }
+                }
+        ],
+        "results": {
+                "writeFormats": [
+                        "ndjson",
+                        "csv",
+                        "json-summary"
+                ],
+                "confluence": {
+                        "tables": [
+                                {
+                                        "id": "freerun",
+                                        "filter": "triggerMode.name == 'freerun'"
+                                },
+                                {
+                                        "id": "self",
+                                        "filter": "triggerMode.name == 'self'"
+                                }
+                        ]
+                }
+        }
+}

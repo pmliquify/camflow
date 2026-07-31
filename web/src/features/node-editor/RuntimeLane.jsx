@@ -6,9 +6,6 @@ import RuntimeLogConsole from './RuntimeLogConsole.jsx';
 import logIcon from '../../assets/images/icon-log.svg';
 import UiButton from '../../components/UiButton.jsx';
 
-const NODE_WIDTH = 152;
-const NODE_HEIGHT = 62;
-const RUNTIME_HEADER_HEIGHT = 25;
 const RUNTIME_LOG_PREFS_STORAGE_PREFIX = 'camflow:runtime-log-prefs:';
 const RUNTIME_LOG_DEFAULT_FONT_STORAGE_KEY = 'camflow:runtime-log-default-font-size';
 const LOG_FONT_MIN = 5;
@@ -206,10 +203,7 @@ export default function RuntimeLane({
                                                 onRename={() => runtime.onRenameNode?.(node.id)}
                                                 onDragStart={(event) => onNodeDragStart(event, runtime.id, node.id)}
                                                 onContextMenu={(event) => onNodeContextMenu(event, runtime.id, node.id)}
-                                                onEdgeHandleMouseDown={(event) => onNodeEdgeStart(event, runtime.id, node.id, {
-                                                        x: runtime.rect.x + node.x + NODE_WIDTH,
-                                                        y: runtime.rect.y + RUNTIME_HEADER_HEIGHT + node.y + NODE_HEIGHT * 0.5
-                                                })}
+                                                onEdgeHandleMouseDown={(event) => onNodeEdgeStart(event, runtime.id, node.id)}
                                         />
                                 ))}
                                 <EdgeLayer runtime={runtime} onEdgePath={onEdgePath} onDeleteEdge={onDeleteEdge} />

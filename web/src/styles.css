@@ -703,7 +703,7 @@ button:hover {
         z-index: 7;
 }
 
-.edge-draft-layer path {
+.edge-draft-layer>path {
         fill: none;
         stroke: #66f0bf;
         stroke-width: 3;

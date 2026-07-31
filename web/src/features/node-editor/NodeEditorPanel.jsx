@@ -162,8 +162,8 @@ export default function NodeEditorPanel({
                                 >
                                         <svg className="cross-edge-layer" viewBox={`0 0 ${canvasWidth} ${canvasHeight}`} preserveAspectRatio="none">
                                                 <defs>
-                                                        <marker id="cross-edge-arrow" markerWidth="6" markerHeight="5" refX="5.4" refY="2.5" orient="auto" markerUnits="userSpaceOnUse">
-                                                                <path d="M 0 0 L 6 2.5 L 0 5 z" fill="#02d7ff" opacity="0.78" />
+                                                        <marker id="cross-edge-arrow" markerWidth="10" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
+                                                                <path d="M 1.25 2.25 L 8.75 5.5 L 1.25 8.75 Z" fill="context-stroke" stroke="context-stroke" strokeWidth="2.5" strokeLinejoin="round" />
                                                         </marker>
                                                 </defs>
                                                 {absoluteCrossEdges.map((edge) => (
@@ -185,8 +185,8 @@ export default function NodeEditorPanel({
                                         {edgeDraftPath ? (
                                                 <svg className="edge-draft-layer" viewBox={`0 0 ${canvasWidth} ${canvasHeight}`} preserveAspectRatio="none">
                                                         <defs>
-                                                                <marker id="draft-edge-arrow" markerWidth="6" markerHeight="5" refX="5.4" refY="2.5" orient="auto" markerUnits="userSpaceOnUse">
-                                                                        <path d="M 0 0 L 6 2.5 L 0 5 z" fill="#66f0bf" opacity="0.82" />
+                                                                <marker id="draft-edge-arrow" markerWidth="10" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
+                                                                        <path d="M 1.5 2.5 L 8.5 5.5 L 1.5 8.5 Z" fill="context-stroke" stroke="context-stroke" strokeWidth="3" strokeLinejoin="round" />
                                                                 </marker>
                                                         </defs>
                                                         <path d={edgeDraftPath} markerEnd="url(#draft-edge-arrow)" />
@@ -239,7 +239,7 @@ export default function NodeEditorPanel({
                                                                 }
                                                                 startNodeDrag(event, runtimeId, nodeId);
                                                         }}
-                                                        onNodeEdgeStart={(event, runtimeId, nodeId, from) => {
+                                                        onNodeEdgeStart={(event, runtimeId, nodeId) => {
                                                                 if (event.button !== 0) {
                                                                         return;
                                                                 }
@@ -248,6 +248,11 @@ export default function NodeEditorPanel({
                                                                         return;
                                                                 }
                                                                 const rect = viewport.getBoundingClientRect();
+                                                                const handleRect = event.currentTarget.getBoundingClientRect();
+                                                                const from = {
+                                                                        x: (handleRect.left + handleRect.width * 0.5 - rect.left - editorPanX) / Math.max(editorZoom, 0.0001),
+                                                                        y: (handleRect.top + handleRect.height * 0.5 - rect.top - editorPanY) / Math.max(editorZoom, 0.0001)
+                                                                };
                                                                 const to = {
                                                                         x: (event.clientX - rect.left - editorPanX) / Math.max(editorZoom, 0.0001),
                                                                         y: (event.clientY - rect.top - editorPanY) / Math.max(editorZoom, 0.0001)

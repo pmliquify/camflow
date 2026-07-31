@@ -6,8 +6,8 @@ export default function EdgeLayer({ runtime, onEdgePath, onDeleteEdge }) {
         return (
                 <svg className="edge-layer">
                         <defs>
-                                <marker id={markerId} markerWidth="6" markerHeight="5" refX="5.4" refY="2.5" orient="auto" markerUnits="userSpaceOnUse">
-                                        <path d="M 0 0 L 6 2.5 L 0 5 z" fill="#3ae0a7" opacity="0.8" />
+                                <marker id={markerId} markerWidth="10" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">
+                                        <path d="M 1.5 2.5 L 8.5 5.5 L 1.5 8.5 Z" fill="context-stroke" stroke="context-stroke" strokeWidth="3" strokeLinejoin="round" />
                                 </marker>
                         </defs>
                         {runtime.edges.map((edge) => {

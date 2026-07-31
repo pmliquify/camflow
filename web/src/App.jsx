@@ -775,31 +775,6 @@ export default function App() {
                 });
         }
 
-        function canPlaceNode(runtimeId, nodeId, nextPos) {
-                const runtime = editorGraph.runtimes.find((item) => item.id === runtimeId);
-                if (!runtime) {
-                        return false;
-                }
-                const canvasWidth = Math.max(180, (runtime.rect?.w || 400) - 20);
-                const canvasHeight = Math.max(120, (runtime.rect?.h || 260) - 60);
-                const clamped = {
-                        x: Math.max(8, Math.min(nextPos.x, canvasWidth - NODE_WIDTH - 8)),
-                        y: Math.max(8, Math.min(nextPos.y, canvasHeight - NODE_HEIGHT - 8))
-                };
-                const nextRect = { x: clamped.x, y: clamped.y, w: NODE_WIDTH, h: NODE_HEIGHT };
-                const overlaps = runtime.nodes.some((node) => {
-                        if (node.id === nodeId) {
-                                return false;
-                        }
-                        const nodeRect = { x: node.x, y: node.y, w: NODE_WIDTH, h: NODE_HEIGHT };
-                        return rectsOverlap(nextRect, nodeRect);
-                });
-                if (overlaps) {
-                        return null;
-                }
-                return clamped;
-        }
-
         function closeMenu() {
                 setRuntimeMenu((menu) => ({ ...menu, open: false }));
         }
@@ -1994,11 +1969,8 @@ export default function App() {
                                         x: dragState.startPos.x + dx,
                                         y: dragState.startPos.y + dy
                                 };
-                                const accepted = canPlaceNode(dragState.runtimeId, dragState.nodeId, nextPos);
-                                if (!accepted) {
-                                        return;
-                                }
-                                setNodeLayouts((current) => ({ ...current, [dragState.nodeId]: accepted }));
+                                const clamped = clampNodePosInRuntime(dragState.runtimeId, nextPos);
+                                setNodeLayouts((current) => ({ ...current, [dragState.nodeId]: clamped }));
                         }
                 };
 

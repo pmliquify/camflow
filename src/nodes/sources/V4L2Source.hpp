@@ -9,6 +9,7 @@
 #include "V4L2Device.hpp"
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <unordered_set>
@@ -17,7 +18,7 @@
 /**
  * @brief Source node that captures video frames from V4L2 (Video4Linux2) camera devices.
  *
- * V4L2Source opens a V4L2 device (typically `/dev/videoN`) and an optional sub-device,
+ * V4L2Source opens a V4L2 device (typically `/dev/videoN`) and optional sub-devices,
  * sets up MMAP-based buffer streaming, and produces an @ref ImageBuffer for every
  * frame captured. It uses zero-copy @ref ImageBuffer::wrapExternal to present kernel
  * buffers directly downstream; the kernel buffer is queued back only when all pipeline
@@ -37,11 +38,14 @@
  * | Name          | Type   | Startup behavior                                     |
  * |---------------|--------|------------------------------------------------------|
  * | `device`      | string | Selected device path (default `/dev/video0`).        |
- * | `subdevice`   | string | Optional sub-device path, empty means same device.   |
+ * | `subdevices`  | option | Optional multi-select list of sub-device paths.      |
  * | `pixelformat` | option | Uses device start value unless explicitly configured. |
  * | `width`       | int    | Uses device start value unless explicitly configured. |
  * | `height`      | int    | Uses device start value unless explicitly configured. |
  * | controls...   | mixed  | Discovered dynamically from V4L2 control metadata.   |
+
+ * V4L2 controls from the device and all selected subdevices are enumerated dynamically
+ * and exposed as runtime parameters when the device is available.
  *
  * Parameters that are not explicitly set in the node configuration are treated as
  * device-derived startup values. Explicit values are tracked and re-applied across
@@ -77,7 +81,7 @@ public:
     /**
      * @brief Returns the parameter schema.
      *
-     * Declares device, subdevice, format, width, height, buffers and timeout
+     * Declares device, subdevices, format, width, height, buffers and timeout
      * parameters, plus all V4L2 camera controls discovered by @ref refreshControlSchema.
      *
      * @return ParameterSchema for all available parameters.
@@ -132,10 +136,12 @@ protected:
 
 private:
     // --- Device management ---
-    /** @brief Opens the device and sub-device file descriptors. */
+    /** @brief Opens the device and all selected sub-device file descriptors. */
     bool openDevice();
-    /** @brief Closes the device and sub-device file descriptors. */
+    /** @brief Closes the device and all sub-device file descriptors. */
     void closeDevice();
+    /** @brief Reopens sub-device file descriptors from the current `subdevices` parameter. */
+    void syncOpenSubDevicesLocked();
 
     // --- Streaming management ---
     bool startCapture();
@@ -181,8 +187,8 @@ private:
     uint64_t m_sequence; ///< Monotonically increasing frame counter.
 
     // --- Device state ---
-    V4L2Device m_device;    ///< V4L2 video device wrapper.
-    V4L2Device m_subDevice; ///< V4L2 sub-device wrapper (may borrow m_device if no dedicated sub-device is configured).
+    V4L2Device m_device;                                   ///< V4L2 video device wrapper.
+    std::vector<std::unique_ptr<V4L2Device>> m_subDevices; ///< V4L2 sub-device wrappers selected by the `subdevices` parameter.
     mutable std::mutex m_mutex;
     std::unordered_set<std::string> m_explicitParameters;
 };

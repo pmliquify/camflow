@@ -93,8 +93,7 @@
  * - RAWx and high-bit mono paths are routed through Mono8/BGR helper paths.
  * - YUYV requires even width, NV12 requires even width and height.
  *
- * This converter is compiled and initialized only when OpenCV is available
- * (`OPENCV_FOUND` CMake flag). The application owns and injects it through
+ * The application owns and injects this converter through
  * @ref Application::registerConverters.
  *
  * ### Cost model

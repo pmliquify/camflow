@@ -1285,6 +1285,23 @@ button:hover {
         padding: 3px 0;
 }
 
+.parameter-group-separator {
+        display: flex;
+        align-items: center;
+        margin: 6px 0 2px;
+        color: #9fc7ff;
+        font-size: 11px;
+        letter-spacing: 0.07em;
+}
+
+.parameter-group-separator::after {
+        content: '';
+        flex: 1 1 auto;
+        height: 1px;
+        margin-left: 8px;
+        background: linear-gradient(90deg, rgba(75, 116, 176, 0.7), rgba(75, 116, 176, 0));
+}
+
 .parameter-row {
         display: grid;
         grid-template-columns: 130px minmax(0, 1fr);
@@ -1328,6 +1345,23 @@ button:hover {
         text-transform: uppercase;
 }
 
+.param-side-effect-marker {
+        width: 14px;
+        height: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid #2a436a;
+        border-radius: 999px;
+        background: rgba(10, 24, 42, 0.9);
+}
+
+.param-side-effect-marker img {
+        width: 9px;
+        height: 9px;
+        opacity: 0.9;
+}
+
 .parameter-description {
         font-size: 11px;
         color: var(--muted);
@@ -1344,6 +1378,72 @@ select {
         color: var(--text);
         padding: 5px 7px;
         font-size: 12px;
+}
+
+.multi-option-dropdown {
+        position: relative;
+}
+
+.multi-option-trigger {
+        width: 100%;
+        border-radius: 8px;
+        border: 1px solid #2a436a;
+        background: #0d1c32;
+        color: var(--text);
+        padding: 5px 7px;
+        font-size: 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+}
+
+.multi-option-trigger-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+}
+
+.multi-option-trigger-caret {
+        color: #9fc7ff;
+        line-height: 1;
+}
+
+.multi-option-menu {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        z-index: 8;
+        max-height: 210px;
+        overflow-y: auto;
+        border: 1px solid #2a436a;
+        border-radius: 8px;
+        background: #0d1c32;
+        box-shadow: 0 10px 26px rgba(0, 0, 0, 0.32);
+        padding: 4px;
+}
+
+.multi-option-entry {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        padding: 4px 6px;
+        border-radius: 6px;
+        font-size: 12px;
+        color: var(--text);
+}
+
+.multi-option-entry:hover {
+        background: rgba(19, 52, 92, 0.6);
+}
+
+.multi-option-entry input[type='checkbox'] {
+        width: 13px;
+        height: 13px;
+        margin: 0;
+        flex: 0 0 auto;
 }
 
 input[type='range'] {

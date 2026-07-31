@@ -58,10 +58,10 @@ Parameter values support:
 
 Option parameters are represented as plain string values in CLI expressions.
 
-For `v4l2src`, `device` and `subdevice` are runtime options discovered from the local system. In CLI you still pass them as strings:
+For `v4l2src`, `device` and `subdevices` are runtime options discovered from the local system. In CLI you still pass them as strings:
 
 ```text
-v4l2src(device=/dev/video0,subdevice=/dev/v4l-subdev0)
+v4l2src(device=/dev/video0,subdevices=/dev/v4l-subdev0,/dev/v4l-subdev1)
 ```
 
 Input bindings are configured as parameter assignments:

@@ -24,7 +24,7 @@ The editor is supergraph-oriented:
 ## Start
 
 ```bash
-camflow --port 8080 --device /dev/video3 --subdevice /dev/v4l-subdev3
+camflow --port 8080 --device /dev/video3 --subdevices /dev/v4l-subdev0,/dev/v4l-subdev3
 ```
 
 Open:
@@ -37,9 +37,9 @@ http://<target-ip>:8080
 
 - `--port [PORT]`: set the web UI port, defaulting to `8080`
 - `--device PATH`: initial V4L2 device, defaulting to `/dev/video3`
-- `--subdevice PATH`: initial V4L2 subdevice, defaulting to `/dev/v4l-subdev3`
+- `--subdevices LIST`: comma-separated initial V4L2 subdevices, defaulting to `/dev/v4l-subdev3`
 
-UI mode starts with a stopped pipeline so `device` and `subdevice` can be selected in the UI before capture starts.
+UI mode starts with a stopped pipeline so `device` and `subdevices` can be selected in the UI before capture starts.
 
 ## HTTP endpoints
 

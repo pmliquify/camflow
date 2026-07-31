@@ -34,13 +34,13 @@ class WebServer;
  * | `--rest-api`            | Enable REST API for pipeline mode (disabled by default).      |
  * | `--port PORT`           | Port used by UI/REST server (default: 8080).                  |
  * | `--device PATH`         | Initial V4L2 source device for the built-in web UI.          |
- * | `--subdevice PATH`      | Initial V4L2 subdevice for the built-in web UI.              |
+ * | `--subdevices LIST`     | Initial V4L2 subdevices for the built-in web UI.             |
  * | `-h`, `--help`          | Print usage and node list.                                   |
  * | `--version`             | Print version string.                                        |
  *
  * ### Node registration
- * All built-in node types are registered in @ref registerNodes. Optional nodes
- * (NvArgus, OpenCV image converter) are registered conditionally at compile time.
+ * All built-in node types are registered in @ref registerNodes. NvArgus nodes are
+ * registered when GStreamer support is enabled.
  *
  * @see PipelineBuilder
  * @see NodeFactory

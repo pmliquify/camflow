@@ -24,6 +24,13 @@ function readStoredParameterFilter() {
         }
 }
 
+function parameterDisplayName(item) {
+        const fullName = String(item?.name || '');
+        const groupName = String(item?.group || '').trim().toLowerCase();
+        const groupPrefix = groupName ? `${groupName}.` : '';
+        return groupPrefix && fullName.startsWith(groupPrefix) ? fullName.slice(groupPrefix.length) : fullName;
+}
+
 export default function ParameterPanel({
         selectedNodeMeta,
         selectedRuntimeName,
@@ -70,10 +77,38 @@ export default function ParameterPanel({
                         if (!normalizedSearch) {
                                 return true;
                         }
-                        return String(item.name || '').toLowerCase().includes(normalizedSearch);
+
+                        const internalName = String(item.name || '').toLowerCase();
+                        const visibleName = parameterDisplayName(item).toLowerCase();
+                        const groupName = String(item.group || '').trim().toLowerCase();
+                        const groupDescription = String(item.groupDescription || '').trim().toLowerCase();
+                        return internalName.includes(normalizedSearch)
+                                || visibleName.includes(normalizedSearch)
+                                || groupName.includes(normalizedSearch)
+                                || groupDescription.includes(normalizedSearch);
                 }
                 return (visibleByName[item.name] ?? true) === true;
         });
+
+        const groupedParameterItems = [];
+        let lastGroup = '';
+        for (const item of displayedParams) {
+                const currentGroup = String(item.group || '').trim().toLowerCase();
+                if (currentGroup && currentGroup !== lastGroup) {
+                        const groupDescription = String(item.groupDescription || '').trim();
+                        groupedParameterItems.push({
+                                kind: 'group',
+                                id: `group:${currentGroup}`,
+                                group: currentGroup,
+                                label: groupDescription || currentGroup
+                        });
+                        lastGroup = currentGroup;
+                }
+                if (!currentGroup) {
+                        lastGroup = '';
+                }
+                groupedParameterItems.push({ kind: 'parameter', id: `parameter:${item.name}`, item });
+        }
 
         function setParamVisibility(name, visible) {
                 setVisibleByName((current) => ({ ...current, [name]: visible }));
@@ -171,17 +206,28 @@ export default function ParameterPanel({
                         ) : null}
                         <ScrollArea className="parameter-scroll-area" stopWheelPropagation={true}>
                                 <div className="parameter-list compact-parameters">
-                                        {displayedParams.length === 0 ? null : displayedParams.map((item) => (
-                                                <ParameterRow
-                                                        key={item.name}
-                                                        item={item}
-                                                        canEdit={true}
-                                                        onChange={updateParameter}
-                                                        showVisibilityCheckbox={filterOpen}
-                                                        parameterVisible={visibleByName[item.name] ?? true}
-                                                        onVisibilityChange={setParamVisibility}
-                                                />
-                                        ))}
+                                        {groupedParameterItems.length === 0 ? null : groupedParameterItems.map((entry) => {
+                                                if (entry.kind === 'group') {
+                                                        return (
+                                                                <div key={entry.id} className="parameter-group-separator" title={entry.label}>
+                                                                        <span>{entry.label}</span>
+                                                                </div>
+                                                        );
+                                                }
+
+                                                const item = entry.item;
+                                                return (
+                                                        <ParameterRow
+                                                                key={entry.id}
+                                                                item={item}
+                                                                canEdit={true}
+                                                                onChange={updateParameter}
+                                                                showVisibilityCheckbox={filterOpen}
+                                                                parameterVisible={visibleByName[item.name] ?? true}
+                                                                onVisibilityChange={setParamVisibility}
+                                                        />
+                                                );
+                                        })}
                                 </div>
                         </ScrollArea>
                         {editorError ? <p className="error">{editorError}</p> : null}

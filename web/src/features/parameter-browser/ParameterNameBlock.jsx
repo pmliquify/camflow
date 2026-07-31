@@ -1,7 +1,9 @@
 import React from 'react';
+import reloadIcon from '../../assets/images/icon-reload.svg';
 
 export default function ParameterNameBlock({
         item,
+        displayName,
         tooltipText,
         showVisibilityCheckbox,
         parameterVisible,
@@ -21,7 +23,12 @@ export default function ParameterNameBlock({
                                         }}
                                 />
                         ) : null}
-                        <label title={tooltipText}>{item.name}</label>
+                        <label title={tooltipText}>{displayName || item.name}</label>
+                        {item.hasSideEffects ? (
+                                <span className="param-side-effect-marker" title="reload required for dependent parameters">
+                                        <img src={reloadIcon} alt="reload" />
+                                </span>
+                        ) : null}
                         {item.origin ? <span className="param-badge">{item.origin}</span> : null}
                 </div>
         );

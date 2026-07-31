@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <map>
+#include <utility>
 #include <string>
 #include <vector>
 
@@ -54,13 +55,13 @@ public:
      * @brief Enumerates all controls on the given device (and optional sub-device).
      *
      * Queries the kernel for all available V4L2 controls on @p deviceFd and
-     * @p subDeviceFd (if >= 0) and returns a list of @ref V4L2Control descriptors.
+     * all provided @p subDevices and returns a list of @ref V4L2Control descriptors.
      *
      * @param deviceFd     Open file descriptor of the V4L2 video device.
-     * @param subDeviceFd  Open file descriptor of the V4L2 sub-device, or @c -1 if none.
+     * @param subDevices   Open file descriptors and names of selected V4L2 sub-devices.
      * @return List of discovered controls.
      */
-    static std::vector<V4L2Control> enumerate(int deviceFd, const std::string& deviceName, int subDeviceFd, const std::string& subDeviceName);
+    static std::vector<V4L2Control> enumerate(int deviceFd, const std::string& deviceName, const std::vector<std::pair<int, std::string>>& subDevices);
 
     /**
      * @brief Reads the current value of a V4L2 control.
@@ -107,5 +108,5 @@ private:
      * @param controls Output list to append discovered controls to.
      * @param names    Map used to detect and resolve duplicate control names.
      */
-    static void enumerateFd(int fd, std::vector<V4L2Control>& controls, std::map<std::string, int>& names);
+    static void enumerateFd(int fd, const std::string& sourceDevice, std::vector<V4L2Control>& controls, std::map<std::string, int>& names);
 };

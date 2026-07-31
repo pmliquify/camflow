@@ -1,8 +1,7 @@
 # CamFlow ARM64 Docker Build Environment
 
 This image provides a native ARM64 Ubuntu build environment for CamFlow.
-It installs OpenCV 4.10.0, so runtime builds in this container include
-OpenCV-based converters and nodes when `ENABLE_OPENCV=ON` (default).
+It provides the dependencies required to build the runtime with OpenCV.
 It also installs Node.js and npm because the built-in React UI is bundled as
 part of the normal CMake runtime build.
 It is intended to be used with Docker/QEMU or on an ARM64 host. The source

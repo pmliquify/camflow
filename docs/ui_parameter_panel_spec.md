@@ -75,7 +75,7 @@ No runtime request is sent if normalized next value equals normalized current co
 
 ### 5.2 Current known side-effecting parameters
 
-- For `v4l2src`: `device`, `subdevice` are marked with `hasSideEffects=true`.
+- For `v4l2src`: `device`, `subdevices` are marked with `hasSideEffects=true`.
 - All other parameters default to `false` unless explicitly declared.
 
 ## 6. UI structure

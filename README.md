@@ -124,11 +124,11 @@ Important:
 ## UI mode
 
 ```bash
-camflow --port 8000 --device /dev/video3 --subdevice /dev/v4l-subdev3
+camflow --port 8000 --device /dev/video3 --subdevices /dev/v4l-subdev0,/dev/v4l-subdev3
 ```
 
 Open `http://<target-ip>:8000` in a browser. The page shows the live image stream and a parameter browser for `v4l2src`.
-UI mode starts stopped, so `device` and `subdevice` can be set first in the UI.
+UI mode starts stopped, so `device` and `subdevices` can be set first in the UI.
 The UI header also uses the camflow icon to match CLI and documentation branding.
 
 ## ARM64 build and deploy workflow

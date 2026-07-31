@@ -49,7 +49,6 @@ A runnable template variant is also provided in `docs/examples/driver_release_te
             "type": "v4l2src",
             "parameters": {
               "device": "${port.device}",
-              "subdevice": "${port.subdevices.primary}",
               "subdevices": "${port.subdevices.all}",
               "sensorModel": "${cameraType}",
               "lanes": "${lanes}",
@@ -96,7 +95,6 @@ A runnable template variant is also provided in `docs/examples/driver_release_te
             "type": "v4l2src",
             "parameters": {
               "device": "${port.device}",
-              "subdevice": "${port.subdevices.primary}",
               "subdevices": "${port.subdevices.all}",
               "sensorModel": "${cameraType}",
               "lanes": "${lanes}",
@@ -255,7 +253,7 @@ Each row should identify camera, backend, port, lanes, pixel format and include:
 
 ### R2: v4l2src subdevice multi-selection
 
-Current single-choice subdevice handling is insufficient for this use case.
+The `subdevices` parameter accepts a comma-separated selection for this use case.
 
 Requirement:
 

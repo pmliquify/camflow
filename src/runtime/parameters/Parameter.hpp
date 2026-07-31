@@ -52,7 +52,8 @@ struct ParameterInfo
     ParameterInfo() = default;
 
     ParameterInfo(std::string name, ParameterType type, std::string description, ParameterValue defaultValue, ParameterValue minimumValue, ParameterValue maximumValue,
-                  std::vector<std::string> options, bool runtimeWritable, std::vector<std::string> optionLabels = {}, std::string origin = {}, std::string source = {}, bool hasSideEffects = false) :
+                  std::vector<std::string> options, bool runtimeWritable, std::vector<std::string> optionLabels = {}, std::string origin = {}, std::string source = {}, std::string group = {},
+                  std::string groupDescription = {}, bool hasSideEffects = false, bool multiSelect = false) :
         name(std::move(name)),
         type(type),
         description(std::move(description)),
@@ -64,7 +65,10 @@ struct ParameterInfo
         optionLabels(std::move(optionLabels)),
         origin(std::move(origin)),
         source(std::move(source)),
-        hasSideEffects(hasSideEffects)
+        group(std::move(group)),
+        groupDescription(std::move(groupDescription)),
+        hasSideEffects(hasSideEffects),
+        multiSelect(multiSelect)
     {
     }
 
@@ -79,7 +83,10 @@ struct ParameterInfo
     std::vector<std::string> optionLabels; ///< Human-readable labels for @ref options.
     std::string origin;                    ///< Optional origin tag such as "v4l2".
     std::string source;                    ///< Optional source description such as a device path.
+    std::string group;                     ///< Optional UI grouping label.
+    std::string groupDescription;          ///< Optional UI group header text.
     bool hasSideEffects = false;           ///< @c true when changing this parameter requires refreshing dependent parameters.
+    bool multiSelect = false;              ///< @c true when @ref ParameterType::Option should be rendered as multi-select.
 };
 
 /// Ordered list of @ref ParameterInfo descriptors for one node type.

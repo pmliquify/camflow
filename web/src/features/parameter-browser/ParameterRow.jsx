@@ -26,12 +26,18 @@ export default function ParameterRow({ item, canEdit, onChange, showVisibilityCh
         }
         const tooltipText = tooltipParts.join(' | ');
 
+        const groupName = String(item.group || '').trim();
+        const fullName = String(item.name || '');
+        const groupPrefix = groupName ? `${groupName}.` : '';
+        const displayName = groupPrefix && fullName.startsWith(groupPrefix) ? fullName.slice(groupPrefix.length) : fullName;
+
 
         return (
                 <section className="parameter" title={tooltipText}>
                         <div className="parameter-row">
                                 <ParameterNameBlock
                                         item={item}
+                                        displayName={displayName}
                                         tooltipText={tooltipText}
                                         showVisibilityCheckbox={showVisibilityCheckbox}
                                         parameterVisible={parameterVisible}

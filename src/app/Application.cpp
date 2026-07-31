@@ -101,7 +101,7 @@ bool Application::getPositionalPipelineArgument(int argc, char** argv, std::stri
 {
     for (int i = 1; i < argc; ++i) {
         const std::string current = argv[i];
-        if (current == "-n" || current == "-G" || current == "--graph" || current == "--port" || current == "--device" || current == "--subdevice" || current == "--subdev") {
+        if (current == "-n" || current == "-G" || current == "--graph" || current == "--port" || current == "--device" || current == "--subdevices") {
             ++i;
             continue;
         }
@@ -281,7 +281,8 @@ void Application::printHelp(const char* executableName, const GraphConfig& confi
     std::cout << "      --rest-api             Enable REST API server in pipeline mode     \n";
     std::cout << "      --port PORT            UI/REST server port (default: 8000)         \n";
     std::cout << "      --device PATH          V4L2 device for auto UI mode (default: /dev/video3)\n";
-    std::cout << "      --subdevice PATH       V4L2 subdevice for auto UI mode (default: /dev/v4l-subdev3)\n";
+    std::cout << "      --subdevices LIST      Comma-separated V4L2 subdevices for auto UI mode\n";
+    std::cout << "                             (default: /dev/v4l-subdev3)\n";
     std::cout << "                                                                       \n";
     std::cout << "Simple pipeline syntax:                             \n";
     std::cout << "  v4l2src(device=/dev/video0) -> tcpsink(ip=127.0.0.1,port=9000)\n\n";
@@ -332,18 +333,16 @@ int Application::runUiMode(int argc, char** argv)
     }
 
     std::string device = "/dev/video3";
-    std::string subdevice = "/dev/v4l-subdev3";
+    std::string subdevices = "/dev/v4l-subdev3";
     getArgumentValue(argc, argv, "--device", device);
-    if (!getArgumentValue(argc, argv, "--subdevice", subdevice)) {
-        getArgumentValue(argc, argv, "--subdev", subdevice);
-    }
+    getArgumentValue(argc, argv, "--subdevices", subdevices);
 
     GraphConfig config;
     NodeConfig sourceNode;
     sourceNode.id = "v4l2src0";
     sourceNode.type = "v4l2src";
     sourceNode.parameters.set("device", device);
-    sourceNode.parameters.set("subdevice", subdevice);
+    sourceNode.parameters.set("subdevices", subdevices);
     config.addNode(sourceNode);
 
     PipelineBuilder builder(m_factory, m_converter.get());

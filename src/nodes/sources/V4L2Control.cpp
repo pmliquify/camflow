@@ -35,25 +35,23 @@ std::string V4L2ControlAccess::parameterNameFromControlName(const std::string& n
     return result;
 }
 
-std::vector<V4L2Control> V4L2ControlAccess::enumerate(int deviceFd, const std::string& deviceName, int subDeviceFd, const std::string& subDeviceName)
+std::vector<V4L2Control> V4L2ControlAccess::enumerate(int deviceFd, const std::string& deviceName, const std::vector<std::pair<int, std::string>>& subDevices)
 {
     std::vector<V4L2Control> controls;
     std::map<std::string, int> names;
-    enumerateFd(deviceFd, controls, names);
-    if (subDeviceFd >= 0 && subDeviceFd != deviceFd) {
-        enumerateFd(subDeviceFd, controls, names);
-    }
-    for (auto& control : controls) {
-        if (control.fd == subDeviceFd && subDeviceFd >= 0 && subDeviceFd != deviceFd) {
-            control.sourceDevice = subDeviceName;
-        } else {
-            control.sourceDevice = deviceName;
+    enumerateFd(deviceFd, deviceName, controls, names);
+
+    for (const auto& subDevice : subDevices) {
+        if (subDevice.first < 0 || subDevice.first == deviceFd) {
+            continue;
         }
+        enumerateFd(subDevice.first, subDevice.second, controls, names);
     }
+
     return controls;
 }
 
-void V4L2ControlAccess::enumerateFd(int fd, std::vector<V4L2Control>& controls, std::map<std::string, int>& names)
+void V4L2ControlAccess::enumerateFd(int fd, const std::string& sourceDevice, std::vector<V4L2Control>& controls, std::map<std::string, int>& names)
 {
     if (fd < 0) {
         return;
@@ -80,6 +78,7 @@ void V4L2ControlAccess::enumerateFd(int fd, std::vector<V4L2Control>& controls, 
             control.defaultValue = query.default_value;
             control.fd = fd;
             control.writable = (query.flags & V4L2_CTRL_FLAG_READ_ONLY) == 0;
+            control.sourceDevice = sourceDevice;
 
             if (query.type == V4L2_CTRL_TYPE_MENU || query.type == V4L2_CTRL_TYPE_INTEGER_MENU) {
                 for (int64_t index = query.minimum; index <= query.maximum; ++index) {

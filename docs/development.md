@@ -140,13 +140,13 @@ Then rerun the two remote tasks. No task file edits are required.
 - `--rest-api`: Start the REST API in pipeline mode.
 - `--port [PORT]`: Set the built-in web UI or REST API port, defaulting to `8000` when no port is given.
 - `--device PATH`: Initial UI-mode V4L2 device, defaulting to `/dev/video3`.
-- `--subdevice PATH`: Initial UI-mode V4L2 subdevice, defaulting to `/dev/v4l-subdev3`.
+- `--subdevices LIST`: Comma-separated initial UI-mode V4L2 subdevices, defaulting to `/dev/v4l-subdev3`.
 
 UI runtime details:
 
-- UI mode starts with a stopped pipeline so `device` and `subdevice` can be set in the UI before capture starts.
+- UI mode starts with a stopped pipeline so `device` and `subdevices` can be set in the UI before capture starts.
 - UI mode runs as a source-only graph (`v4l2src0`), frame streaming is provided by runtime FrameContext observers.
 - Websocket events are emitted for the configured UI source node (`v4l2src0` in UI mode).
-- `v4l2src.device` and `v4l2src.subdevice` are live `option` parameters populated from `/dev` entries.
+- `v4l2src.device` and `v4l2src.subdevices` are live `option` parameters populated from `/dev` entries.
 - frame-context execution events and matching binary images are streamed over websocket at `/ws/frame`.
 - raw image frames are streamed on demand over websocket at `/ws/frame`.

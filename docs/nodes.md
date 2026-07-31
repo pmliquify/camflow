@@ -28,13 +28,13 @@ Examples:
 - `filesink`
 - `tcpsink`
 
-## Fundamental OpenCV-free nodes
+## Runtime nodes
 
 ### V4L2Source
 
 Factory name: `v4l2src`
 
-Linux-only V4L2 image source. It uses the adapted implementation from the earlier `v4l2-test` project. It must not include OpenCV.
+Linux-only V4L2 image source. It uses the adapted implementation from the earlier `v4l2-test` project.
 
 `V4L2Source` is intentionally a thin node implementation. V4L2 API operations,
 streaming state, buffer queueing and frame wait/dequeue logic are encapsulated in
@@ -43,14 +43,21 @@ streaming state, buffer queueing and frame wait/dequeue logic are encapsulated i
 Always available parameters:
 
 - `device`
-- `subdevice`
+- `subdevices`
 - `pixelformat`
 - `width`
 - `height`
 
-V4L2 controls from both device and subdevice are enumerated dynamically and exposed as runtime parameters when the device is available.
+V4L2 controls from both device and all selected subdevices are enumerated dynamically and exposed as runtime parameters when the device is available.
 
-Device and subdevice options are shown as `/dev/... (<name>, <version>)` and `pixelformat` is populated from the device-supported format list.
+Subdevice controls are exposed only for selected `subdevices` and are grouped and prefixed by subdevice index:
+
+- group name: `subdevN` (example: `subdev3` for `/dev/v4l-subdev3`)
+- parameter name: `subdevN.<control>` (example: `subdev3.exposure`)
+
+If no subdevices are selected, no dynamic subdevice controls are exposed.
+
+Options for devices and subdevices are shown as `/dev/... (<name>, <version>)` and `pixelformat` is populated from the device-supported format list.
 
 ### BitShiftProcessor
 
@@ -102,9 +109,7 @@ v4l2src -captureA> tcpsink
 This inserts a probe node that prints one line per processed image frame, including sequence, timestamp, delta time, dimensions, stride and pixel format.
 The probe id is an arbitrary non-empty string and becomes the node id of the inserted probe.
 
-## OpenCV-dependent nodes
-
-These nodes are built only when OpenCV is found.
+## Image processing nodes
 
 ### FileSource
 

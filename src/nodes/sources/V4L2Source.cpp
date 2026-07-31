@@ -6,9 +6,12 @@
 #include "core/Logger.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <filesystem>
 #include <fcntl.h>
+#include <map>
+#include <unordered_set>
 
 static uint32_t fourccFromString(const std::string& value)
 {
@@ -49,7 +52,7 @@ static bool isFormatParameter(const std::string& parameterName)
 
 static bool isDeviceSelectionParameter(const std::string& parameterName)
 {
-    return parameterName == "device" || parameterName == "subdevice";
+    return parameterName == "device" || parameterName == "subdevices";
 }
 
 static std::string driverVersionString(uint32_t packedVersion)
@@ -58,6 +61,64 @@ static std::string driverVersionString(uint32_t packedVersion)
     const uint32_t minor = (packedVersion >> 8) & 0xffu;
     const uint32_t patch = packedVersion & 0xffu;
     return std::to_string(major) + "." + std::to_string(minor) + "." + std::to_string(patch);
+}
+
+static std::string trimCopy(const std::string& text)
+{
+    size_t start = 0;
+    while (start < text.size() && std::isspace(static_cast<unsigned char>(text[start])) != 0) {
+        ++start;
+    }
+
+    size_t end = text.size();
+    while (end > start && std::isspace(static_cast<unsigned char>(text[end - 1])) != 0) {
+        --end;
+    }
+
+    return text.substr(start, end - start);
+}
+
+static std::vector<std::string> parseSubdeviceSelection(const std::string& text)
+{
+    std::vector<std::string> selected;
+    size_t start = 0;
+    while (start <= text.size()) {
+        const size_t comma = text.find(',', start);
+        const size_t end = (comma == std::string::npos) ? text.size() : comma;
+        const std::string value = trimCopy(text.substr(start, end - start));
+        if (!value.empty() && std::find(selected.begin(), selected.end(), value) == selected.end()) {
+            selected.push_back(value);
+        }
+        if (comma == std::string::npos) {
+            break;
+        }
+        start = comma + 1;
+    }
+    return selected;
+}
+
+static std::string subdeviceGroupName(const std::string& subdevicePath)
+{
+    const std::string marker = "v4l-subdev";
+    const size_t markerPos = subdevicePath.rfind(marker);
+    if (markerPos != std::string::npos) {
+        size_t indexPos = markerPos + marker.size();
+        std::string indexText;
+        while (indexPos < subdevicePath.size() && std::isdigit(static_cast<unsigned char>(subdevicePath[indexPos])) != 0) {
+            indexText.push_back(subdevicePath[indexPos]);
+            ++indexPos;
+        }
+        if (!indexText.empty()) {
+            return "subdev" + indexText;
+        }
+    }
+
+    const size_t slashPos = subdevicePath.find_last_of('/');
+    const std::string baseName = slashPos == std::string::npos ? subdevicePath : subdevicePath.substr(slashPos + 1);
+    if (baseName.empty()) {
+        return "subdev";
+    }
+    return baseName;
 }
 
 V4L2Source::V4L2Source() :
@@ -69,7 +130,7 @@ V4L2Source::V4L2Source() :
     m_timeoutUs(1000000),
     m_sequence(0),
     m_device(),
-    m_subDevice()
+    m_subDevices()
 {
 }
 
@@ -92,7 +153,7 @@ NodeSchema V4L2Source::schema() const
 {
     NodeSchema schema;
     ParameterSchema result = {{"device", ParameterType::Option, "V4L2 device", std::string("/dev/video0"), std::string(), std::string(), {}, false},
-                              {"subdevice", ParameterType::Option, "V4L2 subdevice", std::string(), std::string(), std::string(), {}, false},
+                              {"subdevices", ParameterType::Option, "V4L2 subdevices", std::string(), std::string(), std::string(), {}, false},
                               {"pixelformat", ParameterType::Option, "Capture pixel format reported by the V4L2 device", std::string("RG10"), std::string(), std::string(), {}, false},
                               {"width", ParameterType::Int, "Capture frame width in pixels", int64_t(640), int64_t(1), int64_t(8192), {}, false},
                               {"height", ParameterType::Int, "Capture frame height in pixels", int64_t(480), int64_t(1), int64_t(8192), {}, false}};
@@ -106,6 +167,7 @@ NodeSchema V4L2Source::schema() const
         result[0].optionLabels = m_deviceOptionLabels;
         result[1].options = m_subDeviceOptions;
         result[1].optionLabels = m_subDeviceOptionLabels;
+        result[1].multiSelect = true;
         result[2].options = m_formatOptions;
         result[2].optionLabels = m_formatOptionLabels;
         result[3].defaultValue = static_cast<int64_t>(m_width);
@@ -214,8 +276,12 @@ void V4L2Source::onParameterChanged(const std::string& name, const ParameterValu
     if (isDeviceSelectionParameter(name)) {
         // Device path changes are stored and become effective with the next
         // full device open sequence (init/shutdown cycle).
+        if (name == "subdevices") {
+            syncOpenSubDevicesLocked();
+        }
         refreshDeviceOptions();
         refreshFormatOptions();
+        refreshControlSchema();
         return;
     }
 
@@ -283,6 +349,7 @@ ParameterSet V4L2Source::currentParameters() const
     refreshCurrentParameterValues();
 
     ParameterSet parameters = configuredParameters();
+    parameters.set("subdevices", parameterString("subdevices", std::string()));
     parameters.set("width", static_cast<int64_t>(m_width));
     parameters.set("height", static_cast<int64_t>(m_height));
     parameters.set("pixelformat", pixelFormatToString(m_pixelFormat));
@@ -333,7 +400,6 @@ bool V4L2Source::generateTestFrame(FrameContext& context)
 bool V4L2Source::openDevice()
 {
     const std::string device = parameterString("device", "/dev/video0");
-    const std::string subdevice = parameterString("subdevice", std::string());
 
     if (!m_device.open(device, O_RDWR | O_NONBLOCK)) {
         return false;
@@ -343,23 +409,39 @@ bool V4L2Source::openDevice()
         return false;
     }
 
-    if (subdevice.empty()) {
-        if (!m_subDevice.attachBorrowed(m_device.fd(), device)) {
-            return false;
-        }
+    syncOpenSubDevicesLocked();
+    return true;
+}
 
-    } else {
-        if (!m_subDevice.open(subdevice, O_RDWR | O_NONBLOCK)) {
-            return false;
+void V4L2Source::syncOpenSubDevicesLocked()
+{
+    const std::vector<std::string> subdevices = parseSubdeviceSelection(parameterString("subdevices", std::string()));
+
+    for (auto& subdevice : m_subDevices) {
+        if (subdevice) {
+            subdevice->close();
         }
     }
+    m_subDevices.clear();
 
-    return true;
+    for (const auto& subdevice : subdevices) {
+        auto sub = std::make_unique<V4L2Device>();
+        if (!sub->open(subdevice, O_RDWR | O_NONBLOCK)) {
+            LOG_WARNING("Could not open V4L2 subdevice '" + subdevice + "'");
+            continue;
+        }
+        m_subDevices.push_back(std::move(sub));
+    }
 }
 
 void V4L2Source::closeDevice()
 {
-    m_subDevice.close();
+    for (auto& subdevice : m_subDevices) {
+        if (subdevice) {
+            subdevice->close();
+        }
+    }
+    m_subDevices.clear();
     m_device.close();
 }
 
@@ -382,12 +464,13 @@ bool V4L2Source::refreshControlSchema()
 {
     refreshDeviceOptions();
     const std::string device = parameterString("device", "/dev/video0");
-    const std::string subdevice = parameterString("subdevice", std::string());
+    const std::vector<std::string> selectedSubdevices = parseSubdeviceSelection(parameterString("subdevices", std::string()));
 
     V4L2Device temporaryDevice;
-    V4L2Device temporarySubDevice;
+    std::vector<std::unique_ptr<V4L2Device>> temporarySubDevices;
     int deviceFd = m_device.fd();
-    int subDeviceFd = m_subDevice.fd();
+    const std::string deviceName = m_device.name().empty() ? device : m_device.name();
+    std::vector<std::pair<int, std::string>> subDeviceFds;
 
     if (deviceFd < 0) {
         if (!temporaryDevice.open(device, O_RDWR | O_NONBLOCK)) {
@@ -399,17 +482,27 @@ bool V4L2Source::refreshControlSchema()
         deviceFd = temporaryDevice.fd();
     }
 
-    if (subdevice.empty()) {
-        subDeviceFd = deviceFd;
-    } else if (subDeviceFd < 0) {
-        if (temporarySubDevice.open(subdevice, O_RDWR | O_NONBLOCK)) {
-            subDeviceFd = temporarySubDevice.fd();
-        } else {
-            subDeviceFd = deviceFd;
+    for (const auto& subdevice : m_subDevices) {
+        if (!subdevice || !subdevice->isOpen()) {
+            continue;
+        }
+        subDeviceFds.push_back({subdevice->fd(), subdevice->name()});
+    }
+
+    if (subDeviceFds.empty()) {
+        for (const auto& subdevicePath : selectedSubdevices) {
+            auto subdevice = std::make_unique<V4L2Device>();
+            if (!subdevice->open(subdevicePath, O_RDWR | O_NONBLOCK)) {
+                continue;
+            }
+            subDeviceFds.push_back({subdevice->fd(), subdevicePath});
+            temporarySubDevices.push_back(std::move(subdevice));
         }
     }
 
-    m_controls = V4L2ControlAccess::enumerate(deviceFd, m_device.name().empty() ? device : m_device.name(), subDeviceFd, m_subDevice.name().empty() ? subdevice : m_subDevice.name());
+    m_controls = V4L2ControlAccess::enumerate(deviceFd, deviceName, subDeviceFds);
+    std::unordered_set<std::string> selectedSubdeviceSet(selectedSubdevices.begin(), selectedSubdevices.end());
+    std::map<std::string, int> parameterNameCounts;
 
     m_controlSchema.clear();
     m_controlByParameter.clear();
@@ -423,6 +516,21 @@ bool V4L2Source::refreshControlSchema()
             } else if (info.type != ParameterType::Option) {
                 info.defaultValue = currentValue;
             }
+        }
+        if (!control.sourceDevice.empty() && selectedSubdeviceSet.find(control.sourceDevice) != selectedSubdeviceSet.end()) {
+            const std::string groupName = subdeviceGroupName(control.sourceDevice);
+            info.group = groupName;
+            info.groupDescription = groupName + " (" + control.sourceDevice + ")";
+
+            const std::string baseControlName = V4L2ControlAccess::parameterNameFromControlName(control.controlName);
+            std::string uniqueParameterName = groupName + "." + baseControlName;
+            const int count = ++parameterNameCounts[uniqueParameterName];
+            if (count > 1) {
+                uniqueParameterName += std::to_string(count);
+            }
+
+            info.name = uniqueParameterName;
+            control.parameterName = uniqueParameterName;
         }
         m_controlSchema.push_back(info);
         m_controlByParameter[control.parameterName] = control;
@@ -543,8 +651,8 @@ void V4L2Source::refreshDeviceOptions()
         m_deviceOptionLabels.push_back(device + " (" + reinterpret_cast<const char*>(capability.driver) + ", " + driverVersionString(capability.version) + ")");
     }
 
-    m_subDeviceOptions = {""};
-    m_subDeviceOptionLabels = {"(same as device)"};
+    m_subDeviceOptions.clear();
+    m_subDeviceOptionLabels.clear();
     auto subdevices = listDeviceEntriesWithPrefix("v4l-subdev");
     m_subDeviceOptions.insert(m_subDeviceOptions.end(), subdevices.begin(), subdevices.end());
     for (const auto& device : subdevices) {

@@ -68,7 +68,6 @@
                                                 "type": "v4l2src",
                                                 "parameters": {
                                                         "device": "${port.device}",
-                                                        "subdevice": "${port.subdevices.primary}",
                                                         "subdevices": "${port.subdevices.all}",
                                                         "sensorModel": "${cameraType}",
                                                         "lanes": "${lanes}",
@@ -114,7 +113,6 @@
                                                 "type": "v4l2src",
                                                 "parameters": {
                                                         "device": "${port.device}",
-                                                        "subdevice": "${port.subdevices.primary}",
                                                         "subdevices": "${port.subdevices.all}",
                                                         "sensorModel": "${cameraType}",
                                                         "lanes": "${lanes}",

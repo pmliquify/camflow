@@ -17,9 +17,9 @@ DEFAULT_PORT=8000
 DEFAULT_USER=root
 DEFAULT_OPENCV_VERSION=4.12.0
 DEFAULT_LOCAL_DEVICE=/dev/video0
-DEFAULT_LOCAL_SUBDEVICE=/dev/v4l-subdev0
+DEFAULT_LOCAL_SUBDEVICES=/dev/v4l-subdev0
 DEFAULT_REMOTE_DEVICE=/dev/video3
-DEFAULT_REMOTE_SUBDEVICE=/dev/v4l-subdev3
+DEFAULT_REMOTE_SUBDEVICES=/dev/v4l-subdev0,/dev/v4l-subdev3
 DEFAULT_TAIL_LOG=1
 DEFAULT_VERBOSE_LEVEL=3
 DEFAULT_LOG_PATH=/tmp/camflow-local-ui.log
@@ -142,9 +142,9 @@ write_make_cfg() {
         cfg_assign USER "${USER}"
         cfg_assign OPENCV_VERSION "${OPENCV_VERSION}"
         cfg_assign LOCAL_DEVICE "${LOCAL_DEVICE}"
-        cfg_assign LOCAL_SUBDEVICE "${LOCAL_SUBDEVICE}"
+        cfg_assign LOCAL_SUBDEVICES "${LOCAL_SUBDEVICES}"
         cfg_assign REMOTE_DEVICE "${REMOTE_DEVICE}"
-        cfg_assign REMOTE_SUBDEVICE "${REMOTE_SUBDEVICE}"
+        cfg_assign REMOTE_SUBDEVICES "${REMOTE_SUBDEVICES}"
         cfg_assign TAIL_LOG "${TAIL_LOG}"
         cfg_assign VERBOSE_LEVEL "${VERBOSE_LEVEL}"
         cfg_assign LOG_PATH "${LOG_PATH}"
@@ -162,9 +162,9 @@ create_make_cfg_interactive() {
     USER=$(prompt_value "SSH user" "${DEFAULT_USER}")
     OPENCV_VERSION=$(prompt_value "OpenCV version" "${DEFAULT_OPENCV_VERSION}")
     LOCAL_DEVICE=$(prompt_value "Local camera device" "${DEFAULT_LOCAL_DEVICE}")
-    LOCAL_SUBDEVICE=$(prompt_value "Local subdevice" "${DEFAULT_LOCAL_SUBDEVICE}")
+    LOCAL_SUBDEVICES=$(prompt_value "Local subdevices (comma-separated)" "${DEFAULT_LOCAL_SUBDEVICES}")
     REMOTE_DEVICE=$(prompt_value "Remote camera device" "${DEFAULT_REMOTE_DEVICE}")
-    REMOTE_SUBDEVICE=$(prompt_value "Remote subdevice" "${DEFAULT_REMOTE_SUBDEVICE}")
+    REMOTE_SUBDEVICES=$(prompt_value "Remote subdevices (comma-separated)" "${DEFAULT_REMOTE_SUBDEVICES}")
     TAIL_LOG=$(prompt_value "Tail logs by default (1/0)" "${DEFAULT_TAIL_LOG}")
     VERBOSE_LEVEL=$(prompt_value "Verbose level" "${DEFAULT_VERBOSE_LEVEL}")
     LOG_PATH=$(prompt_value "Local log path" "${DEFAULT_LOG_PATH}")
@@ -182,9 +182,9 @@ create_make_cfg_defaults() {
     USER=${DEFAULT_USER}
     OPENCV_VERSION=${DEFAULT_OPENCV_VERSION}
     LOCAL_DEVICE=${DEFAULT_LOCAL_DEVICE}
-    LOCAL_SUBDEVICE=${DEFAULT_LOCAL_SUBDEVICE}
+    LOCAL_SUBDEVICES=${DEFAULT_LOCAL_SUBDEVICES}
     REMOTE_DEVICE=${DEFAULT_REMOTE_DEVICE}
-    REMOTE_SUBDEVICE=${DEFAULT_REMOTE_SUBDEVICE}
+    REMOTE_SUBDEVICES=${DEFAULT_REMOTE_SUBDEVICES}
     TAIL_LOG=${DEFAULT_TAIL_LOG}
     VERBOSE_LEVEL=${DEFAULT_VERBOSE_LEVEL}
     LOG_PATH=${DEFAULT_LOG_PATH}
@@ -547,7 +547,7 @@ run_runtime_dev() {
 
     pkill -x camflow || true
     chmod +x "${binary_path}"
-    nohup "${binary_path}" --verbose "${VERBOSE_LEVEL}" --port "${PORT}" --device "${LOCAL_DEVICE}" --subdevice "${LOCAL_SUBDEVICE}" >"${LOG_PATH}" 2>&1 </dev/null &
+    nohup "${binary_path}" --verbose "${VERBOSE_LEVEL}" --port "${PORT}" --device "${LOCAL_DEVICE}" --subdevices "${LOCAL_SUBDEVICES}" >"${LOG_PATH}" 2>&1 </dev/null &
 
     echo "Local camflow started: http://127.0.0.1:${PORT}"
     echo "Local log: ${LOG_PATH}"
@@ -574,7 +574,7 @@ run_runtime_arm64() {
     ssh "${ssh_opts[@]}" "${target_spec}" "if command -v pkill >/dev/null 2>&1; then pkill -x camflow || true; elif command -v pgrep >/dev/null 2>&1; then for pid in \$(pgrep -x camflow || true); do kill \"\$pid\" || true; done; fi"
 
     echo "Starting camflow UI mode on ${target_spec}:${PORT}"
-    ssh "${ssh_opts[@]}" "${target_spec}" "chmod +x '${TARGET_DIR}/camflow' && : > '${remote_log}' && if command -v setsid >/dev/null 2>&1; then setsid '${TARGET_DIR}/camflow' --verbose '${VERBOSE_LEVEL}' --port '${PORT}' --device '${REMOTE_DEVICE}' --subdevice '${REMOTE_SUBDEVICE}' >'${remote_log}' 2>&1 < /dev/null & else nohup '${TARGET_DIR}/camflow' --verbose '${VERBOSE_LEVEL}' --port '${PORT}' --device '${REMOTE_DEVICE}' --subdevice '${REMOTE_SUBDEVICE}' >'${remote_log}' 2>&1 </dev/null & fi"
+    ssh "${ssh_opts[@]}" "${target_spec}" "chmod +x '${TARGET_DIR}/camflow' && : > '${remote_log}' && if command -v setsid >/dev/null 2>&1; then setsid '${TARGET_DIR}/camflow' --verbose '${VERBOSE_LEVEL}' --port '${PORT}' --device '${REMOTE_DEVICE}' --subdevices '${REMOTE_SUBDEVICES}' >'${remote_log}' 2>&1 < /dev/null & else nohup '${TARGET_DIR}/camflow' --verbose '${VERBOSE_LEVEL}' --port '${PORT}' --device '${REMOTE_DEVICE}' --subdevices '${REMOTE_SUBDEVICES}' >'${remote_log}' 2>&1 </dev/null & fi"
 
     echo "UI started: http://${TARGET}:${PORT}"
     if [[ "${tail_log}" == "1" ]]; then
@@ -970,9 +970,9 @@ PORT=${PORT:-${DEFAULT_PORT}}
 USER=${USER:-${DEFAULT_USER}}
 OPENCV_VERSION=${OPENCV_VERSION:-${DEFAULT_OPENCV_VERSION}}
 LOCAL_DEVICE=${LOCAL_DEVICE:-${DEFAULT_LOCAL_DEVICE}}
-LOCAL_SUBDEVICE=${LOCAL_SUBDEVICE:-${DEFAULT_LOCAL_SUBDEVICE}}
+LOCAL_SUBDEVICES=${LOCAL_SUBDEVICES:-${DEFAULT_LOCAL_SUBDEVICES}}
 REMOTE_DEVICE=${REMOTE_DEVICE:-${DEFAULT_REMOTE_DEVICE}}
-REMOTE_SUBDEVICE=${REMOTE_SUBDEVICE:-${DEFAULT_REMOTE_SUBDEVICE}}
+REMOTE_SUBDEVICES=${REMOTE_SUBDEVICES:-${DEFAULT_REMOTE_SUBDEVICES}}
 TAIL_LOG=${TAIL_LOG:-${DEFAULT_TAIL_LOG}}
 VERBOSE_LEVEL=${VERBOSE_LEVEL:-${DEFAULT_VERBOSE_LEVEL}}
 LOG_PATH=${LOG_PATH:-${DEFAULT_LOG_PATH}}

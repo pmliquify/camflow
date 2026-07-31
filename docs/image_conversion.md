@@ -4,7 +4,7 @@ CamFlow separates image representation from image conversion.
 
 ## ImageBuffer
 
-`ImageBuffer` is the runtime image container. It is OpenCV-free and can be used by `V4L2Source`, `TCPSink` and the runtime core.
+`ImageBuffer` is the runtime image container used by nodes and the runtime core.
 
 ## Converter registry
 
@@ -14,7 +14,7 @@ The runtime owns an `ImageConverterRegistry`. Converters are selected by support
 
 `ImageConverter` is the project's concrete converter implementation and uses OpenCV.
 
-OpenCV-dependent nodes may use it:
+The following nodes may use it:
 
 - `FileSource`
 - `FileSink`

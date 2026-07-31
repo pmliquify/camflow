@@ -97,6 +97,7 @@ std::string schemaToJson(const NodeSchema& schema, const ParameterSet& configure
         json << "\"max\":" << valueToJsonRest(parameter.maximumValue) << ",";
         json << "\"runtimeWritable\":" << (parameter.runtimeWritable ? "true" : "false") << ",";
         json << "\"hasSideEffects\":" << (parameter.hasSideEffects ? "true" : "false") << ",";
+        json << "\"multiSelect\":" << (parameter.multiSelect ? "true" : "false") << ",";
         json << "\"configured\":" << (configured.contains(parameter.name) ? "true" : "false") << ",";
         json << "\"value\":" << valueToJsonRest(effectiveValue);
 
@@ -128,6 +129,14 @@ std::string schemaToJson(const NodeSchema& schema, const ParameterSet& configure
 
         if (!parameter.source.empty()) {
             json << ",\"source\":\"" << jsonEscape(parameter.source) << "\"";
+        }
+
+        if (!parameter.group.empty()) {
+            json << ",\"group\":\"" << jsonEscape(parameter.group) << "\"";
+        }
+
+        if (!parameter.groupDescription.empty()) {
+            json << ",\"groupDescription\":\"" << jsonEscape(parameter.groupDescription) << "\"";
         }
 
         json << "}";

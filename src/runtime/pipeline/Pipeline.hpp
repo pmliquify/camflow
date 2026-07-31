@@ -64,6 +64,8 @@ public:
 
     bool removeNode(const std::string& nodeId) override;
 
+    bool renameNode(const std::string& nodeId, const std::string& newNodeId) override;
+
     /**
      * @brief Accepts an edge registration for scope inference.
      *

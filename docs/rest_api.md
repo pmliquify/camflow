@@ -43,8 +43,9 @@ REST responses include:
 | `/api/runtime/version` | `GET` | none | `version`, `git`, `build`, `opencv` |
 | `/api/pipeline` | `GET` | none | runtime graph JSON (`nodes`, `edges`, ...) |
 | `/api/pipeline` | `PUT` / `POST` | graph JSON (`nodes`, `edges`) | `ok` |
-| `/api/nodes` | `GET` | none | `sources`, `processors`, `probes`, `sinks` |
+| `/api/nodes` | `GET` | none | `sources`, `processors`, `probes`, `sinks`, `schemas` |
 | `/api/nodes` | `POST` / `PUT` | `id`, `type`, optional `runtimeTargetIp` / `runtimeId` / `runtime` | `ok`, `id` |
+| `/api/nodes/{id}/id` | `PUT` | path: `{id}`; body: new id as text | `ok`, `id` |
 | `/api/nodes/{id}` | `DELETE` | path: `{id}` | `ok` |
 | `/api/edges` | `POST` / `PUT` | JSON edge fields | `ok` |
 | `/api/edges` | `DELETE` | JSON edge fields | `ok` |
@@ -70,7 +71,7 @@ Status codes:
 
 ## GET /api/nodes
 
-Returns registered node type names grouped by source, processor, probe and sink.
+Returns registered node type names grouped by source, processor, probe and sink, plus their schemas.
 
 Response fields:
 
@@ -78,6 +79,7 @@ Response fields:
 - `processors`: `string[]`
 - `probes`: `string[]`
 - `sinks`: `string[]`
+- `schemas`: object keyed by node type; each value contains `parameters`, `inputs` and `outputs`
 
 Example response:
 
@@ -86,7 +88,14 @@ Example response:
   "sources": ["v4l2src", "filesrc"],
   "processors": ["debayer", "ccm", "compositor"],
   "probes": ["probe"],
-  "sinks": ["tcpsink", "filesink"]
+  "sinks": ["tcpsink", "filesink"],
+  "schemas": {
+    "v4l2src": {
+      "parameters": [],
+      "inputs": [],
+      "outputs": [{"name": "image", "type": "image", "description": "Captured frame"}]
+    }
+  }
 }
 ```
 
@@ -264,6 +273,24 @@ Status codes:
 
 - `200 OK`: node removed
 - `409 Conflict`: remove failed
+
+## PUT /api/nodes/{id}/id
+
+Renames one node without replacing or rebuilding the graph. The request body contains only the requested new id as plain text. The runtime updates the live node, graph edges and input bindings in place.
+
+Response body:
+
+```json
+{
+  "ok": true,
+  "id": "cameraRenamed"
+}
+```
+
+Status codes:
+
+- `200 OK`: id accepted and renamed
+- `409 Conflict`: pipeline is running, source id is missing, or requested id is unavailable
 
 ## GET /api/runtime
 

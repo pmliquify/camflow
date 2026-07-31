@@ -1,10 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import RuntimeLane from './RuntimeLane.jsx';
 import ResetViewButton from '../../components/ResetViewButton.jsx';
-
-const NODE_WIDTH = 152;
-const NODE_HEIGHT = 62;
-const RUNTIME_HEADER_HEIGHT = 25;
+import StandardContextMenu from '../../components/StandardContextMenu.jsx';
 
 export default function NodeEditorPanel({
         viewMode,
@@ -23,18 +20,14 @@ export default function NodeEditorPanel({
         onDeleteEdgeByText,
         editorGraph,
         localIp,
-        runtimeIpEditMode,
-        runtimeIpDrafts,
-        beginRuntimeIpEdit,
-        setRuntimeIpDrafts,
         renameRuntime,
         renameNode,
+        setNodePortVisibility,
+        deleteEdgesForPort,
         selectedNodeId,
         suppressNextNodeSelectRef,
-        pendingEdgeSourceId,
         connectNodes,
         setSelectedNodeId,
-        setPendingEdgeSourceId,
         openMenu,
         setSelectedRuntimeId,
         edgeCurvePath,
@@ -42,7 +35,6 @@ export default function NodeEditorPanel({
         startRuntimeDrag,
         startRuntimeResize,
         onStartRuntime,
-        commitRuntimeIpEdit,
         runtimeDisplayLabel,
         runtimeLogs,
         runtimeLogPanels,
@@ -50,6 +42,7 @@ export default function NodeEditorPanel({
         onClearRuntimeLogs
 }) {
         const [edgeDraft, setEdgeDraft] = useState(null);
+        const [portMenu, setPortMenu] = useState({ open: false, direction: '', x: 0, y: 0, nodeId: '', ports: [] });
         const isEdgeDraftActive = Boolean(edgeDraft);
         const edgeDraftRef = useRef(null);
         const runtimesRef = useRef(editorGraph.runtimes);
@@ -90,29 +83,21 @@ export default function NodeEditorPanel({
                         if (!currentDraft) {
                                 return;
                         }
-                        let targetNodeId = '';
-
+                        if (Math.hypot(currentDraft.to.x - currentDraft.from.x, currentDraft.to.y - currentDraft.from.y) < 2) {
+                                return;
+                        }
                         const elementAtPoint = document.elementFromPoint(event.clientX, event.clientY);
-                        const nodeCard = elementAtPoint instanceof Element ? elementAtPoint.closest('.node-card') : null;
-                        if (nodeCard instanceof HTMLElement) {
-                                targetNodeId = nodeCard.dataset.nodeId || '';
-                        }
+                        const inputRow = elementAtPoint instanceof Element ? elementAtPoint.closest('.node-port-row[data-port-direction="input"]') : null;
+                        const nodeCard = inputRow instanceof Element ? inputRow.closest('.node-card') : null;
+                        const targetNodeId = nodeCard instanceof HTMLElement ? nodeCard.dataset.nodeId || '' : '';
+                        const targetPortName = inputRow instanceof HTMLElement ? inputRow.dataset.portName || '' : '';
 
-                        if (!targetNodeId) {
-                                const dropPoint = toGraphPoint(event);
-                                runtimesRef.current.some((runtime) => runtime.nodes.some((node) => {
-                                        const left = runtime.rect.x + node.x;
-                                        const top = runtime.rect.y + RUNTIME_HEADER_HEIGHT + node.y;
-                                        const hit = dropPoint.x >= left && dropPoint.x <= left + NODE_WIDTH && dropPoint.y >= top && dropPoint.y <= top + NODE_HEIGHT;
-                                        if (hit) {
-                                                targetNodeId = node.id;
-                                        }
-                                        return hit;
-                                }));
-                        }
-
-                        if (targetNodeId && targetNodeId !== currentDraft.sourceNodeId) {
-                                void connectNodes(currentDraft.sourceNodeId, targetNodeId);
+                        if (targetNodeId && targetPortName && targetNodeId !== currentDraft.sourceNodeId) {
+                                const targetNode = runtimesRef.current.flatMap((runtime) => runtime.nodes).find((node) => node.id === targetNodeId);
+                                const targetPort = (targetNode?.inputs || []).find((input) => input.name === targetPortName);
+                                if (targetPort && String(targetPort.type || targetPort.dataType) === currentDraft.sourceType) {
+                                        void connectNodes(currentDraft.sourceNodeId, targetNodeId, currentDraft.sourcePort, targetPortName);
+                                }
                         }
                         setEdgeDraft(null);
                 };
@@ -123,13 +108,11 @@ export default function NodeEditorPanel({
 
                 window.addEventListener('mousemove', moveHandler);
                 window.addEventListener('mouseup', finishHandler);
-                window.addEventListener('pointerup', finishHandler);
                 window.addEventListener('blur', cancelHandler);
                 document.addEventListener('mouseleave', cancelHandler);
                 return () => {
                         window.removeEventListener('mousemove', moveHandler);
                         window.removeEventListener('mouseup', finishHandler);
-                        window.removeEventListener('pointerup', finishHandler);
                         window.removeEventListener('blur', cancelHandler);
                         document.removeEventListener('mouseleave', cancelHandler);
                 };
@@ -138,6 +121,66 @@ export default function NodeEditorPanel({
         const edgeDraftPath = edgeDraft
                 ? `M ${edgeDraft.from.x} ${edgeDraft.from.y} C ${edgeDraft.from.x + Math.max(72, Math.min(220, Math.abs(edgeDraft.to.x - edgeDraft.from.x) * 0.45))} ${edgeDraft.from.y}, ${edgeDraft.to.x - Math.max(72, Math.min(220, Math.abs(edgeDraft.to.x - edgeDraft.from.x) * 0.45))} ${edgeDraft.to.y}, ${edgeDraft.to.x} ${edgeDraft.to.y}`
                 : null;
+
+        const startEdgeDraft = (event, node, portName) => {
+                if (event.button !== 0) {
+                        return;
+                }
+                const viewport = editorViewportRef.current;
+                const port = (node.outputs || []).find((candidate) => candidate.name === portName);
+                if (!viewport || !port) {
+                        return;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                const viewportRect = viewport.getBoundingClientRect();
+                const portRect = event.currentTarget.getBoundingClientRect();
+                const from = {
+                        x: (portRect.right - viewportRect.left - editorPanX) / Math.max(editorZoom, 0.0001),
+                        y: (portRect.top + portRect.height * 0.5 - viewportRect.top - editorPanY) / Math.max(editorZoom, 0.0001)
+                };
+                setEdgeDraft({ sourceNodeId: node.id, sourcePort: port.name, sourceType: String(port.type || port.dataType), from, to: from });
+        };
+
+        const openPortMenu = (event, node, direction) => {
+                event.stopPropagation();
+                setEdgeDraft(null);
+                const availablePorts = direction === 'input' ? node.inputs || [] : node.outputs || [];
+                const visibleNames = new Set(direction === 'input' ? node.visibleInputs || [] : node.visibleOutputs || []);
+                const hiddenPorts = availablePorts.filter((port) => !visibleNames.has(port.name));
+                if (hiddenPorts.length === 0) {
+                        setPortMenu((current) => ({ ...current, open: false }));
+                        return;
+                }
+                setPortMenu({
+                        open: true,
+                        direction,
+                        x: event.clientX,
+                        y: event.clientY,
+                        nodeId: node.id,
+                        ports: hiddenPorts
+                });
+        };
+
+        const updatePortVisibility = (node, direction, update) => {
+                const key = direction === 'input' ? 'inputs' : 'outputs';
+                setNodePortVisibility((current) => ({
+                        ...current,
+                        [node.id]: {
+                                inputs: node.visibleInputs || [],
+                                outputs: node.visibleOutputs || [],
+                                [key]: update(key === 'inputs' ? node.visibleInputs || [] : node.visibleOutputs || [])
+                        }
+                }));
+        };
+
+        const showPort = (port) => {
+                const node = runtimesRef.current.flatMap((runtime) => runtime.nodes).find((candidate) => candidate.id === portMenu.nodeId);
+                if (node) {
+                        updatePortVisibility(node, portMenu.direction, (visible) => [...new Set([...visible, port.name])]);
+                }
+                setPortMenu((current) => ({ ...current, open: false }));
+        };
 
         return (
                 <section className={`panel editor-panel ${viewMode === 'editor' ? 'foreground' : 'background'}`}>
@@ -170,7 +213,7 @@ export default function NodeEditorPanel({
                                                         <g key={edge.id}>
                                                                 <path
                                                                         className="cross-edge-hit-path"
-                                                                        d={absoluteEdgeCurvePath(edge.from, edge.to)}
+                                                                        d={absoluteEdgeCurvePath(edge.from, edge.to, edge)}
                                                                         onContextMenu={(event) => {
                                                                                 event.preventDefault();
                                                                                 event.stopPropagation();
@@ -178,7 +221,7 @@ export default function NodeEditorPanel({
                                                                                 void onDeleteEdgeByText(edgeText);
                                                                         }}
                                                                 />
-                                                                <path className="cross-edge-visual" d={absoluteEdgeCurvePath(edge.from, edge.to)} markerEnd="url(#cross-edge-arrow)" />
+                                                                <path className="cross-edge-visual" d={absoluteEdgeCurvePath(edge.from, edge.to, edge)} markerEnd="url(#cross-edge-arrow)" />
                                                         </g>
                                                 ))}
                                         </svg>
@@ -198,12 +241,8 @@ export default function NodeEditorPanel({
                                                         runtime={{
                                                                 ...runtime,
                                                                 displayName: runtimeDisplayLabel(runtime, localIp),
-                                                                editingIp: Boolean(runtimeIpEditMode[runtime.id]),
-                                                                ipDraft: runtimeIpDrafts[runtime.id] ?? runtime.ip,
-                                                                onEditIp: () => beginRuntimeIpEdit(runtime),
-                                                                onIpDraft: (value) => setRuntimeIpDrafts((current) => ({ ...current, [runtime.id]: value })),
-                                                                onRename: () => renameRuntime(runtime.id),
-                                                                onRenameNode: (nodeId) => renameNode(nodeId)
+                                                                onRename: (nextName) => renameRuntime(runtime.id, nextName),
+                                                                onRenameNode: (nodeId, nextName) => renameNode(nodeId, nextName)
                                                         }}
                                                         logEntries={runtimeLogs?.[runtime.id] || []}
                                                         logOpen={runtimeLogPanels?.[runtime.id] !== false}
@@ -214,14 +253,7 @@ export default function NodeEditorPanel({
                                                                         suppressNextNodeSelectRef.current = false;
                                                                         return;
                                                                 }
-                                                                if (pendingEdgeSourceId && pendingEdgeSourceId !== nodeId) {
-                                                                        void connectNodes(pendingEdgeSourceId, nodeId);
-                                                                        return;
-                                                                }
                                                                 setSelectedNodeId(nodeId);
-                                                                if (pendingEdgeSourceId === nodeId) {
-                                                                        setPendingEdgeSourceId('');
-                                                                }
                                                         }}
                                                         onLaneContextMenu={(event, runtimeId) => openMenu(event, 'runtime', runtimeId)}
                                                         onNodeContextMenu={(event, runtimeId, nodeId) => {
@@ -239,39 +271,43 @@ export default function NodeEditorPanel({
                                                                 }
                                                                 startNodeDrag(event, runtimeId, nodeId);
                                                         }}
-                                                        onNodeEdgeStart={(event, runtimeId, nodeId) => {
-                                                                if (event.button !== 0) {
-                                                                        return;
-                                                                }
-                                                                const viewport = editorViewportRef.current;
-                                                                if (!viewport) {
-                                                                        return;
-                                                                }
-                                                                const rect = viewport.getBoundingClientRect();
-                                                                const handleRect = event.currentTarget.getBoundingClientRect();
-                                                                const from = {
-                                                                        x: (handleRect.left + handleRect.width * 0.5 - rect.left - editorPanX) / Math.max(editorZoom, 0.0001),
-                                                                        y: (handleRect.top + handleRect.height * 0.5 - rect.top - editorPanY) / Math.max(editorZoom, 0.0001)
-                                                                };
-                                                                const to = {
-                                                                        x: (event.clientX - rect.left - editorPanX) / Math.max(editorZoom, 0.0001),
-                                                                        y: (event.clientY - rect.top - editorPanY) / Math.max(editorZoom, 0.0001)
-                                                                };
+                                                        onNodePortAreaClick={(event, runtimeId, node, direction) => {
                                                                 setSelectedRuntimeId(runtimeId);
-                                                                setEdgeDraft({ sourceNodeId: nodeId, from, to });
+                                                                setSelectedNodeId(node.id);
+                                                                openPortMenu(event, node, direction);
+                                                        }}
+                                                        onNodePortMouseDown={(event, runtimeId, node, portName) => {
+                                                                setSelectedRuntimeId(runtimeId);
+                                                                setSelectedNodeId(node.id);
+                                                                startEdgeDraft(event, node, portName);
+                                                        }}
+                                                        onHideNodePort={async (node, direction, portName) => {
+                                                                if (await deleteEdgesForPort(node.id, direction, portName)) {
+                                                                        updatePortVisibility(node, direction, (visible) => visible.filter((name) => name !== portName));
+                                                                }
                                                         }}
                                                         onRuntimeDragStart={startRuntimeDrag}
                                                         onRuntimeResizeStart={startRuntimeResize}
                                                         onStartRuntime={onStartRuntime}
-                                                        onIpCommit={async (runtimeId, ok) => {
-                                                                const target = editorGraph.runtimes.find((item) => item.id === runtimeId);
-                                                                await commitRuntimeIpEdit(target, ok);
-                                                        }}
                                                         onClearRuntimeLogs={onClearRuntimeLogs}
                                                 />
                                         ))}
                                 </div>
                         </div>
+                        <StandardContextMenu
+                                open={portMenu.open}
+                                x={portMenu.x}
+                                y={portMenu.y}
+                                onClose={() => {
+                                        setPortMenu((current) => ({ ...current, open: false }));
+                                }}
+                                items={portMenu.ports.map((port) => ({
+                                        id: port.name,
+                                        label: `${port.name} · ${port.type || port.dataType}`,
+                                        onSelect: () => showPort(port)
+                                }))}
+                                emptyLabel="all ports visible"
+                        />
                 </section>
         );
 }

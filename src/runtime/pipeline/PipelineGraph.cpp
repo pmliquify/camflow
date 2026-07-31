@@ -60,6 +60,23 @@ bool PipelineGraph::removeNode(const std::string& nodeId)
     return true;
 }
 
+bool PipelineGraph::renameNode(const std::string& nodeId, const std::string& newNodeId)
+{
+    if (!Pipeline::renameNode(nodeId, newNodeId)) {
+        return false;
+    }
+
+    for (auto& edge : m_edges) {
+        if (edge.fromNode == nodeId) {
+            edge.fromNode = newNodeId;
+        }
+        if (edge.toNode == nodeId) {
+            edge.toNode = newNodeId;
+        }
+    }
+    return true;
+}
+
 void PipelineGraph::addEdge(const EdgeConfig& edge)
 {
     Pipeline::addEdge(edge);

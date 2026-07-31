@@ -1,12 +1,40 @@
 import React from 'react';
-import UiButton from '../../components/UiButton.jsx';
+import InlineNameEditor from '../../components/InlineNameEditor.jsx';
 
-export default function NodeCard({ node, selected, onSelect, onRename, onDragStart, onContextMenu, onEdgeHandleMouseDown }) {
+function PortSide({ direction, ports, disabled, onAreaClick, onPortMouseDown, onHidePort }) {
+        return (
+                <div
+                        className={`node-port-side node-port-side-${direction}${disabled ? ' disabled' : ''}`}
+                        data-node-side={direction}
+                        onClick={disabled ? undefined : onAreaClick}
+                        onMouseDown={(event) => event.stopPropagation()}
+                >
+                        {(ports.length ? ports : ['']).map((portName, index) => (
+                                <span
+                                        className={`node-port-row${portName ? '' : ' empty'}`}
+                                        data-port-name={portName}
+                                        data-port-direction={direction}
+                                        key={portName || `empty-${index}`}
+                                        onMouseDown={portName && direction === 'output' ? (event) => onPortMouseDown(event, portName) : undefined}
+                                        onContextMenu={portName ? (event) => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                onHidePort(direction, portName);
+                                        } : undefined}
+                                >
+                                        {portName || 'no port'}
+                                </span>
+                        ))}
+                </div>
+        );
+}
+
+export default function NodeCard({ node, selected, onSelect, onRename, onDragStart, onContextMenu, onPortAreaClick, onPortMouseDown, onHidePort }) {
         return (
                 <div
                         className={`node-card ${selected ? 'selected' : ''}`}
                         data-node-id={node.id}
-                        style={{ left: node.x, top: node.y }}
+                        style={{ left: node.x, top: node.y, height: node.height }}
                         onClick={() => onSelect(node.id)}
                         onMouseDown={(event) => onDragStart(event, node.id)}
                         onContextMenu={(event) => {
@@ -15,21 +43,32 @@ export default function NodeCard({ node, selected, onSelect, onRename, onDragSta
                                 onContextMenu(event, node.id);
                         }}
                 >
-                        <div className="node-title" onDoubleClick={onRename}>{node.name || node.id}</div>
-                        <div className="node-type">{node.type}</div>
-                        {!node.live ? <div className="node-badge">editor</div> : null}
-                        <UiButton
-                                type="button"
-                                className="node-edge-handle"
-                                iconOnly={true}
-                                aria-label={`connect from ${node.name || node.id}`}
-                                onClick={(event) => event.stopPropagation()}
-                                onMouseDown={(event) => {
-                                        event.preventDefault();
-                                        event.stopPropagation();
-                                        onEdgeHandleMouseDown(event, node.id);
-                                }}
-                        />
+                        <div className="node-title">
+                                <InlineNameEditor
+                                        value={node.name || node.id}
+                                        onCommit={onRename}
+                                        className="node-title-text"
+                                        inputClassName="inline-name-input node-name-editor"
+                                        ariaLabel="node name"
+                                />
+                        </div>
+                        <div className="node-port-body">
+                                <PortSide
+                                        direction="input"
+                                        ports={node.visibleInputs || []}
+                                        disabled={!node.inputs?.length}
+                                        onAreaClick={(event) => onPortAreaClick(event, node, 'input')}
+                                        onHidePort={(direction, portName) => onHidePort(node, direction, portName)}
+                                />
+                                <PortSide
+                                        direction="output"
+                                        ports={node.visibleOutputs || []}
+                                        disabled={!node.outputs?.length}
+                                        onAreaClick={(event) => onPortAreaClick(event, node, 'output')}
+                                        onPortMouseDown={(event, portName) => onPortMouseDown(event, node, portName)}
+                                        onHidePort={(direction, portName) => onHidePort(node, direction, portName)}
+                                />
+                        </div>
                 </div>
         );
 }

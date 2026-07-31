@@ -59,6 +59,8 @@ class PipelineGraph : public Pipeline
 public:
     bool removeNode(const std::string& nodeId) override;
 
+    bool renameNode(const std::string& nodeId, const std::string& newNodeId) override;
+
     bool start() override;
 
     void stop() override;

@@ -337,6 +337,73 @@ bool RuntimeController::removeNode(const std::string& nodeId)
     return m_graph.removeNode(nodeId);
 }
 
+bool RuntimeController::renameNode(const std::string& nodeId, const std::string& newNodeId)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (!m_pipeline || !m_pipeline->isStopped() || newNodeId.empty() || newNodeId == "__auto__") {
+        return false;
+    }
+
+    NodeConfig* nodeConfig = m_graph.findNode(nodeId);
+    if (nodeConfig == nullptr || m_graph.findNode(newNodeId) != nullptr) {
+        return false;
+    }
+
+    for (const auto& edge : m_graph.edges()) {
+        if (edge.fromNode != nodeId) {
+            continue;
+        }
+
+        NodeConfig* targetConfig = m_graph.findNode(edge.toNode);
+        if (targetConfig == nullptr) {
+            return false;
+        }
+        const std::string sourcePort = (edge.fromPort.empty() || edge.fromPort == "output") ? "image" : edge.fromPort;
+        const std::string targetInput = (edge.toPort.empty() || edge.toPort == "input") ? "image" : edge.toPort;
+        const std::string oldBinding = nodeId + "." + sourcePort;
+        const std::string newBinding = newNodeId + "." + sourcePort;
+        std::vector<std::string> bindings = splitCommaValues(targetConfig->parameters.stringValue(targetInput, std::string()));
+        bool changed = false;
+        for (auto& binding : bindings) {
+            if (binding == oldBinding) {
+                binding = newBinding;
+                changed = true;
+            }
+        }
+        if (!changed) {
+            continue;
+        }
+
+        std::string merged;
+        for (size_t i = 0; i < bindings.size(); ++i) {
+            if (i) {
+                merged += ",";
+            }
+            merged += bindings[i];
+        }
+        targetConfig->parameters.set(targetInput, merged);
+        Node* liveTarget = m_pipeline->findNode(edge.toNode);
+        if (liveTarget != nullptr && !liveTarget->setParameter(targetInput, merged, true)) {
+            return false;
+        }
+    }
+
+    if (!m_pipeline->renameNode(nodeId, newNodeId)) {
+        return false;
+    }
+
+    nodeConfig->id = newNodeId;
+    for (auto& edge : m_graph.edges()) {
+        if (edge.fromNode == nodeId) {
+            edge.fromNode = newNodeId;
+        }
+        if (edge.toNode == nodeId) {
+            edge.toNode = newNodeId;
+        }
+    }
+    return true;
+}
+
 bool RuntimeController::removeEdge(const EdgeConfig& edge)
 {
     std::lock_guard<std::mutex> lock(m_mutex);

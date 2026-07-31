@@ -71,6 +71,14 @@ public:
     virtual bool removeNode(const std::string& nodeId) = 0;
 
     /**
+     * @brief Renames a node and updates internal edge references without rebuilding the pipeline.
+     * @param nodeId Current node identifier.
+     * @param newNodeId Requested replacement identifier.
+     * @return @c true when the node was found and the new identifier was unused.
+     */
+    virtual bool renameNode(const std::string& nodeId, const std::string& newNodeId) = 0;
+
+    /**
      * @brief Registers a directed data edge between two nodes.
      *
      * An edge describes that the @ref FrameContext produced by @p edge.fromNode

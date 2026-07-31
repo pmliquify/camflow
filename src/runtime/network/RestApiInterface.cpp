@@ -526,6 +526,22 @@ bool RestApiInterface::tryHandle(const std::string& method, const std::string& p
         return true;
     }
 
+    if (method == "PUT" && requestPath.rfind("/api/nodes/", 0) == 0 && requestPath.size() > 14 && requestPath.compare(requestPath.size() - 3, 3, "/id") == 0) {
+        const std::string nodeId = decodeUrl(requestPath.substr(11, requestPath.size() - 14));
+        const std::string newNodeId = trim(body);
+        if (!m_controller.renameNode(nodeId, newNodeId)) {
+            statusCode = 409;
+            contentType = "application/json";
+            responseBody = "{\"ok\":false}";
+            return true;
+        }
+
+        statusCode = 200;
+        contentType = "application/json";
+        responseBody = "{\"ok\":true,\"id\":\"" + jsonEscape(newNodeId) + "\"}";
+        return true;
+    }
+
     if (method == "DELETE" && requestPath.rfind("/api/nodes/", 0) == 0 && requestPath.find("/parameters") == std::string::npos) {
         const std::string nodeId = decodeUrl(requestPath.substr(11));
         if (!m_controller.removeNode(nodeId)) {
@@ -562,6 +578,18 @@ bool RestApiInterface::tryHandle(const std::string& method, const std::string& p
         writeGroup("probes", NodeKind::Probe);
         json << ",";
         writeGroup("sinks", NodeKind::Sink);
+        json << ",\"schemas\":{";
+        bool firstSchema = true;
+        for (const auto kind : { NodeKind::Source, NodeKind::Processor, NodeKind::Probe, NodeKind::Sink }) {
+            for (const auto& type : m_factory.registeredTypes(kind)) {
+                if (!firstSchema) {
+                    json << ",";
+                }
+                firstSchema = false;
+                json << "\"" << jsonEscape(type) << "\":" << schemaToJson(m_factory.schema(type), ParameterSet {});
+            }
+        }
+        json << "}";
         json << "}";
 
         statusCode = 200;

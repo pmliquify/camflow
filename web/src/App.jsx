@@ -16,6 +16,7 @@ import {
         getPipeline,
         getRuntimeStatus,
         getRuntimeVersion,
+        renameNode as renameNodeApi,
         savePipeline,
         setRuntimeStopped,
         updateNodeParameter
@@ -37,11 +38,16 @@ const VIEW_MODE_STORAGE_KEY = 'camflow:view-mode';
 const SELECTED_NODE_STORAGE_KEY = 'camflow:selected-node-id';
 const RUNTIME_LAYOUTS_STORAGE_KEY = 'camflow:runtime-layouts';
 const NODE_LAYOUTS_STORAGE_KEY = 'camflow:node-layouts';
+const NODE_NAMES_STORAGE_KEY = 'camflow:node-names';
+const RUNTIME_NAMES_STORAGE_KEY = 'camflow:runtime-names';
+const NODE_PORT_VISIBILITY_STORAGE_KEY = 'camflow:node-port-visibility';
 const FRAME_VIEWER_SETTINGS_STORAGE_KEY = 'camflow:frame-viewer-settings:v1';
 const DEFAULT_FRAME_VIEWER_SETTINGS = { shiftValue: 8, debayerEnabled: false };
 const AUTO_NODE_PREFIX = '__auto__';
 const NODE_WIDTH = 152;
 const NODE_HEIGHT = 62;
+const NODE_HEADER_HEIGHT = 28;
+const NODE_PORT_ROW_HEIGHT = 28;
 const RUNTIME_HEADER_HEIGHT = 25;
 const RUNTIME_MIN_WIDTH = 190;
 const RUNTIME_MIN_HEIGHT = 120;
@@ -132,6 +138,9 @@ function runtimeDisplayLabel(runtime, localIp) {
         if (!runtime) {
                 return '';
         }
+        if (runtime.displayName) {
+                return String(runtime.displayName);
+        }
         if (runtime.id === LOCAL_RUNTIME_ID) {
                 const localHost = String(runtime.ip || localIp || 'localhost').trim();
                 return localHost === '127.0.0.1' ? 'localhost' : localHost;
@@ -185,60 +194,48 @@ function runtimeBaseUrl(runtimeIp) {
         return `${window.location.protocol}//${host}:${DEFAULT_RUNTIME_API_PORT}`;
 }
 
-function nodeSideCenters(node) {
-        return [
-                { side: 'left', x: node.x, y: node.y + NODE_HEIGHT * 0.5, dx: -1, dy: 0 },
-                { side: 'right', x: node.x + NODE_WIDTH, y: node.y + NODE_HEIGHT * 0.5, dx: 1, dy: 0 },
-                { side: 'top', x: node.x + NODE_WIDTH * 0.5, y: node.y, dx: 0, dy: -1 },
-                { side: 'bottom', x: node.x + NODE_WIDTH * 0.5, y: node.y + NODE_HEIGHT, dx: 0, dy: 1 }
-        ];
+function portAnchor(node, portName, direction) {
+        const ports = direction === 'output' ? node.visibleOutputs : node.visibleInputs;
+        const index = Math.max(0, (ports || []).indexOf(portName));
+        return {
+                x: direction === 'output' ? node.x + NODE_WIDTH : node.x,
+                y: node.y + NODE_HEADER_HEIGHT + index * NODE_PORT_ROW_HEIGHT + NODE_PORT_ROW_HEIGHT * 0.5
+        };
 }
 
-function nearestSideAnchors(fromNode, toNode) {
-        const fromSides = nodeSideCenters(fromNode);
-        const toSides = nodeSideCenters(toNode);
-        let best = null;
-
-        for (const from of fromSides) {
-                for (const to of toSides) {
-                        const dx = to.x - from.x;
-                        const dy = to.y - from.y;
-                        const distanceSq = dx * dx + dy * dy;
-                        if (!best || distanceSq < best.distanceSq) {
-                                best = { from, to, distanceSq };
-                        }
-                }
-        }
-
-        return best;
-}
-
-function routedEdgeCurvePath(fromNode, toNode) {
-        const anchors = nearestSideAnchors(fromNode, toNode);
-        if (!anchors) {
-                return '';
-        }
-
-        const x1 = anchors.from.x;
-        const y1 = anchors.from.y;
-        const x2 = anchors.to.x;
-        const y2 = anchors.to.y;
+function routedEdgeCurvePath(fromNode, toNode, edge) {
+        const from = portAnchor(fromNode, edge?.fromPort || 'image', 'output');
+        const to = portAnchor(toNode, edge?.toPort || 'image', 'input');
+        const x1 = from.x;
+        const y1 = from.y;
+        const x2 = to.x;
+        const y2 = to.y;
         const distance = Math.hypot(x2 - x1, y2 - y1);
         const control = Math.max(34, Math.min(190, distance * 0.38));
-
-        const c1x = x1 + anchors.from.dx * control;
-        const c1y = y1 + anchors.from.dy * control;
-        const c2x = x2 + anchors.to.dx * control;
-        const c2y = y2 + anchors.to.dy * control;
-
-        return `M ${x1} ${y1} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2}`;
+        return `M ${x1} ${y1} C ${x1 + control} ${y1}, ${x2 - control} ${y2}, ${x2} ${y2}`;
 }
 
-function absoluteEdgeCurvePath(fromNode, toNode) {
-        return routedEdgeCurvePath(fromNode, toNode);
+function absoluteEdgeCurvePath(fromNode, toNode, edge) {
+        return routedEdgeCurvePath(fromNode, toNode, edge);
 }
 
-function buildEditorGraph(pipeline, localDraftRuntimes, localIp, runtimeLayouts, nodeLayouts, runtimeStatus, remoteRuntimeStatuses) {
+function nodeKind(type, catalog) {
+        return ['sources', 'processors', 'probes', 'sinks'].find((kind) => (catalog?.[kind] || []).includes(type)) || 'processors';
+}
+
+function nodeSchema(type, catalog) {
+        const schema = catalog?.schemas?.[type];
+        if (schema) {
+                return schema;
+        }
+        const kind = nodeKind(type, catalog);
+        return {
+                inputs: kind === 'sources' ? [] : [{ name: 'image', type: 'image' }],
+                outputs: kind === 'sinks' ? [] : [{ name: 'image', type: 'image' }]
+        };
+}
+
+function buildEditorGraph(pipeline, localDraftRuntimes, localIp, runtimeLayouts, nodeLayouts, runtimeStatus, remoteRuntimeStatuses, catalog, nodeNames, runtimeNames, nodePortVisibility) {
         const runtimeMap = new Map();
         runtimeMap.set(LOCAL_RUNTIME_ID, { id: LOCAL_RUNTIME_ID, name: 'runtime local', ip: localIp, nodes: [], edges: [] });
         const nodeRuntime = new Map();
@@ -261,7 +258,9 @@ function buildEditorGraph(pipeline, localDraftRuntimes, localIp, runtimeLayouts,
                 nodeRuntime.set(node.id, runtimeId);
                 const defaultPos = nodeDefaultPos(index);
                 const layoutPos = nodeLayouts?.[node.id];
-                runtime.nodes.push({ id: node.id, type: node.type || 'node', x: layoutPos?.x ?? defaultPos.x, y: layoutPos?.y ?? defaultPos.y, live: true });
+                const type = node.type || 'node';
+                const schema = nodeSchema(type, catalog);
+                runtime.nodes.push({ id: node.id, name: nodeNames?.[node.id] || node.name, type, kind: nodeKind(type, catalog), inputs: schema.inputs || [], outputs: schema.outputs || [], x: layoutPos?.x ?? defaultPos.x, y: layoutPos?.y ?? defaultPos.y, live: true });
         });
 
         (Array.isArray(localDraftRuntimes) ? localDraftRuntimes : []).forEach((runtime) => {
@@ -272,7 +271,8 @@ function buildEditorGraph(pipeline, localDraftRuntimes, localIp, runtimeLayouts,
                         }
                         const defaultPos = nodeDefaultPos(index);
                         const layoutPos = nodeLayouts?.[node.id];
-                        target.nodes.push({ ...node, x: layoutPos?.x ?? node.x ?? defaultPos.x, y: layoutPos?.y ?? node.y ?? defaultPos.y });
+                        const schema = nodeSchema(node.type, catalog);
+                        target.nodes.push({ ...node, name: nodeNames?.[node.id] || node.name, kind: nodeKind(node.type, catalog), inputs: schema.inputs || [], outputs: schema.outputs || [], x: layoutPos?.x ?? node.x ?? defaultPos.x, y: layoutPos?.y ?? node.y ?? defaultPos.y });
                 });
                 (runtime.edges || []).forEach((edge) => target.edges.push(edge));
         });
@@ -305,6 +305,32 @@ function buildEditorGraph(pipeline, localDraftRuntimes, localIp, runtimeLayouts,
                 lane.edges.push({ id: `edge-${index}`, fromNode, fromPort, toNode, toPort });
         });
 
+        runtimeMap.forEach((runtime) => {
+                runtime.edges = runtime.edges.map((edge, index) => {
+                        if (typeof edge !== 'string') {
+                                return edge;
+                        }
+                        const parsed = splitEdgeText(edge);
+                        return parsed ? { id: `draft-edge-${index}`, ...parsed } : edge;
+                }).filter((edge) => edge && typeof edge !== 'string');
+        });
+
+        const allEdges = [...crossRuntimeEdges, ...Array.from(runtimeMap.values()).flatMap((runtime) => runtime.edges)];
+        runtimeMap.forEach((runtime) => runtime.nodes.forEach((node) => {
+                node.connectedInputs = [...new Set(allEdges.filter((edge) => edge.toNode === node.id).map((edge) => edge.toPort || 'image'))];
+                node.connectedOutputs = [...new Set(allEdges.filter((edge) => edge.fromNode === node.id).map((edge) => edge.fromPort || 'image'))];
+                const visibility = nodePortVisibility?.[node.id];
+                const inputNames = new Set(node.inputs.map((port) => port.name));
+                const outputNames = new Set(node.outputs.map((port) => port.name));
+                node.visibleInputs = visibility && Array.isArray(visibility.inputs)
+                        ? visibility.inputs.filter((name) => inputNames.has(name))
+                        : [node.inputs[0]?.name].filter(Boolean);
+                node.visibleOutputs = visibility && Array.isArray(visibility.outputs)
+                        ? visibility.outputs.filter((name) => outputNames.has(name))
+                        : [node.outputs[0]?.name].filter(Boolean);
+                node.height = NODE_HEADER_HEIGHT + Math.max(1, node.visibleInputs.length, node.visibleOutputs.length) * NODE_PORT_ROW_HEIGHT;
+        }));
+
         const runtimes = Array.from(runtimeMap.values()).filter((runtime) => runtime.nodes.length > 0 || runtime.id === LOCAL_RUNTIME_ID || draftRuntimeIds.has(runtime.id)).map((runtime, index) => {
                 const defaultRect = runtimeDefaultRect(index);
                 const layoutRect = runtimeLayouts?.[runtime.id];
@@ -312,6 +338,7 @@ function buildEditorGraph(pipeline, localDraftRuntimes, localIp, runtimeLayouts,
                 const runtimeState = isLocalRuntime ? (runtimeStatus || 'down') : (remoteRuntimeStatuses?.[runtime.id] || 'unknown');
                 return {
                         ...runtime,
+                        displayName: runtimeNames?.[runtime.id] || '',
                         status: runtimeState,
                         rect: {
                                 x: layoutRect?.x ?? defaultRect.x,
@@ -357,6 +384,18 @@ function edgeToText(edge) {
         const fromText = fromPort ? `${fromNode}.${fromPort}` : fromNode;
         const toText = toPort ? `${toNode}.${toPort}` : toNode;
         return fromText && toText ? `${fromText} -> ${toText}` : '';
+}
+
+function renameEdgeNode(edge, previousNodeId, nextNodeId) {
+        const parsed = splitEdgeText(edgeToText(edge));
+        if (!parsed) {
+                return edgeToText(edge);
+        }
+        return edgeToText({
+                ...parsed,
+                fromNode: parsed.fromNode === previousNodeId ? nextNodeId : parsed.fromNode,
+                toNode: parsed.toNode === previousNodeId ? nextNodeId : parsed.toNode
+        });
 }
 
 function normalizeEdgeKey(edgeText) {
@@ -418,8 +457,8 @@ function buildGraphPayload(pipelineGraph, localDraftRuntimes, extraEdges = []) {
         return { nodes, edges };
 }
 
-function edgeCurvePath(fromNode, toNode) {
-        return routedEdgeCurvePath(fromNode, toNode);
+function edgeCurvePath(fromNode, toNode, edge) {
+        return routedEdgeCurvePath(fromNode, toNode, edge);
 }
 
 function readInitialViewMode() {
@@ -527,6 +566,33 @@ function readInitialNodeLayouts() {
         }
 }
 
+function readInitialNodeNames() {
+        try {
+                const parsed = JSON.parse(window.localStorage.getItem(NODE_NAMES_STORAGE_KEY) || '{}');
+                return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch (_) {
+                return {};
+        }
+}
+
+function readInitialRuntimeNames() {
+        try {
+                const parsed = JSON.parse(window.localStorage.getItem(RUNTIME_NAMES_STORAGE_KEY) || '{}');
+                return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch (_) {
+                return {};
+        }
+}
+
+function readInitialNodePortVisibility() {
+        try {
+                const parsed = JSON.parse(window.localStorage.getItem(NODE_PORT_VISIBILITY_STORAGE_KEY) || '{}');
+                return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch (_) {
+                return {};
+        }
+}
+
 export default function App() {
         const sourceNodeId = (window.CAMFLOW_SOURCE_NODE_ID || 'v4l2src0').trim() || 'v4l2src0';
         const localIp = window.location.hostname || '127.0.0.1';
@@ -553,13 +619,13 @@ export default function App() {
         const [editorError, setEditorError] = useState('');
         const [runtimeLogs, setRuntimeLogs] = useState({});
         const [runtimeLogPanels, setRuntimeLogPanels] = useState({});
-        const [pendingEdgeSourceId, setPendingEdgeSourceId] = useState('');
         const [runtimeLayouts, setRuntimeLayouts] = useState(readInitialRuntimeLayouts);
         const [nodeLayouts, setNodeLayouts] = useState(readInitialNodeLayouts);
+        const [nodeNames, setNodeNames] = useState(readInitialNodeNames);
+        const [runtimeNames, setRuntimeNames] = useState(readInitialRuntimeNames);
+        const [nodePortVisibility, setNodePortVisibility] = useState(readInitialNodePortVisibility);
         const [remoteRuntimeStatuses, setRemoteRuntimeStatuses] = useState({});
         const [dragState, setDragState] = useState(null);
-        const [runtimeIpDrafts, setRuntimeIpDrafts] = useState({});
-        const [runtimeIpEditMode, setRuntimeIpEditMode] = useState({});
         const [editorZoom, setEditorZoom] = useState(1);
         const [editorPanX, setEditorPanX] = useState(0);
         const [editorPanY, setEditorPanY] = useState(0);
@@ -601,11 +667,12 @@ export default function App() {
         const currentShiftValueRef = useRef(currentShiftValue);
         const debayerEnabledRef = useRef(debayerEnabled);
         const suppressNextNodeSelectRef = useRef(false);
+        const suppressNextParameterReloadRef = useRef(false);
         const frameViewerSettingsRef = useRef(readFrameViewerSettings());
 
         const editorGraph = useMemo(
-                () => buildEditorGraph(pipelineGraph, localDraftRuntimes, localIp, runtimeLayouts, nodeLayouts, status, remoteRuntimeStatuses),
-                [pipelineGraph, localDraftRuntimes, localIp, runtimeLayouts, nodeLayouts, status, remoteRuntimeStatuses]
+                () => buildEditorGraph(pipelineGraph, localDraftRuntimes, localIp, runtimeLayouts, nodeLayouts, status, remoteRuntimeStatuses, nodeCatalog, nodeNames, runtimeNames, nodePortVisibility),
+                [pipelineGraph, localDraftRuntimes, localIp, runtimeLayouts, nodeLayouts, status, remoteRuntimeStatuses, nodeCatalog, nodeNames, runtimeNames, nodePortVisibility]
         );
         const displayedFrameNodeId = String(frameContextState?.nodeId || selectedNodeId || sourceNodeId).trim();
         const displayedFrameNodeName = useMemo(() => {
@@ -690,6 +757,30 @@ export default function App() {
         }, [nodeLayouts]);
 
         useEffect(() => {
+                try {
+                        window.localStorage.setItem(NODE_NAMES_STORAGE_KEY, JSON.stringify(nodeNames));
+                } catch (_) {
+                        // Ignore storage access errors.
+                }
+        }, [nodeNames]);
+
+        useEffect(() => {
+                try {
+                        window.localStorage.setItem(RUNTIME_NAMES_STORAGE_KEY, JSON.stringify(runtimeNames));
+                } catch (_) {
+                        // Ignore storage access errors.
+                }
+        }, [runtimeNames]);
+
+        useEffect(() => {
+                try {
+                        window.localStorage.setItem(NODE_PORT_VISIBILITY_STORAGE_KEY, JSON.stringify(nodePortVisibility));
+                } catch (_) {
+                        // Ignore storage access errors.
+                }
+        }, [nodePortVisibility]);
+
+        useEffect(() => {
                 const settings = frameViewerSettingsRef.current[displayedFrameNodeId] || DEFAULT_FRAME_VIEWER_SETTINGS;
                 setCurrentShiftValue(settings.shiftValue);
                 setDebayerEnabled(settings.debayerEnabled);
@@ -750,16 +841,17 @@ export default function App() {
                 return runtime.rect || runtimeDefaultRect(index);
         }
 
-        function clampNodePosInRuntime(runtimeId, nextPos) {
+        function clampNodePosInRuntime(runtimeId, nextPos, nodeId = '') {
                 const runtime = editorGraph.runtimes.find((item) => item.id === runtimeId);
                 if (!runtime) {
                         return { x: Math.max(8, nextPos.x), y: Math.max(8, nextPos.y) };
                 }
                 const canvasWidth = Math.max(180, (runtime.rect?.w || 400) - 20);
                 const canvasHeight = Math.max(120, (runtime.rect?.h || 260) - 60);
+                const nodeHeight = runtime.nodes.find((node) => node.id === nodeId)?.height || NODE_HEIGHT;
                 return {
                         x: Math.max(8, Math.min(nextPos.x, canvasWidth - NODE_WIDTH - 8)),
-                        y: Math.max(8, Math.min(nextPos.y, canvasHeight - NODE_HEIGHT - 8))
+                        y: Math.max(8, Math.min(nextPos.y, canvasHeight - nodeHeight - 8))
                 };
         }
 
@@ -964,7 +1056,7 @@ export default function App() {
                 if (event.button !== 0) {
                         return;
                 }
-                if (event.target instanceof Element && event.target.closest('.node-edge-handle')) {
+                if (event.target instanceof Element && event.target.closest('.node-port-side')) {
                         return;
                 }
                 event.stopPropagation();
@@ -976,18 +1068,11 @@ export default function App() {
                 setDragState({ kind: 'node', runtimeId, nodeId, startX: event.clientX, startY: event.clientY, startPos: { x: node.x, y: node.y } });
         }
 
-        function beginEdgeConnection(nodeId) {
-                setPendingEdgeSourceId(nodeId);
-                setEditorError('select a target node to create the edge');
-        }
-
-        async function connectNodes(sourceNodeId, targetNodeId) {
+        async function connectNodes(sourceNodeId, targetNodeId, sourcePort = 'image', targetPort = 'image') {
                 if (!sourceNodeId || !targetNodeId || sourceNodeId === targetNodeId) {
-                        setPendingEdgeSourceId('');
                         return;
                 }
-                const edgeText = `${sourceNodeId}.image -> ${targetNodeId}.image`;
-                setPendingEdgeSourceId('');
+                const edgeText = `${sourceNodeId}.${sourcePort} -> ${targetNodeId}.${targetPort}`;
 
                 if (edgeExistsInGraph(edgeText, pipelineGraph, localDraftRuntimes)) {
                         setEditorError('edge already exists');
@@ -1047,22 +1132,124 @@ export default function App() {
                 }
         }
 
-        function renameRuntime(runtimeId) {
+        function renameRuntime(runtimeId, nextName) {
                 const currentRuntime = editorGraph.runtimes.find((runtime) => runtime.id === runtimeId);
-                if (!currentRuntime || runtimeId === LOCAL_RUNTIME_ID) return;
-                const nextName = window.prompt('Runtime name', currentRuntime.name || runtimeId);
-                if (!nextName) return;
+                if (!currentRuntime || !nextName) return;
+                setRuntimeNames((current) => ({ ...current, [runtimeId]: nextName }));
                 setLocalDraftRuntimes((current) => current.map((runtime) => (runtime.id === runtimeId ? { ...runtime, name: nextName } : runtime)));
                 if (runtimeId === selectedRuntimeId) setSelectedRuntimeName(nextName);
         }
 
-        function renameNode(nodeId) {
-                const nextName = window.prompt('Node name', nodeId);
-                if (!nextName) return;
-                setLocalDraftRuntimes((current) => current.map((runtime) => ({
-                        ...runtime,
-                        nodes: runtime.nodes.map((node) => (node.id === nodeId ? { ...node, name: nextName } : node))
-                })));
+        async function renameNode(nodeId, nextName) {
+                const nextNodeId = String(nextName || '').trim();
+                if (!nextNodeId || nextNodeId === nodeId) return;
+                if (editorGraph.nodeIds.includes(nextNodeId)) {
+                        setEditorError('node id already exists');
+                        return;
+                }
+
+                const migrateKey = (current) => {
+                        if (!Object.prototype.hasOwnProperty.call(current, nodeId)) return current;
+                        const next = { ...current, [nextNodeId]: current[nodeId] };
+                        delete next[nodeId];
+                        return next;
+                };
+                const migrateUiState = () => {
+                        setNodeNames((current) => {
+                                const next = { ...current };
+                                delete next[nodeId];
+                                return next;
+                        });
+                        setNodeLayouts(migrateKey);
+                        setNodePortVisibility(migrateKey);
+                        setSelectedNodeId((current) => {
+                                if (current !== nodeId) return current;
+                                suppressNextParameterReloadRef.current = true;
+                                return nextNodeId;
+                        });
+                        setSelectedNodeMeta((current) => current?.id === nodeId ? { ...current, id: nextNodeId, name: nextNodeId } : current);
+                        setFrameContextState((current) => current?.nodeId === nodeId ? { ...current, nodeId: nextNodeId } : current);
+                        for (const key of [...committedParameterValuesRef.current.keys()]) {
+                                if (!key.startsWith(`${nodeId}:`)) continue;
+                                const value = committedParameterValuesRef.current.get(key);
+                                committedParameterValuesRef.current.delete(key);
+                                committedParameterValuesRef.current.set(`${nextNodeId}:${key.slice(nodeId.length + 1)}`, value);
+                        }
+                        if (Object.prototype.hasOwnProperty.call(frameViewerSettingsRef.current, nodeId)) {
+                                const nextSettings = { ...frameViewerSettingsRef.current, [nextNodeId]: frameViewerSettingsRef.current[nodeId] };
+                                delete nextSettings[nodeId];
+                                frameViewerSettingsRef.current = nextSettings;
+                                try {
+                                        window.localStorage.setItem(FRAME_VIEWER_SETTINGS_STORAGE_KEY, JSON.stringify(nextSettings));
+                                } catch (_) {
+                                        // Ignore storage write failures.
+                                }
+                        }
+                };
+
+                if (!liveNodeIds.has(nodeId)) {
+                        setLocalDraftRuntimes((current) => current.map((runtime) => ({
+                                ...runtime,
+                                nodes: runtime.nodes.map((node) => node.id === nodeId ? { ...node, id: nextNodeId, name: nextNodeId } : node),
+                                edges: runtime.edges.map((edge) => renameEdgeNode(edge, nodeId, nextNodeId))
+                        })));
+                        migrateUiState();
+                        setEditorError('');
+                        return;
+                }
+
+                try {
+                        if (!await ensurePipelineStopped()) {
+                                setEditorError('failed to stop runtime');
+                                return;
+                        }
+                        await renameNodeApi(nodeId, nextNodeId);
+                        setPipelineGraph((current) => ({
+                                ...current,
+                                nodes: (current.nodes || []).map((node) => node.id === nodeId ? { ...node, id: nextNodeId, name: nextNodeId } : node),
+                                edges: (current.edges || []).map((edge) => renameEdgeNode(edge, nodeId, nextNodeId))
+                        }));
+                        setLocalDraftRuntimes((current) => current.map((runtime) => ({
+                                ...runtime,
+                                nodes: runtime.nodes.map((node) => node.id === nodeId ? { ...node, id: nextNodeId, name: nextNodeId } : node),
+                                edges: runtime.edges.map((edge) => renameEdgeNode(edge, nodeId, nextNodeId))
+                        })));
+                        migrateUiState();
+                        setEditorError('');
+                } catch (_) {
+                        setEditorError('failed to rename node');
+                }
+        }
+
+        async function deleteEdgesForPort(nodeId, direction, portName) {
+                const payload = buildGraphPayload(pipelineGraph, []);
+                const remainingEdges = payload.edges.filter((edge) => {
+                        const parsed = splitEdgeText(edge);
+                        if (!parsed) return true;
+                        const edgePort = direction === 'input'
+                                ? parsed.toPort === 'input' ? 'image' : parsed.toPort
+                                : parsed.fromPort === 'output' ? 'image' : parsed.fromPort;
+                        return direction === 'input'
+                                ? parsed.toNode !== nodeId || edgePort !== portName
+                                : parsed.fromNode !== nodeId || edgePort !== portName;
+                });
+                if (remainingEdges.length === payload.edges.length) {
+                        return true;
+                }
+
+                try {
+                        if (!await ensurePipelineStopped()) {
+                                setEditorError('failed to stop runtime');
+                                return false;
+                        }
+                        await savePipeline({ ...payload, edges: remainingEdges });
+                        await fetchPipeline();
+                        setEditorError('');
+                        return true;
+                } catch (_) {
+                        setEditorError('failed to delete port edges');
+                        return false;
+                }
         }
 
         function edgeTouchesNode(edgeText, nodeId) {
@@ -1251,7 +1438,7 @@ export default function App() {
                 try {
                         const graph = await getPipeline();
                         setPipelineGraph(graph);
-                        const discovery = buildEditorGraph(graph, localDraftRuntimes, localIp, runtimeLayouts, nodeLayouts, status);
+                        const discovery = buildEditorGraph(graph, localDraftRuntimes, localIp, runtimeLayouts, nodeLayouts, status, remoteRuntimeStatuses, nodeCatalog, nodeNames, runtimeNames, nodePortVisibility);
                         setGraphStatusText(`discovered ${discovery.nodeIds.length} node(s) on ${discovery.runtimes.length} runtime(s)`);
                         const storedSelectedNodeId = readInitialSelectedNodeId();
                         if (!discovery.nodeIds.includes(selectedNodeId) && discovery.nodeIds.length > 0) {
@@ -1441,54 +1628,6 @@ export default function App() {
                         return;
                 }
                 void toggleRemoteRuntime(runtime, shouldStop);
-        }
-
-        function beginRuntimeIpEdit(runtime) {
-                const value = runtime?.ip || runtimeDisplayLabel(runtime, localIp);
-                setRuntimeIpDrafts((current) => ({ ...current, [runtime.id]: value }));
-                setRuntimeIpEditMode((current) => ({ ...current, [runtime.id]: true }));
-        }
-
-        async function commitRuntimeIpEdit(runtime, commit) {
-                if (!runtime) {
-                        return;
-                }
-                const runtimeId = runtime.id;
-                const draft = String(runtimeIpDrafts[runtimeId] ?? runtime.ip ?? '').trim();
-                setRuntimeIpEditMode((current) => ({ ...current, [runtimeId]: false }));
-                if (!commit || !draft || runtimeId === LOCAL_RUNTIME_ID) {
-                        return;
-                }
-
-                const payload = buildGraphPayload(pipelineGraph, localDraftRuntimes);
-                payload.nodes = (payload.nodes || []).map((node) => {
-                        const nodeRuntimeId = runtimeIdFromNode(node, localIp);
-                        if (nodeRuntimeId !== runtimeId) {
-                                return node;
-                        }
-                        return {
-                                ...node,
-                                parameters: {
-                                        ...(node.parameters || {}),
-                                        runtimeTargetIp: draft
-                                }
-                        };
-                });
-
-                try {
-                        const response = await fetch('/api/pipeline', {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(payload)
-                        });
-                        if (!response.ok) {
-                                setEditorError('failed to update runtime ip');
-                                return;
-                        }
-                        await fetchPipeline();
-                } catch (_) {
-                        setEditorError('failed to update runtime ip');
-                }
         }
 
         function processLatestFrame() {
@@ -1788,6 +1927,10 @@ export default function App() {
         }, [selectedNodeId]);
 
         useEffect(() => {
+                if (suppressNextParameterReloadRef.current) {
+                        suppressNextParameterReloadRef.current = false;
+                        return;
+                }
                 if (!selectedNodeId) {
                         setSelectedNodeMeta(null);
                         setSelectedNodeParams([]);
@@ -1969,7 +2112,7 @@ export default function App() {
                                         x: dragState.startPos.x + dx,
                                         y: dragState.startPos.y + dy
                                 };
-                                const clamped = clampNodePosInRuntime(dragState.runtimeId, nextPos);
+                                const clamped = clampNodePosInRuntime(dragState.runtimeId, nextPos, dragState.nodeId);
                                 setNodeLayouts((current) => ({ ...current, [dragState.nodeId]: clamped }));
                         }
                 };
@@ -2057,8 +2200,8 @@ export default function App() {
                         fromPort: edge.fromPort,
                         toNode: edge.toNode,
                         toPort: edge.toPort,
-                        from: { x: fromRuntime.rect.x + fromNode.x, y: fromRuntime.rect.y + RUNTIME_HEADER_HEIGHT + fromNode.y },
-                        to: { x: toRuntime.rect.x + toNode.x, y: toRuntime.rect.y + RUNTIME_HEADER_HEIGHT + toNode.y }
+                        from: { ...fromNode, x: fromRuntime.rect.x + fromNode.x, y: fromRuntime.rect.y + RUNTIME_HEADER_HEIGHT + fromNode.y },
+                        to: { ...toNode, x: toRuntime.rect.x + toNode.x, y: toRuntime.rect.y + RUNTIME_HEADER_HEIGHT + toNode.y }
                 };
         }).filter(Boolean);
 
@@ -2169,18 +2312,14 @@ export default function App() {
                                         onDeleteEdgeByText={deleteEdgeByText}
                                         editorGraph={editorGraph}
                                         localIp={localIp}
-                                        runtimeIpEditMode={runtimeIpEditMode}
-                                        runtimeIpDrafts={runtimeIpDrafts}
-                                        beginRuntimeIpEdit={beginRuntimeIpEdit}
-                                        setRuntimeIpDrafts={setRuntimeIpDrafts}
                                         renameRuntime={renameRuntime}
                                         renameNode={renameNode}
+                                        setNodePortVisibility={setNodePortVisibility}
+                                        deleteEdgesForPort={deleteEdgesForPort}
                                         selectedNodeId={selectedNodeId}
                                         suppressNextNodeSelectRef={suppressNextNodeSelectRef}
-                                        pendingEdgeSourceId={pendingEdgeSourceId}
                                         connectNodes={connectNodes}
                                         setSelectedNodeId={setSelectedNodeId}
-                                        setPendingEdgeSourceId={setPendingEdgeSourceId}
                                         openMenu={openMenu}
                                         setSelectedRuntimeId={setSelectedRuntimeId}
                                         edgeCurvePath={edgeCurvePath}
@@ -2188,7 +2327,6 @@ export default function App() {
                                         startRuntimeDrag={startRuntimeDrag}
                                         startRuntimeResize={startRuntimeResize}
                                         onStartRuntime={onStartRuntime}
-                                        commitRuntimeIpEdit={commitRuntimeIpEdit}
                                         runtimeDisplayLabel={runtimeDisplayLabel}
                                         runtimeLogs={runtimeLogs}
                                         runtimeLogPanels={runtimeLogPanels}

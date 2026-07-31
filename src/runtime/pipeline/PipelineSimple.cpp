@@ -72,6 +72,29 @@ bool Pipeline::removeNode(const std::string& nodeId)
     return true;
 }
 
+bool Pipeline::renameNode(const std::string& nodeId, const std::string& newNodeId)
+{
+    if (newNodeId.empty() || findNode(newNodeId) != nullptr) {
+        return false;
+    }
+
+    Node* node = findNode(nodeId);
+    if (node == nullptr) {
+        return false;
+    }
+
+    node->setId(newNodeId);
+    for (auto& edge : m_scopeEdges) {
+        if (edge.fromNode == nodeId) {
+            edge.fromNode = newNodeId;
+        }
+        if (edge.toNode == nodeId) {
+            edge.toNode = newNodeId;
+        }
+    }
+    return true;
+}
+
 void Pipeline::addEdge(const EdgeConfig& edge)
 {
     m_scopeEdges.push_back(edge);

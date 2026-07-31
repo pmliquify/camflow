@@ -1088,11 +1088,27 @@ button:hover {
         flex: 0 0 auto;
 }
 
-.runtime-ip-editor {
-        width: 200px;
+.inline-name-input {
         height: 20px;
         padding: 2px 7px;
         border-radius: 7px;
+        font-size: 12px;
+        font-weight: 700;
+}
+
+.runtime-name-text {
+        display: inline-block;
+        max-width: 260px;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: text;
+}
+
+.runtime-name-editor {
+        width: min(200px, 100%);
 }
 
 .runtime-state {
@@ -1148,7 +1164,7 @@ button:hover {
 
 .runtime-lane>header strong,
 .node-card .node-title {
-        cursor: text;
+        cursor: move;
 }
 
 .runtime-canvas {
@@ -1164,44 +1180,114 @@ button:hover {
 .node-card {
         position: absolute;
         width: 152px;
-        height: 62px;
         border: 1px solid #31527d;
-        border-radius: 10px;
-        padding: 8px;
+        border-radius: 7px;
+        padding: 0;
         background: rgba(16, 35, 67, 0.95);
         cursor: grab;
         transition: border-color 120ms ease, box-shadow 120ms ease;
         user-select: none;
+        overflow: hidden;
 }
 
-.node-edge-handle {
-        position: absolute;
-        right: -7px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 14px;
-        height: 14px;
-        min-width: 14px;
-        border-radius: 50%;
-        border: 2px solid #67c6ff;
-        background: #0b1e33;
+.node-title {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 27px;
+        padding: 0 8px;
+        border-bottom: 1px solid #31527d;
+        background: rgba(20, 45, 80, 0.98);
+        font-size: 12px;
+        font-weight: 700;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: move;
+}
+
+.node-title-text {
+        display: inline-block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: text;
+}
+
+.node-name-editor {
+        width: 100%;
+        text-align: center;
+}
+
+.node-port-body {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        min-height: 28px;
+}
+
+.node-port-side {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        min-width: 0;
+        height: 100%;
+        border: 0;
+        border-radius: 0;
+        background: rgba(10, 25, 46, 0.72);
+        color: #dceaff;
         padding: 0;
-        opacity: 0;
-        box-shadow: 0 0 0 1px rgba(3, 17, 31, 0.95);
-        transition: opacity 120ms ease, border-color 120ms ease;
-        cursor: crosshair;
+        font-size: 11px;
+        cursor: pointer;
+        overflow: hidden;
 }
 
-.node-card:hover .node-edge-handle {
+.node-port-side-output {
+        border-left: 1px solid #31527d;
+        text-align: right;
+}
+
+.node-port-side:not(:disabled):hover {
+        background: rgba(20, 61, 96, 0.82);
+}
+
+.node-port-side.disabled,
+.node-port-side:disabled {
+        background: rgba(6, 14, 27, 0.72);
+        color: #50627d;
+        cursor: default;
         opacity: 1;
 }
 
-.node-card.selected:not(:hover) .node-edge-handle {
-        opacity: 0;
+.node-port-row {
+        display: flex;
+        align-items: center;
+        height: 28px;
+        min-height: 28px;
+        padding: 0 7px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
 }
 
-.node-edge-handle:hover {
-        border-color: #02d7ff;
+.node-port-row[data-port-direction='output']:not(.empty) {
+        cursor: crosshair;
+}
+
+.node-port-row[data-port-direction='input']:not(.empty) {
+        cursor: copy;
+}
+
+.node-port-row.empty {
+        color: #50627d;
+}
+
+.node-port-side-output .node-port-row {
+        justify-content: flex-end;
+}
+
+.node-port-row + .node-port-row {
+        border-top: 1px solid rgba(49, 82, 125, 0.55);
 }
 
 .node-card:hover {
@@ -1213,26 +1299,6 @@ button:hover {
         box-shadow: 0 0 0 1px rgba(2, 215, 255, 0.35) inset;
 }
 
-.node-title {
-        font-weight: 700;
-}
-
-.node-type {
-        font-size: 13px;
-        color: var(--muted);
-}
-
-.node-badge {
-        display: inline-flex;
-        margin-top: 4px;
-        padding: 1px 6px;
-        border-radius: 999px;
-        border: 1px solid #31527d;
-        color: #dff0ff;
-        font-size: 10px;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-}
 
 .edge-layer {
         position: absolute;

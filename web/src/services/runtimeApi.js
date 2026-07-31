@@ -77,6 +77,17 @@ export async function deleteNode(nodeId) {
         return response;
 }
 
+export async function renameNode(nodeId, newNodeId) {
+        const response = await fetch('/api/nodes/' + encodeURIComponent(nodeId) + '/id', {
+                method: 'PUT',
+                body: String(newNodeId)
+        });
+        if (!response.ok) {
+                throw new Error(`rename node ${response.status}`);
+        }
+        return response;
+}
+
 function parseEdgeExpression(edgeText) {
         const raw = String(edgeText || '');
         const arrowPos = raw.indexOf('->');

@@ -16,7 +16,7 @@ export default function EdgeLayer({ runtime, onEdgePath, onDeleteEdge }) {
                                 if (!fromNode || !toNode) {
                                         return null;
                                 }
-                                const pathD = onEdgePath(fromNode, toNode);
+                                const pathD = onEdgePath(fromNode, toNode, edge);
                                 return (
                                         <g key={edge.id}>
                                                 <path

@@ -104,6 +104,9 @@ public:
     /** @brief Removes one node from the existing stopped pipeline without rebuilding the whole graph. */
     bool removeNode(const std::string& nodeId);
 
+    /** @brief Renames one node in the existing stopped pipeline without rebuilding the graph. */
+    bool renameNode(const std::string& nodeId, const std::string& newNodeId);
+
     /** @brief Removes one edge from the graph and rebuilds the stopped pipeline when needed. */
     bool removeEdge(const EdgeConfig& edge);
 

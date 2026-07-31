@@ -5,6 +5,7 @@ import EdgeLayer from './EdgeLayer.jsx';
 import RuntimeLogConsole from './RuntimeLogConsole.jsx';
 import logIcon from '../../assets/images/icon-log.svg';
 import UiButton from '../../components/UiButton.jsx';
+import InlineNameEditor from '../../components/InlineNameEditor.jsx';
 
 const RUNTIME_LOG_PREFS_STORAGE_PREFIX = 'camflow:runtime-log-prefs:';
 const RUNTIME_LOG_DEFAULT_FONT_STORAGE_KEY = 'camflow:runtime-log-default-font-size';
@@ -83,11 +84,12 @@ export default function RuntimeLane({
         onEdgePath,
         onDeleteEdge,
         onNodeDragStart,
-        onNodeEdgeStart,
+        onNodePortAreaClick,
+        onNodePortMouseDown,
+        onHideNodePort,
         onRuntimeDragStart,
         onRuntimeResizeStart,
         onStartRuntime,
-        onIpCommit,
         onClearRuntimeLogs
 }) {
         const initialLogPrefs = useMemo(() => loadRuntimeLogPrefs(runtime.id), [runtime.id]);
@@ -142,27 +144,13 @@ export default function RuntimeLane({
                         <header onContextMenu={(event) => onLaneContextMenu(event, runtime.id)} onMouseDown={(event) => onRuntimeDragStart(event, runtime.id)}>
                                 <div className="runtime-header-left">
                                         <RuntimeWindowIcon />
-                                        {runtime.editingIp ? (
-                                                <input
-                                                        className="runtime-ip-editor"
-                                                        type="text"
-                                                        value={runtime.ipDraft}
-                                                        autoFocus
-                                                        onMouseDown={(event) => event.stopPropagation()}
-                                                        onChange={(event) => runtime.onIpDraft?.(event.target.value)}
-                                                        onBlur={() => onIpCommit(runtime.id, true)}
-                                                        onKeyDown={(event) => {
-                                                                if (event.key === 'Enter') {
-                                                                        onIpCommit(runtime.id, true);
-                                                                }
-                                                                if (event.key === 'Escape') {
-                                                                        onIpCommit(runtime.id, false);
-                                                                }
-                                                        }}
-                                                />
-                                        ) : (
-                                                <strong onDoubleClick={() => runtime.onEditIp?.()}>{runtime.displayName || runtime.ip}</strong>
-                                        )}
+                                        <InlineNameEditor
+                                                value={runtime.displayName || runtime.ip}
+                                                onCommit={runtime.onRename}
+                                                className="runtime-name-text"
+                                                inputClassName="inline-name-input runtime-name-editor"
+                                                ariaLabel="runtime name"
+                                        />
                                         <span className={`runtime-state state-${runtime.status}`}>{runtime.status}</span>
                                 </div>
                                 <div className="runtime-header-right">
@@ -200,10 +188,12 @@ export default function RuntimeLane({
                                                 node={node}
                                                 selected={selectedNodeId === node.id}
                                                 onSelect={onSelectNode}
-                                                onRename={() => runtime.onRenameNode?.(node.id)}
+                                                onRename={(nextName) => runtime.onRenameNode?.(node.id, nextName)}
                                                 onDragStart={(event) => onNodeDragStart(event, runtime.id, node.id)}
                                                 onContextMenu={(event) => onNodeContextMenu(event, runtime.id, node.id)}
-                                                onEdgeHandleMouseDown={(event) => onNodeEdgeStart(event, runtime.id, node.id)}
+                                                onPortAreaClick={(event, targetNode, direction) => onNodePortAreaClick(event, runtime.id, targetNode, direction)}
+                                                onPortMouseDown={(event, targetNode, portName) => onNodePortMouseDown(event, runtime.id, targetNode, portName)}
+                                                onHidePort={onHideNodePort}
                                         />
                                 ))}
                                 <EdgeLayer runtime={runtime} onEdgePath={onEdgePath} onDeleteEdge={onDeleteEdge} />

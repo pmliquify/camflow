@@ -1306,7 +1306,13 @@ button:hover {
         display: grid;
         grid-template-columns: 130px minmax(0, 1fr);
         gap: 6px;
+        height: 30px;
         align-items: center;
+}
+
+.parameter-row>* {
+        align-self: center;
+        min-width: 0;
 }
 
 .param-name {
@@ -1317,10 +1323,77 @@ button:hover {
 }
 
 .param-visibility-toggle {
-        width: 13px;
-        height: 13px;
-        margin: 0;
+        width: 36px;
+        height: 16px;
         flex: 0 0 auto;
+}
+
+.bool-parameter-control {
+        justify-self: start;
+        width: 36px;
+        height: 16px;
+}
+
+.ui-checkbox {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        overflow: visible;
+}
+
+.ui-checkbox-input {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: 0;
+        opacity: 0;
+        pointer-events: none;
+}
+
+.ui-checkbox-track {
+        position: relative;
+        display: inline-flex;
+        width: 36px;
+        height: 16px;
+        flex: 0 0 auto;
+        border: 0;
+        border-radius: 999px;
+        background: #536176;
+        transition: background-color 140ms ease, box-shadow 140ms ease;
+}
+
+.ui-control-handle {
+        position: absolute;
+        width: 20px;
+        height: 12px;
+        border-radius: 999px;
+        background: #f5f5f7;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.ui-checkbox-handle {
+        top: 2px;
+        left: 2px;
+        transition: transform 140ms ease;
+}
+
+.ui-checkbox-input:checked+.ui-checkbox-track {
+        background: #0a84ff;
+}
+
+.ui-checkbox-input:checked+.ui-checkbox-track .ui-checkbox-handle {
+        transform: translateX(12px);
+}
+
+.ui-checkbox-input:focus-visible+.ui-checkbox-track {
+        box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.3);
+}
+
+.ui-checkbox-input:disabled+.ui-checkbox-track {
+        cursor: not-allowed;
+        opacity: 0.45;
 }
 
 .parameter-row label {
@@ -1380,12 +1453,20 @@ select {
         font-size: 12px;
 }
 
+.parameter-row input[type='text'],
+.parameter-row input[type='number'],
+.parameter-row select {
+        height: 28px;
+}
+
 .multi-option-dropdown {
         position: relative;
+        height: 28px;
 }
 
 .multi-option-trigger {
         width: 100%;
+        height: 28px;
         border-radius: 8px;
         border: 1px solid #2a436a;
         background: #0d1c32;
@@ -1439,22 +1520,91 @@ select {
         background: rgba(19, 52, 92, 0.6);
 }
 
-.multi-option-entry input[type='checkbox'] {
-        width: 13px;
-        height: 13px;
+.ui-slider {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+        height: 18px;
         margin: 0;
-        flex: 0 0 auto;
 }
 
-input[type='range'] {
+.ui-slider-track {
+        position: absolute;
+        top: 7px;
+        left: 0;
         width: 100%;
-        accent-color: var(--accent);
+        height: 4px;
+        border: 0;
+        border-radius: 999px;
+        background: linear-gradient(to right, #0a84ff 0 var(--slider-progress, 0%), #41516a var(--slider-progress, 0%) 100%);
+}
+
+.ui-slider-reverse .ui-slider-track {
+        background: linear-gradient(to right, #41516a 0 var(--slider-progress, 0%), #0a84ff var(--slider-progress, 0%) 100%);
+}
+
+.ui-slider-reverse .ui-slider-input {
+        direction: rtl;
+}
+
+.ui-slider-handle {
+        top: 3px;
+        left: var(--slider-handle-position, 0);
+        pointer-events: none;
+}
+
+.ui-slider-input {
+        position: absolute;
+        inset: 0;
+        appearance: none;
+        -webkit-appearance: none;
+        width: 100%;
+        height: 18px;
+        margin: 0;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+        opacity: 0;
+}
+
+.ui-slider-input::-webkit-slider-runnable-track {
+        height: 18px;
+}
+
+.ui-slider-input::-webkit-slider-thumb {
+        width: 20px;
+        height: 18px;
+}
+
+.ui-slider-input::-moz-range-thumb {
+        width: 20px;
+        height: 18px;
+        border: 0;
+}
+
+.ui-slider-input:focus-visible {
+        outline: none;
+}
+
+.ui-slider:has(.ui-slider-input:focus-visible) .ui-slider-handle {
+        box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.32), 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
+.ui-slider:has(.ui-slider-input:disabled) {
+        cursor: not-allowed;
+        opacity: 0.45;
+}
+
+.ui-slider-input:disabled {
+        cursor: not-allowed;
 }
 
 .numeric-control {
         display: grid;
         grid-template-columns: 1fr 78px;
         gap: 6px;
+        align-items: center;
+        height: 28px;
 }
 
 .viewer-toolbar {
@@ -1534,11 +1684,10 @@ input[type='range'] {
         white-space: nowrap;
 }
 
-.viewer-shift-panel input[type='range'] {
+.viewer-shift-panel .ui-slider {
         width: 210px;
         height: 18px;
         flex: 0 0 auto;
-        direction: rtl;
 }
 
 .bayer-icon {
@@ -1566,6 +1715,10 @@ input[type='range'] {
         color: #e7f2ff;
         font-size: 13px;
         letter-spacing: 0.01em;
+}
+
+.frame-overlay-node-name {
+        color: #9fc7ff;
 }
 
 .frame-empty-state {

@@ -1,12 +1,15 @@
 import React from 'react';
+import Slider from '../../../components/Slider.jsx';
 
 export default function DoubleParameterControl({ item, canEdit, onChange, parameterMeta }) {
+        const minimum = Number(item.min ?? item.value ?? 0);
+        const maximum = Number(item.max ?? item.value ?? 100);
+
         return (
                 <div className="numeric-control">
-                        <input
-                                type="range"
-                                min={item.min ?? item.value ?? 0}
-                                max={item.max ?? item.value ?? 100}
+                        <Slider
+                                min={minimum}
+                                max={maximum}
                                 step="0.01"
                                 value={item.value ?? 0}
                                 disabled={!canEdit}

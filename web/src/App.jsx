@@ -37,6 +37,8 @@ const VIEW_MODE_STORAGE_KEY = 'camflow:view-mode';
 const SELECTED_NODE_STORAGE_KEY = 'camflow:selected-node-id';
 const RUNTIME_LAYOUTS_STORAGE_KEY = 'camflow:runtime-layouts';
 const NODE_LAYOUTS_STORAGE_KEY = 'camflow:node-layouts';
+const FRAME_VIEWER_SETTINGS_STORAGE_KEY = 'camflow:frame-viewer-settings:v1';
+const DEFAULT_FRAME_VIEWER_SETTINGS = { shiftValue: 8, debayerEnabled: false };
 const AUTO_NODE_PREFIX = '__auto__';
 const NODE_WIDTH = 152;
 const NODE_HEIGHT = 62;
@@ -440,6 +442,36 @@ function readInitialSelectedNodeId() {
         }
 }
 
+function normalizeFrameViewerSettings(settings) {
+        const rawShiftValue = Number(settings?.shiftValue);
+        const shiftValue = Number.isFinite(rawShiftValue) ? Math.min(8, Math.max(0, Math.round(rawShiftValue))) : DEFAULT_FRAME_VIEWER_SETTINGS.shiftValue;
+        return {
+                shiftValue,
+                debayerEnabled: settings?.debayerEnabled === true
+        };
+}
+
+function readFrameViewerSettings() {
+        try {
+                const raw = window.localStorage.getItem(FRAME_VIEWER_SETTINGS_STORAGE_KEY);
+                const parsed = raw ? JSON.parse(raw) : {};
+                if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+                        return {};
+                }
+
+                const result = {};
+                Object.entries(parsed).forEach(([nodeId, settings]) => {
+                        const normalizedNodeId = String(nodeId || '').trim();
+                        if (normalizedNodeId) {
+                                result[normalizedNodeId] = normalizeFrameViewerSettings(settings);
+                        }
+                });
+                return result;
+        } catch (_) {
+                return {};
+        }
+}
+
 function readInitialRuntimeLayouts() {
         try {
                 const raw = window.localStorage.getItem(RUNTIME_LAYOUTS_STORAGE_KEY);
@@ -569,11 +601,22 @@ export default function App() {
         const currentShiftValueRef = useRef(currentShiftValue);
         const debayerEnabledRef = useRef(debayerEnabled);
         const suppressNextNodeSelectRef = useRef(false);
+        const frameViewerSettingsRef = useRef(readFrameViewerSettings());
 
         const editorGraph = useMemo(
                 () => buildEditorGraph(pipelineGraph, localDraftRuntimes, localIp, runtimeLayouts, nodeLayouts, status, remoteRuntimeStatuses),
                 [pipelineGraph, localDraftRuntimes, localIp, runtimeLayouts, nodeLayouts, status, remoteRuntimeStatuses]
         );
+        const displayedFrameNodeId = String(frameContextState?.nodeId || selectedNodeId || sourceNodeId).trim();
+        const displayedFrameNodeName = useMemo(() => {
+                const liveNode = (pipelineGraph.nodes || []).find((node) => node.id === displayedFrameNodeId);
+                if (liveNode) {
+                        return String(liveNode.name || liveNode.id || displayedFrameNodeId);
+                }
+
+                const draftNode = localDraftRuntimes.flatMap((runtime) => runtime.nodes || []).find((node) => node.id === displayedFrameNodeId);
+                return String(draftNode?.name || draftNode?.id || displayedFrameNodeId);
+        }, [displayedFrameNodeId, pipelineGraph.nodes, localDraftRuntimes]);
 
         const { toggleRemoteRuntime } = useRemoteRuntimeStatus({
                 runtimes: editorGraph.runtimes,
@@ -645,6 +688,47 @@ export default function App() {
                         // Ignore storage access errors.
                 }
         }, [nodeLayouts]);
+
+        useEffect(() => {
+                const settings = frameViewerSettingsRef.current[displayedFrameNodeId] || DEFAULT_FRAME_VIEWER_SETTINGS;
+                setCurrentShiftValue(settings.shiftValue);
+                setDebayerEnabled(settings.debayerEnabled);
+                renderCacheRef.current.key = '';
+        }, [displayedFrameNodeId]);
+
+        function storeFrameViewerSettings(nodeId, settings) {
+                if (!nodeId) {
+                        return;
+                }
+
+                frameViewerSettingsRef.current = {
+                        ...frameViewerSettingsRef.current,
+                        [nodeId]: normalizeFrameViewerSettings(settings)
+                };
+                try {
+                        window.localStorage.setItem(FRAME_VIEWER_SETTINGS_STORAGE_KEY, JSON.stringify(frameViewerSettingsRef.current));
+                } catch (_) {
+                        // Ignore storage access errors.
+                }
+        }
+
+        function updateCurrentShiftValue(nextValueOrUpdater) {
+                setCurrentShiftValue((currentValue) => {
+                        const nextValue = typeof nextValueOrUpdater === 'function' ? nextValueOrUpdater(currentValue) : nextValueOrUpdater;
+                        const normalizedSettings = normalizeFrameViewerSettings({ shiftValue: nextValue, debayerEnabled: debayerEnabledRef.current });
+                        storeFrameViewerSettings(displayedFrameNodeId, normalizedSettings);
+                        return normalizedSettings.shiftValue;
+                });
+        }
+
+        function updateDebayerEnabled(nextValueOrUpdater) {
+                setDebayerEnabled((currentValue) => {
+                        const nextValue = typeof nextValueOrUpdater === 'function' ? nextValueOrUpdater(currentValue) : nextValueOrUpdater;
+                        const normalizedSettings = normalizeFrameViewerSettings({ shiftValue: currentShiftValueRef.current, debayerEnabled: nextValue });
+                        storeFrameViewerSettings(displayedFrameNodeId, normalizedSettings);
+                        return normalizedSettings.debayerEnabled;
+                });
+        }
 
         function cleanupDrafts(drafts) {
                 return (drafts || []).map((runtime) => ({
@@ -2218,9 +2302,9 @@ export default function App() {
                                         setViewerControlsOpen={setViewerControlsOpen}
                                         hasFrame={hasFrame}
                                         currentShiftValue={currentShiftValue}
-                                        setCurrentShiftValue={setCurrentShiftValue}
+                                        setCurrentShiftValue={updateCurrentShiftValue}
                                         debayerEnabled={debayerEnabled}
-                                        setDebayerEnabled={setDebayerEnabled}
+                                        setDebayerEnabled={updateDebayerEnabled}
                                         onResetView={() => { setViewZoom(1); setViewPanX(0); setViewPanY(0); }}
                                         status={status}
                                         frameCanvasRef={frameCanvasRef}
@@ -2239,6 +2323,7 @@ export default function App() {
                                         }}
                                         frameMeta={frameMeta}
                                         frameContextState={frameContextState}
+                                        displayedFrameNodeName={displayedFrameNodeName}
                                         formatLabel={formatLabel}
                                 />
 

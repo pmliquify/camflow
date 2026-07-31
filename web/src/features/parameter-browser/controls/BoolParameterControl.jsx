@@ -1,4 +1,5 @@
 import React from 'react';
+import Checkbox from '../../../components/Checkbox.jsx';
 
 function normalizeBoolValue(value) {
         if (typeof value === 'boolean') {
@@ -13,10 +14,11 @@ function normalizeBoolValue(value) {
 
 export default function BoolParameterControl({ item, canEdit, onChange, parameterMeta }) {
         return (
-                <input
-                        type="checkbox"
+                <Checkbox
+                        className="bool-parameter-control"
                         checked={normalizeBoolValue(item.value)}
                         disabled={!canEdit}
+                        aria-label={item.name}
                         onChange={(event) => onChange(item.name, event.target.checked, { ...parameterMeta, interaction: 'immediate' })}
                 />
         );

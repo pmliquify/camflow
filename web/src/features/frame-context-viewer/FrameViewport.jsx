@@ -12,6 +12,7 @@ export default function FrameViewport({
         captureText,
         renderText,
         frameMeta,
+        displayedFrameNodeName,
         formatLabel,
         viewerControlsOpen,
         setViewerControlsOpen,
@@ -35,6 +36,7 @@ export default function FrameViewport({
                         {hasFrame ? (
                                 <>
                                         <FrameMetaOverlay
+                                                nodeName={displayedFrameNodeName}
                                                 seqText={seqText}
                                                 tsMs={tsMs}
                                                 captureText={captureText}

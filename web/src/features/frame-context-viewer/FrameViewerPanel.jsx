@@ -22,6 +22,7 @@ export default function FrameViewerPanel({
         frameCanvasRef,
         onCanvasMouseDown,
         frameMeta,
+        displayedFrameNodeName,
         formatLabel
 }) {
         return (
@@ -46,6 +47,7 @@ export default function FrameViewerPanel({
                                 frameCanvasRef={frameCanvasRef}
                                 onCanvasMouseDown={onCanvasMouseDown}
                                 frameMeta={frameMeta}
+                                displayedFrameNodeName={displayedFrameNodeName}
                                 formatLabel={formatLabel}
                         />
                 </section>

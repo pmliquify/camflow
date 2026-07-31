@@ -1,5 +1,6 @@
 import React from 'react';
 import reloadIcon from '../../assets/images/icon-reload.svg';
+import Checkbox from '../../components/Checkbox.jsx';
 
 export default function ParameterNameBlock({
         item,
@@ -12,10 +13,10 @@ export default function ParameterNameBlock({
         return (
                 <div className="param-name">
                         {showVisibilityCheckbox ? (
-                                <input
+                                <Checkbox
                                         className="param-visibility-toggle"
-                                        type="checkbox"
                                         checked={parameterVisible}
+                                        aria-label={`Show ${displayName || item.name}`}
                                         onChange={(event) => {
                                                 if (onVisibilityChange) {
                                                         onVisibilityChange(item.name, event.target.checked);

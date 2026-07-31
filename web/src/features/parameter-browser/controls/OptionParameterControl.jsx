@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Checkbox from '../../../components/Checkbox.jsx';
 
 function parseMultiSelectValue(value) {
         if (Array.isArray(value)) {
@@ -102,14 +103,16 @@ export default function OptionParameterControl({ item, canEdit, onChange, parame
                         {isOpen ? (
                                 <div className="multi-option-menu">
                                         {optionEntries.map((entry) => (
-                                                <label key={entry.value} className="multi-option-entry" title={entry.label}>
-                                                        <input
-                                                                type="checkbox"
-                                                                checked={selectedSet.has(entry.value)}
-                                                                onChange={() => toggleOption(entry.value)}
-                                                        />
+                                                <Checkbox
+                                                        key={entry.value}
+                                                        className="multi-option-entry"
+                                                        title={entry.label}
+                                                        aria-label={entry.label}
+                                                        checked={selectedSet.has(entry.value)}
+                                                        onChange={() => toggleOption(entry.value)}
+                                                >
                                                         <span>{entry.label}</span>
-                                                </label>
+                                                </Checkbox>
                                         ))}
                                 </div>
                         ) : null}

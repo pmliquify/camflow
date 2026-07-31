@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import Slider from '../../../components/Slider.jsx';
 
 export default function IntParameterControl({ item, canEdit, onChange, parameterMeta }) {
         const [intDraftValue, setIntDraftValue] = useState(String(item.value ?? ''));
+        const minimum = Number(item.min ?? item.value ?? 0);
+        const maximum = Number(item.max ?? item.value ?? 100);
 
         useEffect(() => {
                 setIntDraftValue(String(item.value ?? ''));
@@ -13,10 +16,9 @@ export default function IntParameterControl({ item, canEdit, onChange, parameter
 
         return (
                 <div className="numeric-control">
-                        <input
-                                type="range"
-                                min={item.min ?? item.value ?? 0}
-                                max={item.max ?? item.value ?? 100}
+                        <Slider
+                                min={minimum}
+                                max={maximum}
                                 step="1"
                                 value={item.value ?? 0}
                                 disabled={!canEdit}

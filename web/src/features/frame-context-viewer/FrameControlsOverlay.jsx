@@ -2,6 +2,7 @@ import React from 'react';
 import { isColorRawFormat, isRawFormat } from '../../services/frameRendering.js';
 import bayerIcon from '../../assets/images/icon-bayer.svg';
 import ResetViewButton from '../../components/ResetViewButton.jsx';
+import Slider from '../../components/Slider.jsx';
 import UiButton from '../../components/UiButton.jsx';
 
 function bitshiftLabel(value) {
@@ -84,8 +85,7 @@ export default function FrameControlsOverlay({
                         {viewerControlsOpen && showBitshiftControl ? (
                                 <div className="viewer-shift-panel" onMouseEnter={openShiftPanel} onMouseLeave={closeShiftPanel}>
                                         <span className="viewer-shift-title">bitshift</span>
-                                        <input
-                                                type="range"
+                                        <Slider
                                                 min="0"
                                                 max="8"
                                                 step="1"

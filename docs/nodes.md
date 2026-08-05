@@ -1,6 +1,6 @@
 # Nodes
 
-Nodes are the executable units of a CamFlow graph. They are divided into Sources, Processors, Probes and Sinks.
+Nodes are the executable units of a CamFlow graph. They are divided into Sources, Processors and Sinks.
 
 ## Runtime Parameter Model
 
@@ -24,8 +24,8 @@ Examples:
 - `nvargussrc`
 - `filesrc`
 - `compositor`
-- `probe`
 - `filesink`
+- `logsink`
 - `tcpsink`
 
 ## Runtime nodes
@@ -90,20 +90,17 @@ For supergraph usage, runtime-to-runtime transport is integrated into the runtim
 
 This keeps graph authoring user-focused while preserving explicit node-level connectivity.
 
-### Probe
+### LogSink
 
-Factory name: `probe`
+Factory name: `logsink`
 
-The CLI pipeline syntax supports probes through arrow operators like `-captureA>` and materializes them as regular `probe` nodes in the runtime graph.
+Logs one line per received image frame, including sequence, timestamp, delta time, dimensions and pixel format.
 
 Example:
 
 ```text
-v4l2src -captureA> tcpsink
+v4l2src -> captureLog:logsink
 ```
-
-This inserts a probe node that prints one line per processed image frame, including sequence, timestamp, delta time, dimensions, stride and pixel format.
-The probe id is an arbitrary non-empty string and becomes the node id of the inserted probe.
 
 ## Image processing nodes
 

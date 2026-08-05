@@ -25,8 +25,7 @@ enum class NodeKind
 {
     Source,    ///< Data-producing node (cameras, file readers, test generators).
     Processor, ///< Data-transforming node (processors, compositors).
-    Sink,      ///< Data-consuming node (file writers, display sinks, network sinks).
-    Probe      ///< Non-destructive inspection node (logs frame info, passes data through).
+    Sink       ///< Data-consuming node (file writers, loggers, network sinks).
 };
 
 /// Owning smart-pointer type used throughout the pipeline for node instances.

@@ -47,7 +47,6 @@ Runtime nodes are stored below `src/nodes`.
 - Sources: `src/nodes/sources`
 - Processors: `src/nodes/processors`
 - Sinks: `src/nodes/sinks`
-- Probes: `src/nodes/probes`
 
 Every node must provide a parameter schema. The REST API and help system derive their output from this schema.
 

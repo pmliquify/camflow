@@ -34,7 +34,7 @@ GStreamer is optional and only used for relevant source nodes.
 
 ## 4. Graph model
 
-A pipeline consists of source, processor, probe and sink nodes.
+A pipeline consists of source, processor and sink nodes.
 
 - Graph input: CLI expression or JSON graph
 - Runtime value exchange: `FrameContext`

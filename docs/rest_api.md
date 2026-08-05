@@ -43,7 +43,7 @@ REST responses include:
 | `/api/runtime/version` | `GET` | none | `version`, `git`, `build`, `opencv` |
 | `/api/pipeline` | `GET` | none | runtime graph JSON (`nodes`, `edges`, ...) |
 | `/api/pipeline` | `PUT` / `POST` | graph JSON (`nodes`, `edges`) | `ok` |
-| `/api/nodes` | `GET` | none | `sources`, `processors`, `probes`, `sinks`, `schemas` |
+| `/api/nodes` | `GET` | none | `sources`, `processors`, `sinks`, `schemas` |
 | `/api/nodes` | `POST` / `PUT` | `id`, `type`, optional `runtimeTargetIp` / `runtimeId` / `runtime` | `ok`, `id` |
 | `/api/nodes/{id}/id` | `PUT` | path: `{id}`; body: new id as text | `ok`, `id` |
 | `/api/nodes/{id}` | `DELETE` | path: `{id}` | `ok` |
@@ -71,13 +71,12 @@ Status codes:
 
 ## GET /api/nodes
 
-Returns registered node type names grouped by source, processor, probe and sink, plus their schemas.
+Returns registered node type names grouped by source, processor and sink, plus their schemas.
 
 Response fields:
 
 - `sources`: `string[]`
 - `processors`: `string[]`
-- `probes`: `string[]`
 - `sinks`: `string[]`
 - `schemas`: object keyed by node type; each value contains `parameters`, `inputs` and `outputs`
 
@@ -87,8 +86,7 @@ Example response:
 {
   "sources": ["v4l2src", "filesrc"],
   "processors": ["debayer", "ccm", "compositor"],
-  "probes": ["probe"],
-  "sinks": ["tcpsink", "filesink"],
+  "sinks": ["tcpsink", "filesink", "logsink"],
   "schemas": {
     "v4l2src": {
       "parameters": [],

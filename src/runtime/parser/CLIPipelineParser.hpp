@@ -14,8 +14,7 @@
  *
  * CLIPipelineParser translates a compact, human-writable pipeline expression into a
  * fully wired @ref GraphConfig ready for @ref PipelineBuilder. The DSL is designed
- * for fast command-line use and supports linear chains, branches, merges, sinks and
- * inline probe insertion.
+ * for fast command-line use and supports linear chains, branches, merges and sinks.
  *
  * ### DSL syntax summary
  * | Construct            | Syntax example                                      |
@@ -23,10 +22,8 @@
  * | Linear chain         | `v4l2src->tcpsink`                                  |
  * | With parameters      | `v4l2src(device=/dev/video0)->tcpsink`              |
  * | Input binding        | `compositor(image=cam0.image,cam1.image,xpos=0,100)`|
- * | Probe with id        | `v4l2src -CAM0> tcpsink`                            |
  * | Branch (parallel)    | `src -> (proc1->sink1, proc2->sink2)`               |
  * | Merge                | `(src1,src2) -> merge -> sink`                      |
- * | Sink-only branch     | `v4l2src -CAM0>` (no explicit sink required)        |
  *
  * For a complete formal specification see `docs/cli_pipeline_syntax.md`.
  *
@@ -34,12 +31,9 @@
  * The parser operates in three recursive stages:
  * -# **Top-level splitting** – commas at depth-0 split the expression into independent
  *    parallel chains.
- * -# **Chain tokenisation** – each chain is split into node segments and link tokens
- *    (`->` or `-id>`).
+ * -# **Chain tokenisation** – each chain is split into node segments at `->` links.
  * -# **Segment parsing** – segments that are wrapped in parentheses are recursively
  *    parsed as sub-graphs (branches or merges).
- *
- * Probe nodes (`-id>`) are inserted as dedicated @ref Probe nodes in the graph.
  *
  * @see GraphConfig
  * @see JsonPipelineParser
@@ -62,15 +56,7 @@ private:
     struct ParseContext
     {
         size_t nodeIndex = 0;          ///< Counter for auto-generated node identifiers.
-        size_t probeIndex = 0;         ///< Counter for auto-generated probe identifiers.
         std::set<std::string> usedIds; ///< Already used identifiers (for uniqueness).
-    };
-
-    /// Represents the token between two node segments in the chain (`->` or `-id>`).
-    struct LinkToken
-    {
-        bool hasProbe = false; ///< @c true if this link inserts a probe node.
-        std::string probeId;   ///< Probe identifier string (non-empty if hasProbe).
     };
 
     /**
@@ -104,7 +90,7 @@ private:
      * @brief Tokenises a chain string into alternating node segments and link tokens.
      * @return @c true on success.
      */
-    bool tokenizeChain(const std::string& text, std::vector<std::string>& segments, std::vector<LinkToken>& links, std::string& errorMessage) const;
+    bool tokenizeChain(const std::string& text, std::vector<std::string>& segments, std::string& errorMessage) const;
 
     /**
      * @brief Splits @p text at @p delimiter characters that are at depth 0 (not inside parentheses).
@@ -129,13 +115,6 @@ private:
      */
     bool addNodeAndConnect(const NodeConfig& node, const std::vector<std::string>& inputFrontier, std::vector<std::string>& outputFrontier, GraphConfig& config, ParseContext& context,
                            std::string& errorMessage) const;
-
-    /**
-     * @brief Inserts an automatic @ref Probe node, connects it to @p inputFrontier.
-     * @return @c true on success.
-     */
-    bool addProbeNode(const std::string& probeId, const std::vector<std::string>& inputFrontier, std::vector<std::string>& outputFrontier, GraphConfig& config, ParseContext& context,
-                      std::string& errorMessage) const;
 
     /** @brief Returns @c true if @p type is a registered sink type. */
     bool isSinkType(const std::string& type) const;

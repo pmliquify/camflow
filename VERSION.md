@@ -24,5 +24,5 @@
 
 ### Added
 
-- Runtime graph execution model with sources, processors, probes and sinks.
+- Runtime graph execution model with sources, processors and sinks.
 - REST runtime control endpoint and JSON/CLI graph parsing.

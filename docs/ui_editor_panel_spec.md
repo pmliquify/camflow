@@ -38,7 +38,7 @@ This document specifies the graph editor panel (`NodeEditorPanel`) behavior.
 - Nodes may overlap.
 - Node selection updates selected node state used by Parameter Panel.
 - A node has a centered name header and separate input and output halves below it.
-- Source input halves and sink output halves are disabled; processors and probes enable both halves.
+- Source input halves and sink output halves are disabled; processors enable both halves.
 - Clicking either enabled port half opens a menu containing its currently hidden ports; selecting one makes it visible.
 - If that side has no hidden ports, clicking it does not open a menu.
 - Right-clicking a visible input or output port removes every edge connected through that port before hiding it.

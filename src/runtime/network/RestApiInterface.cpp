@@ -577,12 +577,10 @@ bool RestApiInterface::tryHandle(const std::string& method, const std::string& p
         json << ",";
         writeGroup("processors", NodeKind::Processor);
         json << ",";
-        writeGroup("probes", NodeKind::Probe);
-        json << ",";
         writeGroup("sinks", NodeKind::Sink);
         json << ",\"schemas\":{";
         bool firstSchema = true;
-        for (const auto kind : {NodeKind::Source, NodeKind::Processor, NodeKind::Probe, NodeKind::Sink}) {
+        for (const auto kind : {NodeKind::Source, NodeKind::Processor, NodeKind::Sink}) {
             for (const auto& type : m_factory.registeredTypes(kind)) {
                 if (!firstSchema) {
                     json << ",";

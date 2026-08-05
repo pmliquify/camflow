@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import StandardContextMenu from '../../components/StandardContextMenu.jsx';
 
-const GROUPS = ['sources', 'processors', 'probes', 'sinks'];
+const GROUPS = ['sources', 'processors', 'sinks'];
 
 export default function ContextMenu({ menu, onClose, onAddRuntime, onAddNode, onDeleteRuntime, onDeleteNode, localRuntimeId }) {
         const supportsNodeCreate = menu.kind === 'runtime' || menu.kind === 'node';

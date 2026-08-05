@@ -182,8 +182,8 @@ The runtime can still be scripted from the CLI for camera driver development:
 camflow --graph tests/graphs/viewer_v4l2_to_gui.json
 camflow -G tests/graphs/viewer_v4l2_to_gui.json
 camflow -n 100 "v4l2src(device=/dev/video0,fourcc=RG10)->tcpsink(ip=127.0.0.1,port=9000)"
-camflow -p -n 200 "v4l2src(device=/dev/video0)-CAM0>tcpsink(ip=127.0.0.1,port=9000)"
-camflow -s -p -n 200 "v4l2src(device=/dev/video0)-CAM0>tcpsink(ip=127.0.0.1,port=9000)"
+camflow -p -n 200 "v4l2src(device=/dev/video0)->logsink"
+camflow -s -p -n 200 "v4l2src(device=/dev/video0)->logsink"
 ```
 
 If no `-G`/`--graph` option is provided, a pipeline string argument is required.

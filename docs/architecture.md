@@ -40,7 +40,7 @@ OpenCV 4.12 is required and linked statically into the runtime binary.
 
 ## Data flow
 
-A pipeline graph is composed of source, processor, probe and sink nodes.
+A pipeline graph is composed of source, processor and sink nodes.
 
 Example:
 

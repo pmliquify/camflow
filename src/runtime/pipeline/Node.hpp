@@ -20,7 +20,7 @@ class Pipeline;
  * Node defines the lifecycle and processing contract that every pipeline element
  * must implement. A node can be a source (camera, file, network input), a
  * processor (debayer, compositor, color correction), a sink (GUI, file writer,
- * TCP output), or a diagnostic helper such as @ref Probe.
+ * TCP output), or a diagnostic sink such as @ref LogSink.
  *
  * The class also provides the common storage for configured parameters, node ID
  * and shared infrastructure such as the image converter. Derived nodes focus on

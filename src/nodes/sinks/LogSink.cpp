@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Peter Martienssen
 // SPDX-License-Identifier: MIT
 
-#include "Probe.hpp"
+#include "LogSink.hpp"
 
 #include "core/Logger.hpp"
 #include "image/ImageBuffer.hpp"
@@ -10,25 +10,24 @@
 #include <iomanip>
 #include <sstream>
 
-std::string Probe::typeName() const
+std::string LogSink::typeName() const
 {
-    return "probe";
+    return "logsink";
 }
 
-std::string Probe::description() const
+std::string LogSink::description() const
 {
-    return "Prints one line per processed image to the console.";
+    return "Prints one line per received image to the console.";
 }
 
-NodeSchema Probe::schema() const
+NodeSchema LogSink::schema() const
 {
     NodeSchema schema;
-    schema.inputs = {NodeInputInfo{"image", "image", "Input image to inspect", false}};
-    schema.outputs = {NodeOutputInfo{"image", "image", "Forwarded image"}};
+    schema.inputs = {NodeInputInfo{"image", "image", "Input image to log", false}};
     return schema;
 }
 
-bool Probe::process(FrameContext& context)
+bool LogSink::process(FrameContext& context)
 {
     const ImageBuffer* image = context.get<ImageBuffer>("image");
     if (image == nullptr) {
@@ -50,8 +49,7 @@ bool Probe::process(FrameContext& context)
         deltaMsText << std::setw(4) << "n/a";
     }
 
-    const std::string probeId = id();
-    LOG_INFO(probeId + " [#" + sequenceText.str() + ", ts=" + timestampMsText.str() + ", t=" + deltaMsText.str() + " ms, " + pixelFormatToString(image->format()) + "/" +
+    LOG_INFO(id() + " [#" + sequenceText.str() + ", ts=" + timestampMsText.str() + ", t=" + deltaMsText.str() + " ms, " + pixelFormatToString(image->format()) + "/" +
              std::to_string(image->width()) + "x" + std::to_string(image->height()) + "]");
 
     m_previousTimestampNs = timestampNs;

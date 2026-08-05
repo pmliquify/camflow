@@ -156,34 +156,6 @@ v4l2src(device=/dev/video1) -> tcpsink
 
 Each top-level pipeline is parsed independently.
 
-## Probe Operator
-
-A probe can be inserted directly in an arrow:
-
-```text
-v4l2src -captureA> debayer
-```
-
-Equivalent expanded form:
-
-```text
-v4l2src -> probe(captureA) -> debayer
-```
-
-Probe ids in the arrow operator are arbitrary non-empty strings and become the inserted probe node id.
-
-The probe is inserted as a node in the graph and does not change data flow topology.
-
-`probe` is a regular registered runtime node type.
-
-It is also valid to end a pipeline directly with a probe:
-
-```text
-v4l2src -captureA>
-```
-
-This is equivalent to `v4l2src -> probe(captureA)`.
-
 ## Automatic IDs
 
 If an id is omitted, the parser creates one automatically:
@@ -209,21 +181,12 @@ Ids must be unique within one parsed expression.
 
 ```text
 v4l2src(device=/dev/video0)
--captureA>
-(
-    raw:filesink(path=raw),
-    deb:debayer
-    ->(
-        histogram,
-        compositor{deb},
-        undistort->threshold->blobdetector
-    )
-    -defectCheck>
-    defectclassifier
-)
 ->(
-    tcpsink,
-    png:filesink(path=result)
+    captureLog:logsink,
+    deb:debayer->(
+        tcpsink,
+        png:filesink(path=result)
+    )
 )
 ```
 

@@ -8,11 +8,11 @@
 #include "parser/CLIPipelineParser.hpp"
 #include "parser/JsonPipelineParser.hpp"
 #include "pipeline/PipelineBuilder.hpp"
-#include "probes/Probe.hpp"
 #include "processors/CCMProcessor.hpp"
 #include "processors/CompositorProcessor.hpp"
 #include "processors/DebayerProcessor.hpp"
 #include "sinks/FileSink.hpp"
+#include "sinks/LogSink.hpp"
 #include "sinks/TCPSink.hpp"
 #include "sources/FileSource.hpp"
 #include "sources/V4L2Source.hpp"
@@ -56,11 +56,11 @@ void Application::registerNodes()
     m_factory.registerType("debayer", NodeKind::Processor, []() { return std::make_unique<DebayerProcessor>(); });
     m_factory.registerType("ccm", NodeKind::Processor, []() { return std::make_unique<CCMProcessor>(); });
     m_factory.registerType("filesink", NodeKind::Sink, []() { return std::make_unique<FileSink>(); });
+    m_factory.registerType("logsink", NodeKind::Sink, []() { return std::make_unique<LogSink>(); });
     m_factory.registerType("v4l2src", NodeKind::Source, []() { return std::make_unique<V4L2Source>(); });
 #ifdef HAVE_GSTREAMER
     m_factory.registerType("nvargussrc", NodeKind::Source, []() { return std::make_unique<NvArgusSource>(); });
 #endif
-    m_factory.registerType("probe", NodeKind::Probe, []() { return std::make_unique<Probe>(); });
     m_factory.registerType("tcpsink", NodeKind::Sink, []() { return std::make_unique<TCPSink>(); });
 }
 
@@ -292,7 +292,6 @@ void Application::printHelp(const char* executableName, const GraphConfig& confi
         printNodeList(NodeKind::Source, "Sources");
         printNodeList(NodeKind::Processor, "Processors");
         printNodeList(NodeKind::Sink, "Sinks");
-        printNodeList(NodeKind::Probe, "Probes");
         return;
     }
 

@@ -147,11 +147,11 @@ if(BUILD_RUNTIME)
             src/runtime/network/WebInterface.cpp
             src/runtime/network/WebServer.cpp
             src/convert/ImageConverter.cpp
-            src/nodes/probes/Probe.cpp
             src/nodes/processors/CCMProcessor.cpp
             src/nodes/processors/CompositorProcessor.cpp
             src/nodes/processors/DebayerProcessor.cpp
             src/nodes/sinks/FileSink.cpp
+            src/nodes/sinks/LogSink.cpp
             src/nodes/sinks/TCPSink.cpp
             src/nodes/sources/FileSource.cpp
             src/nodes/sources/V4L2Control.cpp

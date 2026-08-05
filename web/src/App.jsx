@@ -30,8 +30,7 @@ const LOCAL_RUNTIME_ID = 'local';
 const FALLBACK_NODE_TYPES = {
         sources: ['v4l2src', 'filesrc', 'nvargussrc'],
         processors: ['debayer', 'ccm', 'compositor'],
-        probes: ['probe'],
-        sinks: ['filesink', 'tcpsink']
+        sinks: ['filesink', 'logsink', 'tcpsink']
 };
 
 const DEFAULT_MODE = 'viewer';
@@ -221,7 +220,7 @@ function absoluteEdgeCurvePath(fromNode, toNode, edge) {
 }
 
 function nodeKind(type, catalog) {
-        return ['sources', 'processors', 'probes', 'sinks'].find((kind) => (catalog?.[kind] || []).includes(type)) || 'processors';
+        return ['sources', 'processors', 'sinks'].find((kind) => (catalog?.[kind] || []).includes(type)) || 'processors';
 }
 
 function nodeSchema(type, catalog) {
@@ -611,7 +610,7 @@ export default function App() {
         const [selectedNodeMeta, setSelectedNodeMeta] = useState(null);
         const [debayerEnabled, setDebayerEnabled] = useState(false);
         const [viewMode, setViewMode] = useState(readInitialViewMode);
-        const [runtimeMenu, setRuntimeMenu] = useState({ open: false, x: 0, y: 0, kind: 'background', runtimeId: null, nodeId: null, sources: [], processors: [], probes: [], sinks: [] });
+        const [runtimeMenu, setRuntimeMenu] = useState({ open: false, x: 0, y: 0, kind: 'background', runtimeId: null, nodeId: null, sources: [], processors: [], sinks: [] });
         const [dialogState, setDialogState] = useState({ open: false, mode: null, runtimeId: null, runtimeName: '', runtimeIp: '', nodeType: '', nodeId: '' });
         const [editorError, setEditorError] = useState('');
         const [runtimeLogs, setRuntimeLogs] = useState({});
@@ -874,7 +873,6 @@ export default function App() {
                         nodeId,
                         sources: nodeCatalog.sources.length ? nodeCatalog.sources : FALLBACK_NODE_TYPES.sources,
                         processors: nodeCatalog.processors.length ? nodeCatalog.processors : FALLBACK_NODE_TYPES.processors,
-                        probes: nodeCatalog.probes.length ? nodeCatalog.probes : FALLBACK_NODE_TYPES.probes,
                         sinks: nodeCatalog.sinks.length ? nodeCatalog.sinks : FALLBACK_NODE_TYPES.sinks
                 });
         }

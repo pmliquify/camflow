@@ -32,8 +32,8 @@ The runtime can be inspected from the host debugger while the target pipeline is
 Enable node-level runtime profiling from the CLI:
 
 ```bash
-camflow --profile -n 300 "v4l2src(device=/dev/video0)-CAM0>tcpsink(ip=127.0.0.1,port=9000)"
-camflow --simple-pipeline --profile -n 300 "v4l2src(device=/dev/video0)-CAM0>tcpsink(ip=127.0.0.1,port=9000)"
+camflow --profile -n 300 "v4l2src(device=/dev/video0)->logsink"
+camflow --simple-pipeline --profile -n 300 "v4l2src(device=/dev/video0)->logsink"
 ```
 
 At shutdown, camflow prints one profiling line per node with calls, failures, and min/avg/max/total execution times.

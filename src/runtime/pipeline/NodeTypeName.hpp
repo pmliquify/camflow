@@ -24,7 +24,7 @@ std::string normalizeNodeTypeName(const std::string& typeName);
  *
  * Used by @ref CLIPipelineParser when a pipeline expression does not specify explicit
  * node identifiers. The generated identifier has the form `<type><index>`, e.g.
- * `"v4l2src0"`, `"sink0"`, `"probe1"`.
+ * `"v4l2src0"`, `"processor0"`, `"logsink1"`.
  *
  * @param typeName  The (optionally normalised) type name string.
  * @param index     Zero-based occurrence index of this type in the pipeline.

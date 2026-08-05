@@ -107,7 +107,7 @@ bool CLIPipelineParser::isWrappedByParentheses(const std::string& text) const
     return depth == 0 && braceDepth == 0 && !inSingleQuote && !inDoubleQuote;
 }
 
-bool CLIPipelineParser::tokenizeChain(const std::string& text, std::vector<std::string>& segments, std::vector<LinkToken>& links, std::string& errorMessage) const
+bool CLIPipelineParser::tokenizeChain(const std::string& text, std::vector<std::string>& segments, std::string& errorMessage) const
 {
     int parenDepth = 0;
     int braceDepth = 0;
@@ -161,28 +161,8 @@ bool CLIPipelineParser::tokenizeChain(const std::string& text, std::vector<std::
 
         if (i + 1 < text.size() && text[i + 1] == '>') {
             segments.push_back(text.substr(start, i - start));
-            links.push_back({false, std::string()});
             i += 1;
             start = i + 1;
-            continue;
-        }
-
-        size_t probeBegin = i + 1;
-        size_t probeEnd = probeBegin;
-        while (probeEnd < text.size() && text[probeEnd] != '>') {
-            ++probeEnd;
-        }
-        if (probeEnd < text.size() && text[probeEnd] == '>') {
-            const std::string probeText = trim(text.substr(probeBegin, probeEnd - probeBegin));
-            if (probeText.empty()) {
-                errorMessage = "Probe operator requires a non-empty probe id";
-                return false;
-            }
-            segments.push_back(text.substr(start, i - start));
-            links.push_back({true, probeText});
-            i = probeEnd;
-            start = i + 1;
-            continue;
         }
     }
 
@@ -361,22 +341,6 @@ bool CLIPipelineParser::addNodeAndConnect(const NodeConfig& node, const std::vec
     return true;
 }
 
-bool CLIPipelineParser::addProbeNode(const std::string& probeId, const std::vector<std::string>& inputFrontier, std::vector<std::string>& outputFrontier, GraphConfig& config, ParseContext& context,
-                                     std::string& errorMessage) const
-{
-    if (inputFrontier.empty()) {
-        errorMessage = "Probe operator requires a node before it";
-        return false;
-    }
-
-    NodeConfig probeNode;
-    probeNode.type = "probe";
-    probeNode.id = "probe" + std::to_string(context.probeIndex++);
-    probeNode.parameters.set("id", probeId);
-
-    return addNodeAndConnect(probeNode, inputFrontier, outputFrontier, config, context, errorMessage);
-}
-
 bool CLIPipelineParser::parseSegment(const std::string& text, const std::vector<std::string>& inputFrontier, std::vector<std::string>& outputFrontier, GraphConfig& config, ParseContext& context,
                                      std::string& errorMessage) const
 {
@@ -423,8 +387,7 @@ bool CLIPipelineParser::parseChain(const std::string& text, const std::vector<st
                                    std::string& errorMessage) const
 {
     std::vector<std::string> segments;
-    std::vector<LinkToken> links;
-    if (!tokenizeChain(text, segments, links, errorMessage)) {
+    if (!tokenizeChain(text, segments, errorMessage)) {
         return false;
     }
 
@@ -432,11 +395,6 @@ bool CLIPipelineParser::parseChain(const std::string& text, const std::vector<st
     for (size_t i = 0; i < segments.size(); ++i) {
         const std::string segment = trim(segments[i]);
         if (segment.empty()) {
-            const bool isTrailingSegment = (i + 1 == segments.size());
-            const bool previousWasProbeLink = isTrailingSegment && !links.empty() && links.back().hasProbe;
-            if (previousWasProbeLink) {
-                continue;
-            }
             errorMessage = "Empty segment in pipeline expression";
             return false;
         }
@@ -446,14 +404,6 @@ bool CLIPipelineParser::parseChain(const std::string& text, const std::vector<st
             return false;
         }
         currentFrontier = nextFrontier;
-
-        if (i < links.size() && links[i].hasProbe) {
-            std::vector<std::string> probeFrontier;
-            if (!addProbeNode(links[i].probeId, currentFrontier, probeFrontier, config, context, errorMessage)) {
-                return false;
-            }
-            currentFrontier = probeFrontier;
-        }
     }
 
     outputFrontier = currentFrontier;

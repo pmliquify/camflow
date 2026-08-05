@@ -28,8 +28,10 @@ Frame rendering is client-side from raw packets. Context metadata and matching i
 ## 5. Controls
 
 - Reset view control restores default viewer transform.
-- Bitshift control for formats requiring bit alignment.
 - Debayer toggle for Bayer formats.
+
+The bit-shift value is read from websocket frame metadata and applied automatically
+before RAW conversion or debayering.
 
 Control visibility and behavior are format-aware.
 

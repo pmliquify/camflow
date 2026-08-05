@@ -41,7 +41,7 @@ export default function ParameterPanel({
         deleteRuntime,
         selectedNodeParams,
         updateParameter,
-        editorError
+        runtimeRunning
 }) {
         const initialFilter = readStoredParameterFilter();
         const [filterOpen, setFilterOpen] = useState(false);
@@ -217,11 +217,12 @@ export default function ParameterPanel({
                                                 }
 
                                                 const item = entry.item;
+                                                const canEdit = !runtimeRunning || item.runtimeWritable !== false;
                                                 return (
                                                         <ParameterRow
                                                                 key={entry.id}
                                                                 item={item}
-                                                                canEdit={true}
+                                                                canEdit={canEdit}
                                                                 onChange={updateParameter}
                                                                 showVisibilityCheckbox={filterOpen}
                                                                 parameterVisible={visibleByName[item.name] ?? true}
@@ -231,7 +232,6 @@ export default function ParameterPanel({
                                         })}
                                 </div>
                         </ScrollArea>
-                        {editorError ? <p className="error">{editorError}</p> : null}
                 </section>
         );
 }

@@ -278,6 +278,10 @@ input {
         max-width: min(54vw, 760px);
 }
 
+.header-status-text.is-error {
+        color: #ffc8cf;
+}
+
 .actions {
         display: flex;
         gap: 8px;
@@ -1706,15 +1710,6 @@ select {
         font-weight: 600;
 }
 
-.tool-chip-shift {
-        min-width: 44px;
-        height: 34px;
-        padding: 0 10px;
-        border-radius: 999px;
-        font-size: 11px;
-        font-weight: 700;
-}
-
 .frame-overlay-controls {
         position: absolute;
         top: 8px;
@@ -1723,38 +1718,6 @@ select {
         align-items: center;
         gap: 6px;
         z-index: 3;
-}
-
-.viewer-shift-panel {
-        position: absolute;
-        top: 38px;
-        right: 0;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        min-width: auto;
-        height: auto;
-        padding: 4px 10px;
-        border-radius: 10px;
-        border: 1px solid #31527d;
-        background: rgba(8, 20, 36, 0.75);
-        box-shadow: none;
-}
-
-.viewer-shift-panel span {
-        font-size: 12px;
-        font-weight: 600;
-        color: #d8e8ff;
-}
-
-.viewer-shift-title {
-        white-space: nowrap;
-}
-
-.viewer-shift-panel .ui-slider {
-        width: 210px;
-        height: 18px;
-        flex: 0 0 auto;
 }
 
 .bayer-icon {

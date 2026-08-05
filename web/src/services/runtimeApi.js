@@ -183,7 +183,16 @@ export async function updateNodeParameter(nodeId, name, value) {
                 body: String(value)
         });
         if (!response.ok) {
-                throw new Error(`update param ${response.status}`);
+                let message = `parameter update failed (${response.status})`;
+                try {
+                        const payload = await response.json();
+                        if (payload?.error) {
+                                message = String(payload.error);
+                        }
+                } catch (_) {
+                        // Keep the status-based fallback for non-JSON responses.
+                }
+                throw new Error(message);
         }
         return response;
 }

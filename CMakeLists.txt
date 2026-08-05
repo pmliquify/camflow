@@ -148,7 +148,6 @@ if(BUILD_RUNTIME)
             src/runtime/network/WebServer.cpp
             src/convert/ImageConverter.cpp
             src/nodes/probes/Probe.cpp
-            src/nodes/processors/BitShiftProcessor.cpp
             src/nodes/processors/CCMProcessor.cpp
             src/nodes/processors/CompositorProcessor.cpp
             src/nodes/processors/DebayerProcessor.cpp

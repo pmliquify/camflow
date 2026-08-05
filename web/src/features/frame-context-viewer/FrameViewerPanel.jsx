@@ -10,11 +10,7 @@ export default function FrameViewerPanel({
         tsMs,
         captureText,
         renderText,
-        viewerControlsOpen,
-        setViewerControlsOpen,
         hasFrame,
-        currentShiftValue,
-        setCurrentShiftValue,
         debayerEnabled,
         setDebayerEnabled,
         onResetView,
@@ -35,11 +31,7 @@ export default function FrameViewerPanel({
                                 tsMs={tsMs}
                                 captureText={captureText}
                                 renderText={renderText}
-                                viewerControlsOpen={viewerControlsOpen}
-                                setViewerControlsOpen={setViewerControlsOpen}
                                 hasFrame={hasFrame}
-                                currentShiftValue={currentShiftValue}
-                                setCurrentShiftValue={setCurrentShiftValue}
                                 debayerEnabled={debayerEnabled}
                                 setDebayerEnabled={setDebayerEnabled}
                                 onResetView={onResetView}

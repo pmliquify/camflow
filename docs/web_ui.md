@@ -75,8 +75,10 @@ The frame overlay in the top-left corner shows:
 
 Top-right hover tools are format-aware:
 
-- bitshift slider for raw/mono/bayer formats above 8bpp
 - optional `rgb` debayer toggle for Bayer formats
+
+The frame packet's `bitShift` metadata is applied automatically before RAW conversion
+or debayering.
 
 Image interaction:
 

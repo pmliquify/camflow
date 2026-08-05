@@ -32,7 +32,9 @@ struct V4L2Control
     int64_t step = 0;                 ///< Granularity step between values.
     int64_t defaultValue = 0;         ///< Driver default value.
     int fd = -1;                      ///< Open file descriptor for the device that owns this control.
-    bool writable = true;             ///< @c true if the control is not read-only.
+    uint32_t flags = 0;               ///< Current V4L2_CTRL_FLAG_* state reported by the driver.
+    bool writable = true;             ///< @c true if the control is currently writable.
+    bool runtimeWritable = true;      ///< @c true if the control may be changed while capture buffers are active.
     std::vector<std::string> options; ///< Valid option strings for menu controls.
     std::string sourceDevice;         ///< Human-readable V4L2 source device path.
 };
@@ -75,9 +77,10 @@ public:
      * @brief Writes a new value to a V4L2 control.
      * @param control Control descriptor (must have a valid fd and id).
      * @param value   New value to write, clamped to [minimum, maximum].
+     * @param errorMessage Optional output for a driver or control-state error.
      * @return @c true on success; @c false if the ioctl failed or the control is read-only.
      */
-    static bool write(const V4L2Control& control, int64_t value);
+    static bool write(const V4L2Control& control, int64_t value, std::string* errorMessage = nullptr);
 
     /**
      * @brief Converts a @ref V4L2Control to a @ref ParameterInfo descriptor.

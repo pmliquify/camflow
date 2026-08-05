@@ -106,18 +106,13 @@ Always visible:
 
 Context dependent (by pixel format):
 
-- Shift chip:
-	- `MSB` when slider value = 8
-	- `shift <x> LSB` when slider value < 8
 - RGB debayer toggle button:
 	- icon-only: three colored dots (R/G/B)
 	- active state uses highlighted border/inset
-- bitshift slider panel (small, fine-grained style)
 
 Behavior:
 
-- slider panel opens on hover over control cluster
-- slider panel closes on mouse leave
+- Frame metadata supplies `bitShift`; the client applies it automatically before conversion.
 
 ## 7. Zoom and pan behavior
 

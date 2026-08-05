@@ -67,9 +67,10 @@ public:
      * @param nodeId        Identifier of the target node.
      * @param parameterName Name of the parameter to update.
      * @param value         New parameter value.
+     * @param errorMessage  Optional output for a rejection reason.
      * @return @c true if the node was found and accepted the new value.
      */
-    bool setParameter(const std::string& nodeId, const std::string& parameterName, const ParameterValue& value);
+    bool setParameter(const std::string& nodeId, const std::string& parameterName, const ParameterValue& value, std::string* errorMessage = nullptr);
 
     /**
      * @brief Updates a parameter from a raw string value.
@@ -80,9 +81,10 @@ public:
      * @param nodeId        Identifier of the target node.
      * @param parameterName Name of the parameter to update.
      * @param value         String representation of the new value.
+     * @param errorMessage  Optional output for a parsing or rejection reason.
      * @return @c true if the parameter was found, parsed and accepted.
      */
-    bool setParameterFromString(const std::string& nodeId, const std::string& parameterName, const std::string& value);
+    bool setParameterFromString(const std::string& nodeId, const std::string& parameterName, const std::string& value, std::string* errorMessage = nullptr);
 
     /**
      * @brief Replaces the current graph configuration (hot-swap).

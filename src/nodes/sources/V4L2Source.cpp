@@ -156,7 +156,8 @@ NodeSchema V4L2Source::schema() const
                               {"subdevices", ParameterType::Option, "V4L2 subdevices", std::string(), std::string(), std::string(), {}, false},
                               {"pixelformat", ParameterType::Option, "Capture pixel format reported by the V4L2 device", std::string("RG10"), std::string(), std::string(), {}, false},
                               {"width", ParameterType::Int, "Capture frame width in pixels", int64_t(640), int64_t(1), int64_t(8192), {}, false},
-                              {"height", ParameterType::Int, "Capture frame height in pixels", int64_t(480), int64_t(1), int64_t(8192), {}, false}};
+                              {"height", ParameterType::Int, "Capture frame height in pixels", int64_t(480), int64_t(1), int64_t(8192), {}, false},
+                              {"bitShift", ParameterType::Int, "Bit shift metadata applied before image conversion", int64_t(0), int64_t(0), int64_t(8), {}, true}};
 
     {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -256,6 +257,7 @@ bool V4L2Source::process(FrameContext& context)
         ImageBuffer image;
         image.wrapExternal(frame.data, frame.size, frame.width, frame.height, frame.stride, pixelFormatFromFourCC(frame.fourcc, m_pixelFormat));
 
+        image.setBitShift(static_cast<uint8_t>(parameterInt("bitShift", 0)));
         image.setSequence(frame.sequence);
         image.setTimestampNs(frame.timestampNs);
         context.set("image", std::move(image));
@@ -264,13 +266,18 @@ bool V4L2Source::process(FrameContext& context)
     return generateTestFrame(context);
 }
 
-void V4L2Source::onParameterChanged(const std::string& name, const ParameterValue& value, const ParameterValue*)
+bool V4L2Source::onParameterChanged(const std::string& name, const ParameterValue& value, const ParameterValue*, std::string& errorMessage)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
-    m_explicitParameters.insert(name);
+
+    if (name == "bitShift") {
+        m_explicitParameters.insert(name);
+        return true;
+    }
 
     if (!m_device.isOpen()) {
-        return;
+        m_explicitParameters.insert(name);
+        return true;
     }
 
     if (isDeviceSelectionParameter(name)) {
@@ -282,23 +289,32 @@ void V4L2Source::onParameterChanged(const std::string& name, const ParameterValu
         refreshDeviceOptions();
         refreshFormatOptions();
         refreshControlSchema();
-        return;
+        m_explicitParameters.insert(name);
+        return true;
     }
 
     if (isFormatParameter(name)) {
         applyRequestedFormat();
         updateImageGeometry();
         refreshControlSchema();
-        return;
+        m_explicitParameters.insert(name);
+        return true;
     }
 
-    applyControlParameterLocked(name, value);
+    if (!applyControlParameterLocked(name, value, &errorMessage)) {
+        return false;
+    }
+    m_explicitParameters.insert(name);
+    return true;
 }
 
-bool V4L2Source::applyControlParameterLocked(const std::string& name, const ParameterValue& value)
+bool V4L2Source::applyControlParameterLocked(const std::string& name, const ParameterValue& value, std::string* errorMessage)
 {
     auto it = m_controlByParameter.find(name);
     if (it == m_controlByParameter.end() || !m_device.isOpen()) {
+        if (errorMessage != nullptr) {
+            *errorMessage = "V4L2 control '" + name + "' is not available";
+        }
         return false;
     }
 
@@ -317,12 +333,15 @@ bool V4L2Source::applyControlParameterLocked(const std::string& name, const Para
             try {
                 controlValue = std::stoll(text);
             } catch (...) {
+                if (errorMessage != nullptr) {
+                    *errorMessage = "invalid value for V4L2 control '" + name + "'";
+                }
                 return false;
             }
         }
     }
 
-    if (!V4L2ControlAccess::write(it->second, controlValue)) {
+    if (!V4L2ControlAccess::write(it->second, controlValue, errorMessage)) {
         LOG_WARNING("Could not apply V4L2 control '" + name + "' while " + (m_device.isStreaming() ? "streaming" : "stopped"));
         return false;
     }
@@ -391,6 +410,7 @@ bool V4L2Source::generateTestFrame(FrameContext& context)
     }
 
     auto now = std::chrono::steady_clock::now().time_since_epoch();
+    image.setBitShift(static_cast<uint8_t>(parameterInt("bitShift", 0)));
     image.setTimestampNs(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(now).count()));
     image.setSequence(++m_sequence);
     context.set("image", std::move(image));
@@ -569,7 +589,10 @@ bool V4L2Source::applyConfiguredControls()
         if (configuredValue == nullptr) {
             continue;
         }
-        applyControlParameterLocked(control.first, *configuredValue);
+        std::string errorMessage;
+        if (!applyControlParameterLocked(control.first, *configuredValue, &errorMessage)) {
+            LOG_WARNING(errorMessage);
+        }
     }
     return true;
 }

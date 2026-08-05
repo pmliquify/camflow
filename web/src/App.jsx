@@ -29,7 +29,7 @@ const LOCAL_RUNTIME_ID = 'local';
 
 const FALLBACK_NODE_TYPES = {
         sources: ['v4l2src', 'filesrc', 'nvargussrc'],
-        processors: ['bitshift', 'debayer', 'ccm', 'compositor'],
+        processors: ['debayer', 'ccm', 'compositor'],
         probes: ['probe'],
         sinks: ['filesink', 'tcpsink']
 };
@@ -43,7 +43,7 @@ const NODE_NAMES_STORAGE_KEY = 'camflow:node-names';
 const RUNTIME_NAMES_STORAGE_KEY = 'camflow:runtime-names';
 const NODE_PORT_VISIBILITY_STORAGE_KEY = 'camflow:node-port-visibility';
 const FRAME_VIEWER_SETTINGS_STORAGE_KEY = 'camflow:frame-viewer-settings:v1';
-const DEFAULT_FRAME_VIEWER_SETTINGS = { shiftValue: 8, debayerEnabled: false };
+const DEFAULT_FRAME_VIEWER_SETTINGS = { debayerEnabled: false };
 const AUTO_NODE_PREFIX = '__auto__';
 const NODE_WIDTH = 152;
 const NODE_HEIGHT = 62;
@@ -483,10 +483,7 @@ function readInitialSelectedNodeId() {
 }
 
 function normalizeFrameViewerSettings(settings) {
-        const rawShiftValue = Number(settings?.shiftValue);
-        const shiftValue = Number.isFinite(rawShiftValue) ? Math.min(8, Math.max(0, Math.round(rawShiftValue))) : DEFAULT_FRAME_VIEWER_SETTINGS.shiftValue;
         return {
-                shiftValue,
                 debayerEnabled: settings?.debayerEnabled === true
         };
 }
@@ -612,7 +609,6 @@ export default function App() {
         const [frameMeta, setFrameMeta] = useState(null);
         const [selectedNodeParams, setSelectedNodeParams] = useState([]);
         const [selectedNodeMeta, setSelectedNodeMeta] = useState(null);
-        const [currentShiftValue, setCurrentShiftValue] = useState(8);
         const [debayerEnabled, setDebayerEnabled] = useState(false);
         const [viewMode, setViewMode] = useState(readInitialViewMode);
         const [runtimeMenu, setRuntimeMenu] = useState({ open: false, x: 0, y: 0, kind: 'background', runtimeId: null, nodeId: null, sources: [], processors: [], probes: [], sinks: [] });
@@ -641,7 +637,6 @@ export default function App() {
         const [splitDragState, setSplitDragState] = useState(null);
         const [captureFps, setCaptureFps] = useState(0);
         const [renderFps, setRenderFps] = useState(0);
-        const [viewerControlsOpen, setViewerControlsOpen] = useState(false);
 
         const frameCanvasRef = useRef(null);
         const frameViewportRef = useRef(null);
@@ -665,7 +660,6 @@ export default function App() {
         const lastRenderWallMsRef = useRef(0);
         const lastFrameSeenAtRef = useRef(0);
         const statusRef = useRef('starting');
-        const currentShiftValueRef = useRef(currentShiftValue);
         const debayerEnabledRef = useRef(debayerEnabled);
         const suppressNextNodeSelectRef = useRef(false);
         const suppressNextParameterReloadRef = useRef(false);
@@ -718,7 +712,6 @@ export default function App() {
 
         // Keep control refs in sync on every render so websocket callbacks and
         // local re-render paths use exactly the same current control values.
-        currentShiftValueRef.current = currentShiftValue;
         debayerEnabledRef.current = debayerEnabled;
 
         useEffect(() => {
@@ -783,7 +776,6 @@ export default function App() {
 
         useEffect(() => {
                 const settings = frameViewerSettingsRef.current[displayedFrameNodeId] || DEFAULT_FRAME_VIEWER_SETTINGS;
-                setCurrentShiftValue(settings.shiftValue);
                 setDebayerEnabled(settings.debayerEnabled);
                 renderCacheRef.current.key = '';
         }, [displayedFrameNodeId]);
@@ -804,19 +796,10 @@ export default function App() {
                 }
         }
 
-        function updateCurrentShiftValue(nextValueOrUpdater) {
-                setCurrentShiftValue((currentValue) => {
-                        const nextValue = typeof nextValueOrUpdater === 'function' ? nextValueOrUpdater(currentValue) : nextValueOrUpdater;
-                        const normalizedSettings = normalizeFrameViewerSettings({ shiftValue: nextValue, debayerEnabled: debayerEnabledRef.current });
-                        storeFrameViewerSettings(displayedFrameNodeId, normalizedSettings);
-                        return normalizedSettings.shiftValue;
-                });
-        }
-
         function updateDebayerEnabled(nextValueOrUpdater) {
                 setDebayerEnabled((currentValue) => {
                         const nextValue = typeof nextValueOrUpdater === 'function' ? nextValueOrUpdater(currentValue) : nextValueOrUpdater;
-                        const normalizedSettings = normalizeFrameViewerSettings({ shiftValue: currentShiftValueRef.current, debayerEnabled: nextValue });
+                        const normalizedSettings = normalizeFrameViewerSettings({ debayerEnabled: nextValue });
                         storeFrameViewerSettings(displayedFrameNodeId, normalizedSettings);
                         return normalizedSettings.debayerEnabled;
                 });
@@ -1376,14 +1359,13 @@ export default function App() {
         }
 
         function renderRawFrame(meta, bytes, resetView = false) {
-                const activeShiftValue = currentShiftValueRef.current;
                 const activeDebayerEnabled = debayerEnabledRef.current;
-                const cacheKey = `${meta.sequence}:${meta.formatId}:${meta.bitsPerPixel}:${meta.stride}:${activeShiftValue}:${activeDebayerEnabled ? 1 : 0}`;
+                const cacheKey = `${meta.sequence}:${meta.formatId}:${meta.bitsPerPixel}:${meta.stride}:${meta.bitShift}:${activeDebayerEnabled ? 1 : 0}`;
                 if (renderCacheRef.current.key === cacheKey && renderCacheRef.current.width === meta.width && renderCacheRef.current.height === meta.height && renderCacheRef.current.rgba) {
                         return renderRgbaToCanvas(meta.width, meta.height, renderCacheRef.current.rgba, resetView);
                 }
 
-                const rgba = renderPacketToRgba(meta, bytes, activeShiftValue, activeDebayerEnabled);
+                const rgba = renderPacketToRgba(meta, bytes, activeDebayerEnabled);
 
                 renderCacheRef.current = { key: cacheKey, rgba, width: meta.width, height: meta.height };
                 return renderRgbaToCanvas(meta.width, meta.height, rgba, resetView);
@@ -1575,12 +1557,14 @@ export default function App() {
                 const submitUpdate = async (nextValue) => {
                         try {
                                 await updateNodeParameter(nodeId, name, nextValue);
+                                setEditorError('');
                                 committedParameterValuesRef.current.set(updateKey, nextValue);
                                 if (hasSideEffects) {
                                         await fetchNodeParameters(nodeId);
                                 }
-                        } catch (_) {
-                                setEditorError(`failed to update ${name}`);
+                        } catch (error) {
+                                const reason = error instanceof Error ? error.message : 'unknown error';
+                                setEditorError(`failed to update ${name}: ${reason}`);
                         }
                 };
 
@@ -1759,7 +1743,7 @@ export default function App() {
                 // whenever local viewer controls change.
                 renderRawFrame(lastPacket.meta, lastPacket.bytes, false);
                 // eslint-disable-next-line react-hooks/exhaustive-deps
-        }, [currentShiftValue, debayerEnabled]);
+        }, [debayerEnabled]);
 
         useEffect(() => {
                 return () => {
@@ -2211,7 +2195,8 @@ export default function App() {
                         <GlobalHeader
                                 runtimeStatusText={runtimeStatusText}
                                 versionParts={versionParts}
-                                graphStatusText={graphStatusText}
+                                graphStatusText={editorError || graphStatusText}
+                                statusError={Boolean(editorError)}
                                 runtimeRunning={runtimeRunning}
                                 onToggleRuntime={() => void setPipelineStopped(runtimeRunning)}
                                 viewMode={viewMode}
@@ -2409,11 +2394,7 @@ export default function App() {
                                         tsMs={tsMs}
                                         captureText={captureText}
                                         renderText={renderText}
-                                        viewerControlsOpen={viewerControlsOpen}
-                                        setViewerControlsOpen={setViewerControlsOpen}
                                         hasFrame={hasFrame}
-                                        currentShiftValue={currentShiftValue}
-                                        setCurrentShiftValue={updateCurrentShiftValue}
                                         debayerEnabled={debayerEnabled}
                                         setDebayerEnabled={updateDebayerEnabled}
                                         onResetView={() => { setViewZoom(1); setViewPanX(0); setViewPanY(0); }}
@@ -2449,7 +2430,7 @@ export default function App() {
                                         deleteRuntime={deleteRuntime}
                                         selectedNodeParams={selectedNodeParams}
                                         updateParameter={updateParameter}
-                                        editorError={editorError}
+                                        runtimeRunning={runtimeRunning}
                                 />
                         </main>
 

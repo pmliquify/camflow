@@ -399,9 +399,10 @@ function bayerPatternFromFormatId(formatId) {
         return family ? BAYER_PATTERNS[family] : '';
 }
 
-export function renderPacketToRgba(meta, bytes, shiftValue, debayerEnabled = false) {
+export function renderPacketToRgba(meta, bytes, debayerEnabled = false) {
         const bayerPattern = bayerPatternFromFormatId(meta.formatId);
         const canDebayer = Boolean(bayerPattern);
+        const shiftValue = meta.bitShift;
 
         if (debayerEnabled && canDebayer) {
                 return debayerToRgba(meta, bytes, shiftValue, bayerPattern);

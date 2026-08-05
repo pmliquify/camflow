@@ -12,8 +12,7 @@
  * @brief Sink node that transmits the current image over a TCP connection.
  *
  * TCPSink connects to a remote @ref ImageSocketServer and sends the current
- * @ref ImageBuffer over TCP. If a `bitshift` value exists in the @ref FrameContext,
- * it is forwarded in the image header metadata.
+ * @ref ImageBuffer over TCP, including its bit-shift metadata.
  *
  * ### Parameters
  * | Name        | Type   | Description                                          |
@@ -25,10 +24,9 @@
  * At runtime these values are read from node parameters.
 
  * ### Inputs
- * | Name       | Type  | Description                                      |
- * |------------|-------|--------------------------------------------------|
- * | `image`    | image | Frame image to transmit.                         |
- * | `bitshift` | int   | Shift metadata for TCP header (`0..8`, default `0`). |
+ * | Name    | Type  | Description              |
+ * |---------|-------|--------------------------|
+ * | `image` | image | Frame image to transmit. |
  *
  * ### Protocol
  * The binary framing protocol is defined in @ref ImageSocketClient. Each
@@ -60,8 +58,7 @@ public:
     /**
      * @brief Sends the current frame over the TCP socket.
      *
-     * Also forwards optional `bitshift` metadata from the frame context in the
-     * image header shift field.
+     * The image's bit-shift metadata is written to the image header shift field.
      *
      * @param context Per-frame data carrier with the image and metadata.
      * @return @c true if the frame was sent successfully; @c false on unrecoverable error.

@@ -7,6 +7,7 @@ export default function GlobalHeader({
         runtimeStatusText,
         versionParts,
         graphStatusText,
+        statusError = false,
         runtimeRunning,
         onToggleRuntime,
         viewMode,
@@ -39,7 +40,7 @@ export default function GlobalHeader({
                                         >
                                                 {runtimeStatusText}
                                         </Label>
-                                        <span className="header-status-text" title={graphStatusText || ''}>{graphStatusText}</span>
+                                        <span className={`header-status-text${statusError ? ' is-error' : ''}`} title={graphStatusText || ''}>{graphStatusText}</span>
                                 </div>
                         </div>
                         <div className="topbar-meta">

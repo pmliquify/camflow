@@ -3,6 +3,7 @@
 
 #include "RestApiInterface.hpp"
 
+#include "core/Logger.hpp"
 #include "parameters/Parameter.hpp"
 #include "parser/JsonPipelineParser.hpp"
 
@@ -10,6 +11,7 @@
 
 #include <opencv2/core/version.hpp>
 
+#include <algorithm>
 #include <cstdlib>
 #include <regex>
 #include <sstream>
@@ -580,13 +582,13 @@ bool RestApiInterface::tryHandle(const std::string& method, const std::string& p
         writeGroup("sinks", NodeKind::Sink);
         json << ",\"schemas\":{";
         bool firstSchema = true;
-        for (const auto kind : { NodeKind::Source, NodeKind::Processor, NodeKind::Probe, NodeKind::Sink }) {
+        for (const auto kind : {NodeKind::Source, NodeKind::Processor, NodeKind::Probe, NodeKind::Sink}) {
             for (const auto& type : m_factory.registeredTypes(kind)) {
                 if (!firstSchema) {
                     json << ",";
                 }
                 firstSchema = false;
-                json << "\"" << jsonEscape(type) << "\":" << schemaToJson(m_factory.schema(type), ParameterSet {});
+                json << "\"" << jsonEscape(type) << "\":" << schemaToJson(m_factory.schema(type), ParameterSet{});
             }
         }
         json << "}";
@@ -627,11 +629,48 @@ bool RestApiInterface::tryHandle(const std::string& method, const std::string& p
         const size_t parameterPos = requestPath.find("/parameters/");
         const std::string nodeId = decodeUrl(requestPath.substr(11, parameterPos - 11));
         const std::string parameterName = decodeUrl(requestPath.substr(parameterPos + 12));
-        const bool ok = m_controller.setParameterFromString(nodeId, parameterName, body);
+        const std::string target = nodeId + "." + parameterName;
 
-        statusCode = ok ? 200 : 404;
+        LOG_INFO("REST parameter request: " + method + " " + requestPath + " value=" + body);
+
+        NodeSchema schema;
+        ParameterSet parameters;
+        if (!m_controller.nodeState(nodeId, schema, parameters)) {
+            statusCode = 404;
+            contentType = "application/json";
+            responseBody = "{\"ok\":false,\"error\":\"node not found\"}";
+            LOG_WARNING("REST parameter response: 404 " + target + " (node not found)");
+            return true;
+        }
+
+        const auto parameterIt = std::find_if(schema.parameters.begin(), schema.parameters.end(), [&parameterName](const ParameterInfo& parameter) { return parameter.name == parameterName; });
+        if (parameterIt == schema.parameters.end()) {
+            statusCode = 404;
+            contentType = "application/json";
+            responseBody = "{\"ok\":false,\"error\":\"parameter not found\"}";
+            LOG_WARNING("REST parameter response: 404 " + target + " (parameter not found)");
+            return true;
+        }
+
+        if (!parameterIt->runtimeWritable && !m_controller.isStopped()) {
+            statusCode = 409;
+            contentType = "application/json";
+            responseBody = "{\"ok\":false,\"error\":\"parameter is not writable while runtime is running\"}";
+            LOG_WARNING("REST parameter response: 409 " + target + " (not writable while runtime is running)");
+            return true;
+        }
+
+        std::string errorMessage;
+        const bool ok = m_controller.setParameterFromString(nodeId, parameterName, body, &errorMessage);
+
+        statusCode = ok ? 200 : 422;
         contentType = "application/json";
-        responseBody = ok ? "{\"ok\":true}" : "{\"ok\":false}";
+        responseBody = ok ? "{\"ok\":true}" : "{\"ok\":false,\"error\":\"" + jsonEscape(errorMessage.empty() ? "parameter value was rejected" : errorMessage) + "\"}";
+        if (ok) {
+            LOG_INFO("REST parameter response: 200 " + target + " = " + body);
+        } else {
+            LOG_WARNING("REST parameter response: 422 " + target + " (" + (errorMessage.empty() ? "value rejected" : errorMessage) + ")");
+        }
         return true;
     }
 

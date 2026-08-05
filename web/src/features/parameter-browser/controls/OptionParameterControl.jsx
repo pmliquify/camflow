@@ -24,6 +24,12 @@ export default function OptionParameterControl({ item, canEdit, onChange, parame
         const rootRef = useRef(null);
 
         useEffect(() => {
+                if (!canEdit) {
+                        setIsOpen(false);
+                }
+        }, [canEdit]);
+
+        useEffect(() => {
                 if (!multiSelect || !isOpen) {
                         return;
                 }
@@ -109,6 +115,7 @@ export default function OptionParameterControl({ item, canEdit, onChange, parame
                                                         title={entry.label}
                                                         aria-label={entry.label}
                                                         checked={selectedSet.has(entry.value)}
+                                                        disabled={!canEdit}
                                                         onChange={() => toggleOption(entry.value)}
                                                 >
                                                         <span>{entry.label}</span>

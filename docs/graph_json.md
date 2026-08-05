@@ -16,18 +16,16 @@ Graphs can be loaded through `--graph` (short form `-G`) or through the REST API
 }
 ```
 
-## Raw-to-color graph
+## Raw bit-shift metadata graph
 
 ```json
 {
   "nodes": [
-    { "id": "cam", "type": "v4l2src" },
-    { "id": "shift", "type": "bitshift", "parameters": { "shift": 2 } },
+    { "id": "cam", "type": "v4l2src", "parameters": { "bitShift": 2 } },
     { "id": "stream", "type": "tcpsink", "parameters": { "ip": "192.168.1.100", "port": 9000 } }
   ],
   "edges": [
-    { "from": "cam", "to": "shift" },
-    { "from": "shift", "to": "stream" }
+    { "from": "cam", "to": "stream" }
   ]
 }
 ```

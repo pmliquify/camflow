@@ -42,6 +42,7 @@
  * | `pixelformat` | option | Uses device start value unless explicitly configured. |
  * | `width`       | int    | Uses device start value unless explicitly configured. |
  * | `height`      | int    | Uses device start value unless explicitly configured. |
+ * | `bitShift`    | int    | Metadata shift applied before image conversion.       |
  * | controls...   | mixed  | Discovered dynamically from V4L2 control metadata.   |
 
  * V4L2 controls from the device and all selected subdevices are enumerated dynamically
@@ -132,7 +133,7 @@ protected:
     /**
      * @brief Applies changed writable controls directly to the active V4L2 device.
      */
-    void onParameterChanged(const std::string& name, const ParameterValue& value, const ParameterValue* previousValue) override;
+    bool onParameterChanged(const std::string& name, const ParameterValue& value, const ParameterValue* previousValue, std::string& errorMessage) override;
 
 private:
     // --- Device management ---
@@ -153,7 +154,7 @@ private:
     /** @brief Applies all configured control values to the device hardware. */
     bool applyConfiguredControls();
     /** @brief Applies one configured control while m_mutex is already held. */
-    bool applyControlParameterLocked(const std::string& name, const ParameterValue& value);
+    bool applyControlParameterLocked(const std::string& name, const ParameterValue& value, std::string* errorMessage = nullptr);
     void refreshDeviceOptions();
     void refreshFormatOptions();
     bool isExplicitParameter(const std::string& name) const;

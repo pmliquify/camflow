@@ -158,14 +158,10 @@ This section captures the explicit visual reference from attached legacy UI scre
 ### 16.3 ImageViewer Controls (Legacy Parity)
 
 - Controls are overlaid inside the image frame, top-right.
-- Three circular controls in one row:
-  - `MSB` chip.
+- Two circular controls in one row:
   - Debayer toggle (icon-only RGB dots).
   - Reset/fit icon button.
-- Bitshift slider panel:
-  - Appears as a floating pill panel near the overlay controls.
-  - Contains `bitshift` label and slider.
-  - Opens on hover of the control cluster and closes on mouse leave.
+- The websocket frame metadata supplies `bitShift`, which is applied automatically before conversion.
 - Metadata overlay in image frame (top-left):
   - `seq`, `ts`, format/dimensions.
   - capture/render FPS line.

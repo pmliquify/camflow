@@ -14,11 +14,7 @@ export default function FrameViewport({
         frameMeta,
         displayedFrameNodeName,
         formatLabel,
-        viewerControlsOpen,
-        setViewerControlsOpen,
         hasFrame,
-        currentShiftValue,
-        setCurrentShiftValue,
         debayerEnabled,
         setDebayerEnabled,
         onResetView,
@@ -46,12 +42,8 @@ export default function FrameViewport({
                                         />
 
                                         <FrameControlsOverlay
-                                                viewerControlsOpen={viewerControlsOpen}
-                                                setViewerControlsOpen={setViewerControlsOpen}
                                                 hasFrame={hasFrame}
                                                 frameMeta={frameMeta}
-                                                currentShiftValue={currentShiftValue}
-                                                setCurrentShiftValue={setCurrentShiftValue}
                                                 debayerEnabled={debayerEnabled}
                                                 setDebayerEnabled={setDebayerEnabled}
                                                 onResetView={onResetView}

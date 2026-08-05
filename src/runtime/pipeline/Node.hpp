@@ -146,9 +146,11 @@ public:
      *
      * @param name  Parameter name as declared in @ref schema.
      * @param value New parameter value.
+     * @param allowLocked Allows non-runtime-writable parameters while the runtime is stopped.
+     * @param errorMessage Optional output for a rejection reason.
      * @return @c true if the parameter was accepted; @c false if unknown or invalid.
      */
-    virtual bool setParameter(const std::string& name, const ParameterValue& value, bool allowLocked = false);
+    virtual bool setParameter(const std::string& name, const ParameterValue& value, bool allowLocked = false, std::string* errorMessage = nullptr);
     std::vector<std::pair<std::string, std::string>> inputBindings(const std::string& name) const;
 
     /**
@@ -285,8 +287,10 @@ protected:
      * @param name Parameter name.
      * @param value New parameter value.
      * @param previousValue Previous value pointer, or @c nullptr when no previous value existed.
+     * @param errorMessage Output for a node-specific rejection reason.
+     * @return @c true if the update was applied; @c false to restore the previous value.
      */
-    virtual void onParameterChanged(const std::string& name, const ParameterValue& value, const ParameterValue* previousValue);
+    virtual bool onParameterChanged(const std::string& name, const ParameterValue& value, const ParameterValue* previousValue, std::string& errorMessage);
 
 private:
     friend class Pipeline;

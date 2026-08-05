@@ -47,6 +47,7 @@ Always available parameters:
 - `pixelformat`
 - `width`
 - `height`
+- `bitShift`
 
 V4L2 controls from both device and all selected subdevices are enumerated dynamically and exposed as runtime parameters when the device is available.
 
@@ -59,13 +60,8 @@ If no subdevices are selected, no dynamic subdevice controls are exposed.
 
 Options for devices and subdevices are shown as `/dev/... (<name>, <version>)` and `pixelformat` is populated from the device-supported format list.
 
-### BitShiftProcessor
-
-Factory name: `bitshift`
-
-Applies a configurable right shift (`shift` from 0 to 8) to raw Bayer input and converts the result to `BGR888`.
-
-This node is intended for raw camera graphs that need explicit bit-depth normalization before color conversion.
+`bitShift` is stored as metadata in every produced `ImageBuffer`. Runtime and UI
+converters apply it before RAW conversion or debayering.
 
 ### TCPSink
 

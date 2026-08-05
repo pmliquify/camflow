@@ -9,7 +9,6 @@
 #include "parser/JsonPipelineParser.hpp"
 #include "pipeline/PipelineBuilder.hpp"
 #include "probes/Probe.hpp"
-#include "processors/BitShiftProcessor.hpp"
 #include "processors/CCMProcessor.hpp"
 #include "processors/CompositorProcessor.hpp"
 #include "processors/DebayerProcessor.hpp"
@@ -55,7 +54,6 @@ void Application::registerNodes()
     m_factory.registerType("filesrc", NodeKind::Source, []() { return std::make_unique<FileSource>(); });
     m_factory.registerType("compositor", NodeKind::Processor, []() { return std::make_unique<CompositorProcessor>(); });
     m_factory.registerType("debayer", NodeKind::Processor, []() { return std::make_unique<DebayerProcessor>(); });
-    m_factory.registerType("bitshift", NodeKind::Processor, []() { return std::make_unique<BitShiftProcessor>(); });
     m_factory.registerType("ccm", NodeKind::Processor, []() { return std::make_unique<CCMProcessor>(); });
     m_factory.registerType("filesink", NodeKind::Sink, []() { return std::make_unique<FileSink>(); });
     m_factory.registerType("v4l2src", NodeKind::Source, []() { return std::make_unique<V4L2Source>(); });

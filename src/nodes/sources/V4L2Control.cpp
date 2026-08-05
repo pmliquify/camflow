@@ -6,6 +6,7 @@
 #include "core/Logger.hpp"
 
 #include <algorithm>
+#include <cerrno>
 #include <cctype>
 #include <cstring>
 #include <sys/ioctl.h>
@@ -77,7 +78,9 @@ void V4L2ControlAccess::enumerateFd(int fd, const std::string& sourceDevice, std
             control.step = query.step;
             control.defaultValue = query.default_value;
             control.fd = fd;
-            control.writable = (query.flags & V4L2_CTRL_FLAG_READ_ONLY) == 0;
+            control.flags = query.flags;
+            control.writable = (query.flags & (V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_GRABBED | V4L2_CTRL_FLAG_INACTIVE)) == 0;
+            control.runtimeWritable = control.writable && (query.flags & V4L2_CTRL_FLAG_MODIFY_LAYOUT) == 0;
             control.sourceDevice = sourceDevice;
 
             if (query.type == V4L2_CTRL_TYPE_MENU || query.type == V4L2_CTRL_TYPE_INTEGER_MENU) {
@@ -131,10 +134,33 @@ bool V4L2ControlAccess::read(const V4L2Control& control, int64_t& value)
     return false;
 }
 
-bool V4L2ControlAccess::write(const V4L2Control& control, int64_t value)
+bool V4L2ControlAccess::write(const V4L2Control& control, int64_t value, std::string* errorMessage)
 {
-    if (control.fd < 0 || !control.writable) {
+    const auto reject = [&control, errorMessage](const std::string& reason) {
+        if (errorMessage != nullptr) {
+            *errorMessage = "V4L2 control '" + control.controlName + "' " + reason;
+        }
         return false;
+    };
+
+    if (control.fd < 0) {
+        return reject("has no open device");
+    }
+    if ((control.flags & V4L2_CTRL_FLAG_READ_ONLY) != 0) {
+        return reject("is read-only");
+    }
+    if ((control.flags & V4L2_CTRL_FLAG_GRABBED) != 0) {
+        return reject("is currently grabbed by the driver");
+    }
+    if ((control.flags & V4L2_CTRL_FLAG_INACTIVE) != 0) {
+        return reject("is currently inactive");
+    }
+    if (!control.writable) {
+        return reject("is currently not writable");
+    }
+
+    if (errorMessage != nullptr) {
+        errorMessage->clear();
     }
 
     v4l2_ext_control extControl;
@@ -153,12 +179,19 @@ bool V4L2ControlAccess::write(const V4L2Control& control, int64_t value)
     if (::ioctl(control.fd, VIDIOC_S_EXT_CTRLS, &extControls) == 0) {
         return true;
     }
+    const int extendedError = errno;
 
     v4l2_control simpleControl;
     std::memset(&simpleControl, 0, sizeof(simpleControl));
     simpleControl.id = control.id;
     simpleControl.value = static_cast<int32_t>(value);
-    return ::ioctl(control.fd, VIDIOC_S_CTRL, &simpleControl) == 0;
+    if (::ioctl(control.fd, VIDIOC_S_CTRL, &simpleControl) == 0) {
+        return true;
+    }
+
+    const int simpleError = errno;
+    const int controlError = simpleError == ENOTTY || simpleError == EINVAL ? extendedError : simpleError;
+    return reject("write failed: " + std::string(std::strerror(controlError)) + " (errno " + std::to_string(controlError) + ")");
 }
 
 ParameterInfo V4L2ControlAccess::toParameterInfo(const V4L2Control& control)
@@ -193,6 +226,7 @@ ParameterInfo V4L2ControlAccess::toParameterInfo(const V4L2Control& control)
         maximumValue = int64_t(1);
     }
 
-    return {control.parameterName, type, "V4L2 control: " + control.controlName, defaultValue, minimumValue, maximumValue, control.options, control.writable, control.options, std::string("v4l2"),
-            control.sourceDevice};
+    return {
+        control.parameterName, type, "V4L2 control: " + control.controlName, defaultValue, minimumValue, maximumValue, control.options, control.runtimeWritable, control.options, std::string("v4l2"),
+        control.sourceDevice};
 }

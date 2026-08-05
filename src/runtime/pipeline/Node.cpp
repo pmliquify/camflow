@@ -118,7 +118,7 @@ bool Node::configure(const ParameterSet& parameters)
     m_parameters = configured;
     return true;
 }
-bool Node::setParameter(const std::string& name, const ParameterValue& value, bool allowLocked)
+bool Node::setParameter(const std::string& name, const ParameterValue& value, bool allowLocked, std::string* errorMessage)
 {
     auto inputIt = m_inputSchemaByName.find(name);
     if (inputIt != m_inputSchemaByName.end()) {
@@ -151,6 +151,9 @@ bool Node::setParameter(const std::string& name, const ParameterValue& value, bo
     const ParameterInfo* info = parameterInfo(name);
     if (info != nullptr) {
         if (!info->runtimeWritable && !allowLocked) {
+            if (errorMessage != nullptr) {
+                *errorMessage = "parameter is not writable while runtime is running";
+            }
             return false;
         }
     }
@@ -168,8 +171,16 @@ bool Node::setParameter(const std::string& name, const ParameterValue& value, bo
         previousPtr = &previous;
     }
 
+    ParameterSet previousParameters = m_parameters;
     m_parameters.set(name, value);
-    onParameterChanged(name, value, previousPtr);
+    std::string callbackError;
+    if (!onParameterChanged(name, value, previousPtr, callbackError)) {
+        m_parameters = std::move(previousParameters);
+        if (errorMessage != nullptr) {
+            *errorMessage = callbackError.empty() ? "parameter value was rejected" : callbackError;
+        }
+        return false;
+    }
     return true;
 }
 bool Node::init()
@@ -322,4 +333,7 @@ const ParameterSet& Node::configuredParameters() const
     return m_parameters;
 }
 
-void Node::onParameterChanged(const std::string&, const ParameterValue&, const ParameterValue*) {}
+bool Node::onParameterChanged(const std::string&, const ParameterValue&, const ParameterValue*, std::string&)
+{
+    return true;
+}

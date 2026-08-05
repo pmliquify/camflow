@@ -566,7 +566,8 @@ or
 
 ```json
 {
-  "ok": false
+  "ok": false,
+  "error": "parameter is not writable while runtime is running"
 }
 ```
 
@@ -574,6 +575,18 @@ Status codes:
 
 - `200 OK`: parameter updated
 - `404 Not Found`: node or parameter not found
+- `409 Conflict`: parameter is not runtime-writable while the runtime is running
+- `422 Unprocessable Content`: parameter value was rejected by the node; `error`
+  contains the node or driver rejection reason when available
+
+After V4L2 capture starts, CamFlow queries the controls again. Controls reported
+as read-only, layout-modifying, grabbed, or inactive are exposed with
+`runtimeWritable: false`. A write rejected directly by the V4L2 driver returns
+the control name, kernel error text, and `errno` in the `422` response.
+
+Every parameter update attempt is written to the API log with node id, parameter
+name and requested value. A second log entry records success or the runtime error,
+independently of the general WebServer request verbosity.
 
 Parameters may also advertise extra metadata fields in the JSON schema:
 

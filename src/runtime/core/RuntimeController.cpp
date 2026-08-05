@@ -169,18 +169,24 @@ void RuntimeController::setIncrementalNodeFactory(const IncrementalNodeFactory& 
     m_incrementalNodeFactory = factory;
 }
 
-bool RuntimeController::setParameter(const std::string& nodeId, const std::string& parameterName, const ParameterValue& value)
+bool RuntimeController::setParameter(const std::string& nodeId, const std::string& parameterName, const ParameterValue& value, std::string* errorMessage)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
     if (!m_pipeline) {
+        if (errorMessage != nullptr) {
+            *errorMessage = "runtime pipeline is not available";
+        }
         return false;
     }
     Node* node = m_pipeline->findNode(nodeId);
     if (node == nullptr) {
+        if (errorMessage != nullptr) {
+            *errorMessage = "node not found";
+        }
         return false;
     }
     const bool allowLocked = m_pipeline != nullptr && m_pipeline->isStopped();
-    if (!node->setParameter(parameterName, value, allowLocked)) {
+    if (!node->setParameter(parameterName, value, allowLocked, errorMessage)) {
         return false;
     }
     if (auto* config = m_graph.findNode(nodeId)) {
@@ -189,7 +195,7 @@ bool RuntimeController::setParameter(const std::string& nodeId, const std::strin
     return true;
 }
 
-bool RuntimeController::setParameterFromString(const std::string& nodeId, const std::string& parameterName, const std::string& value)
+bool RuntimeController::setParameterFromString(const std::string& nodeId, const std::string& parameterName, const std::string& value, std::string* errorMessage)
 {
     std::string clean = value;
     while (!clean.empty() && (clean.front() == ' ' || clean.front() == '"' || clean.front() == '\n' || clean.front() == '\r')) {
@@ -199,18 +205,18 @@ bool RuntimeController::setParameterFromString(const std::string& nodeId, const 
         clean.pop_back();
     }
     if (clean == "true") {
-        return setParameter(nodeId, parameterName, true);
+        return setParameter(nodeId, parameterName, true, errorMessage);
     }
     if (clean == "false") {
-        return setParameter(nodeId, parameterName, false);
+        return setParameter(nodeId, parameterName, false, errorMessage);
     }
     try {
         if (clean.find('.') != std::string::npos) {
-            return setParameter(nodeId, parameterName, std::stod(clean));
+            return setParameter(nodeId, parameterName, std::stod(clean), errorMessage);
         }
-        return setParameter(nodeId, parameterName, static_cast<int64_t>(std::stoll(clean)));
+        return setParameter(nodeId, parameterName, static_cast<int64_t>(std::stoll(clean)), errorMessage);
     } catch (...) {
-        return setParameter(nodeId, parameterName, clean);
+        return setParameter(nodeId, parameterName, clean, errorMessage);
     }
 }
 

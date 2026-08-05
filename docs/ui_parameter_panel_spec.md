@@ -65,6 +65,13 @@ No runtime request is sent if normalized next value equals normalized current co
 - No-op suppression compares against the committed value, not only against temporary input state.
 - Pending delayed updates (for slider interactions) are cancelled if value returns to committed value.
 
+### 4.4 Runtime editability
+
+- While the runtime is running, controls with `runtimeWritable=false` are disabled.
+- Controls with `runtimeWritable=true` remain editable while the runtime is running.
+- When the runtime is stopped, all parameter controls are enabled.
+- Local draft parameters without runtime schema metadata remain editable.
+
 ## 5. Side effect schema semantics
 
 ### 5.1 Schema field
@@ -97,9 +104,10 @@ No runtime request is sent if normalized next value equals normalized current co
 - Vertical scroll container with transient visual scrollbar behavior.
 - Wheel events are captured to avoid unintended parent-pan behavior.
 
-### 6.3 Error line
+### 6.3 Error status
 
-- When update/read fails, an error message is shown below the list.
+- Parameter update failures are shown in the header status line.
+- No separate error line is rendered below the parameter list.
 
 ## 7. Parameter row rendering
 

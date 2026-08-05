@@ -4,7 +4,7 @@ import filterIcon from '../../assets/images/icon-filter.svg';
 import clearLogIcon from '../../assets/images/icon-clear-log.svg';
 import closeIcon from '../../assets/images/icon-close.svg';
 import debugIcon from '../../assets/images/icon-debug-bug.svg';
-import UiButton from '../../components/UiButton.jsx';
+import Button from '../../components/Button.jsx';
 
 const SOURCE_OPTIONS = [
         { id: 'runtime', label: 'runtime' },
@@ -251,7 +251,7 @@ function RuntimeLogConsole({
                                                                         const active = visibleSources[option.id] !== false;
                                                                         return (
                                                                                 <React.Fragment key={option.id}>
-                                                                                        <UiButton
+                                                                                        <Button
                                                                                                 className={`secondary runtime-log-source-toggle${active ? ' active' : ''}`}
                                                                                                 variant="secondary"
                                                                                                 type="button"
@@ -259,7 +259,7 @@ function RuntimeLogConsole({
                                                                                                 onClick={() => onToggleSource(option.id)}
                                                                                         >
                                                                                                 {option.label}
-                                                                                        </UiButton>
+                                                                                        </Button>
                                                                                         {option.id === 'kernel' ? (
                                                                                                 <>
                                                                                                         <div className="runtime-log-search-field inline-runtime-log-search-field">
@@ -270,7 +270,7 @@ function RuntimeLogConsole({
                                                                                                                         onMouseDown={(event) => event.stopPropagation()}
                                                                                                                         onChange={(event) => onSetKernelRegexText(event.target.value)}
                                                                                                                 />
-                                                                                                                <UiButton
+                                                                                                                <Button
                                                                                                                         className={`runtime-log-search-clear${kernelRegexText ? '' : ' is-empty'}`}
                                                                                                                         type="button"
                                                                                                                         title="clear regex"
@@ -280,7 +280,7 @@ function RuntimeLogConsole({
                                                                                                                         onClick={() => onSetKernelRegexText('')}
                                                                                                                 />
                                                                                                         </div>
-                                                                                                        <UiButton
+                                                                                                        <Button
                                                                                                                 className={`runtime-log-debug-toggle${showDebugDetails ? ' active' : ''}`}
                                                                                                                 variant="secondary"
                                                                                                                 type="button"
@@ -329,7 +329,7 @@ function RuntimeLogConsole({
                                         </ScrollArea>
                                 </div>
                                 <div className="runtime-log-actions-strip" onMouseDown={(event) => event.stopPropagation()}>
-                                        <UiButton
+                                        <Button
                                                 className={`runtime-log-icon-button${filterOpen || filterActive ? ' active-filter' : ''}`}
                                                 type="button"
                                                 title="filter logs"
@@ -338,7 +338,7 @@ function RuntimeLogConsole({
                                                 iconOnly={true}
                                                 onClick={onToggleFilterOpen}
                                         />
-                                        <UiButton
+                                        <Button
                                                 className="runtime-log-icon-button"
                                                 type="button"
                                                 title="clear logs"
@@ -347,7 +347,7 @@ function RuntimeLogConsole({
                                                 iconOnly={true}
                                                 onClick={() => onClearLogs(runtimeId)}
                                         />
-                                        <UiButton
+                                        <Button
                                                 className="runtime-log-icon-button runtime-log-font-button font-large"
                                                 type="button"
                                                 title="increase log font"
@@ -356,8 +356,8 @@ function RuntimeLogConsole({
                                                 onClick={onIncreaseFont}
                                         >
                                                 A+
-                                        </UiButton>
-                                        <UiButton
+                                        </Button>
+                                        <Button
                                                 className="runtime-log-icon-button runtime-log-font-button font-small"
                                                 type="button"
                                                 title="decrease log font"
@@ -366,7 +366,7 @@ function RuntimeLogConsole({
                                                 onClick={onDecreaseFont}
                                         >
                                                 A-
-                                        </UiButton>
+                                        </Button>
                                 </div>
                         </div>
                 </section>

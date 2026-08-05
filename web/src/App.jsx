@@ -4,7 +4,7 @@ import NodeEditorPanel from './features/node-editor/NodeEditorPanel.jsx';
 import ContextMenu from './features/node-editor/ContextMenu.jsx';
 import FrameViewerPanel from './features/frame-context-viewer/FrameViewerPanel.jsx';
 import ParameterPanel from './features/parameter-browser/ParameterPanel.jsx';
-import UiButton from './components/UiButton.jsx';
+import Button from './components/Button.jsx';
 import useRemoteRuntimeStatus from './hooks/useRemoteRuntimeStatus.js';
 import {
         addNode,
@@ -2473,8 +2473,8 @@ export default function App() {
                                                         />
                                                 </label>
                                                 <div className="dialog-actions">
-                                                        <UiButton className="secondary" variant="secondary" type="button" onClick={() => setDialogState({ open: false, mode: null, runtimeId: null, runtimeName: '', runtimeIp: '', nodeType: '', nodeId: '' })}>Cancel</UiButton>
-                                                        <UiButton type="button" onClick={addRuntime}>Create</UiButton>
+                                                        <Button className="secondary" variant="secondary" type="button" onClick={() => setDialogState({ open: false, mode: null, runtimeId: null, runtimeName: '', runtimeIp: '', nodeType: '', nodeId: '' })}>Cancel</Button>
+                                                        <Button type="button" onClick={addRuntime}>Create</Button>
                                                 </div>
                                         </div>
                                 </div>

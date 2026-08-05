@@ -4,7 +4,7 @@ import NodeCard from './NodeCard.jsx';
 import EdgeLayer from './EdgeLayer.jsx';
 import RuntimeLogConsole from './RuntimeLogConsole.jsx';
 import logIcon from '../../assets/images/icon-log.svg';
-import UiButton from '../../components/UiButton.jsx';
+import Button from '../../components/Button.jsx';
 import InlineNameEditor from '../../components/InlineNameEditor.jsx';
 
 const RUNTIME_LOG_PREFS_STORAGE_PREFIX = 'camflow:runtime-log-prefs:';
@@ -154,7 +154,7 @@ export default function RuntimeLane({
                                         <span className={`runtime-state state-${runtime.status}`}>{runtime.status}</span>
                                 </div>
                                 <div className="runtime-header-right">
-                                        <UiButton
+                                        <Button
                                                 className={`secondary runtime-log-toggle${logOpen ? ' active' : ''}`}
                                                 variant="secondary"
                                                 type="button"
@@ -171,14 +171,14 @@ export default function RuntimeLane({
                                                         }
                                                 }}
                                         />
-                                        <UiButton
+                                        <Button
                                                 className="runtime-run"
                                                 type="button"
                                                 onMouseDown={(event) => event.stopPropagation()}
                                                 onClick={() => onStartRuntime(runtime.id, runtime.status)}
                                         >
                                                 {runtime.status === 'running' ? 'Stop' : 'Start'}
-                                        </UiButton>
+                                        </Button>
                                 </div>
                         </header>
                         <div className="runtime-canvas" onContextMenu={(event) => onLaneContextMenu(event, runtime.id)}>

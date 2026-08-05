@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ParameterRow from './ParameterRow.jsx';
 import RuntimeActions from './RuntimeActions.jsx';
 import ScrollArea from '../../components/ScrollArea.jsx';
-import UiButton from '../../components/UiButton.jsx';
+import Button from '../../components/Button.jsx';
 import filterIcon from '../../assets/images/icon-filter.svg';
 import reloadIcon from '../../assets/images/icon-reload.svg';
 import closeIcon from '../../assets/images/icon-close.svg';
@@ -150,7 +150,7 @@ export default function ParameterPanel({
                                         {selectedNodeMeta ? <div className="selection compact-selection">{selectedNodeMeta.name || selectedNodeMeta.id}</div> : <div className="selection compact-selection">{selectedRuntimeName}</div>}
                                 </div>
                                 <div className="parameter-header-right">
-                                        <UiButton
+                                        <Button
                                                 className={`secondary param-filter-button${hasHiddenParameters ? ' active-filter' : ''}`}
                                                 variant="secondary"
                                                 type="button"
@@ -159,10 +159,10 @@ export default function ParameterPanel({
                                                 title="Filter parameters"
                                         >
                                                 filter
-                                        </UiButton>
-                                        <UiButton className="secondary param-reload-button" variant="secondary" type="button" icon={reloadIcon} onClick={onReload} title="Reload parameters">
+                                        </Button>
+                                        <Button className="secondary param-reload-button" variant="secondary" type="button" icon={reloadIcon} onClick={onReload} title="Reload parameters">
                                                 reload
-                                        </UiButton>
+                                        </Button>
                                 </div>
                         </div>
                         {filterOpen ? (
@@ -175,7 +175,7 @@ export default function ParameterPanel({
                                                         placeholder="search by parameter name"
                                                         onChange={(event) => setFilterText(event.target.value)}
                                                 />
-                                                <UiButton
+                                                <Button
                                                         className={`parameter-search-clear${filterText ? '' : ' is-empty'}`}
                                                         type="button"
                                                         title="clear search"
@@ -196,8 +196,8 @@ export default function ParameterPanel({
                                                 />
                                         </div>
                                         <div className="parameter-filter-actions">
-                                                <UiButton className="secondary" variant="secondary" type="button" onClick={clearFilter}>clear filter</UiButton>
-                                                <UiButton className="secondary" variant="secondary" type="button" onClick={deselectAllParameters}>deselect all</UiButton>
+                                                <Button className="secondary" variant="secondary" type="button" onClick={clearFilter}>clear filter</Button>
+                                                <Button className="secondary" variant="secondary" type="button" onClick={deselectAllParameters}>deselect all</Button>
                                         </div>
                                 </div>
                         ) : null}

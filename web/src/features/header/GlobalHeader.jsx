@@ -1,6 +1,7 @@
 import React from 'react';
 import logoSelected from '../../assets/logos/camflow_icon.svg';
-import UiButton from '../../components/UiButton.jsx';
+import Button from '../../components/Button.jsx';
+import Label from '../../components/Label.jsx';
 
 export default function GlobalHeader({
         runtimeStatusText,
@@ -32,17 +33,22 @@ export default function GlobalHeader({
                                                         </span>
                                                 </span>
                                         </strong>
-                                        <span className={`runtime-pill ${runtimeStatusText}`}>{runtimeStatusText}</span>
+                                        <Label
+                                                size="medium"
+                                                tone={runtimeStatusText === 'running' ? 'success' : runtimeStatusText === 'down' ? 'danger' : 'info'}
+                                        >
+                                                {runtimeStatusText}
+                                        </Label>
                                         <span className="header-status-text" title={graphStatusText || ''}>{graphStatusText}</span>
                                 </div>
                         </div>
                         <div className="topbar-meta">
-                                <UiButton className="topbar-runtime-toggle" type="button" onClick={onToggleRuntime}>
+                                <Button className="topbar-runtime-toggle" type="button" onClick={onToggleRuntime}>
                                         {runtimeRunning ? 'Stop' : 'Start'}
-                                </UiButton>
+                                </Button>
                                 <div className="mode-switch">
-                                        <UiButton className={viewMode === 'viewer' ? 'active' : ''} type="button" onClick={() => onSetViewMode('viewer')}>viewer</UiButton>
-                                        <UiButton className={viewMode === 'editor' ? 'active' : ''} type="button" onClick={() => onSetViewMode('editor')}>editor</UiButton>
+                                        <Button className={viewMode === 'viewer' ? 'active' : ''} type="button" onClick={() => onSetViewMode('viewer')}>viewer</Button>
+                                        <Button className={viewMode === 'editor' ? 'active' : ''} type="button" onClick={() => onSetViewMode('editor')}>editor</Button>
                                 </div>
                         </div>
                 </header>

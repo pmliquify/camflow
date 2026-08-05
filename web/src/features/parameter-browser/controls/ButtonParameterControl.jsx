@@ -1,15 +1,15 @@
 import React from 'react';
-import UiButton from '../../../components/UiButton.jsx';
+import Button from '../../../components/Button.jsx';
 
 export default function ButtonParameterControl({ item, canEdit, onChange, parameterMeta }) {
         return (
-                <UiButton
+                <Button
                         type="button"
                         compact={true}
                         disabled={!canEdit}
                         onClick={() => onChange(item.name, '1', { ...parameterMeta, interaction: 'immediate' })}
                 >
                         Trigger
-                </UiButton>
+                </Button>
         );
 }

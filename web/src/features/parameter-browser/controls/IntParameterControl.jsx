@@ -1,10 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import Slider from '../../../components/Slider.jsx';
+import {
+        getIntParameterBounds,
+        isLogarithmicIntParameter,
+        logarithmicPositionToValue,
+        LOGARITHMIC_SLIDER_STEPS,
+        valueToLogarithmicPosition
+} from './intParameterScale.js';
 
 export default function IntParameterControl({ item, canEdit, onChange, parameterMeta }) {
         const [intDraftValue, setIntDraftValue] = useState(String(item.value ?? ''));
-        const minimum = Number(item.min ?? item.value ?? 0);
-        const maximum = Number(item.max ?? item.value ?? 100);
+        const { minimum, maximum } = getIntParameterBounds(item);
+        const useLogarithmicSlider = isLogarithmicIntParameter(item);
+        const sliderValue = useLogarithmicSlider
+                ? valueToLogarithmicPosition(item.value ?? minimum, minimum, maximum)
+                : item.value ?? 0;
 
         useEffect(() => {
                 setIntDraftValue(String(item.value ?? ''));
@@ -17,13 +27,16 @@ export default function IntParameterControl({ item, canEdit, onChange, parameter
         return (
                 <div className="numeric-control">
                         <Slider
-                                min={minimum}
-                                max={maximum}
+                                min={useLogarithmicSlider ? 0 : minimum}
+                                max={useLogarithmicSlider ? LOGARITHMIC_SLIDER_STEPS : maximum}
                                 step="1"
-                                value={item.value ?? 0}
+                                value={sliderValue}
                                 disabled={!canEdit}
+                                aria-valuetext={useLogarithmicSlider ? String(item.value ?? minimum) : undefined}
                                 onChange={(event) => {
-                                        const nextValue = event.target.value;
+                                        const nextValue = useLogarithmicSlider
+                                                ? String(logarithmicPositionToValue(event.target.value, minimum, maximum))
+                                                : event.target.value;
                                         setIntDraftValue(nextValue);
                                         onChange(item.name, nextValue, { ...parameterMeta, interaction: 'slider' });
                                 }}

@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function UiButton({
+export default function Button({
         variant = 'primary',
         icon = null,
         compact = false,

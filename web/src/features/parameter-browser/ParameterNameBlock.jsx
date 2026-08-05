@@ -1,6 +1,8 @@
 import React from 'react';
 import reloadIcon from '../../assets/images/icon-reload.svg';
 import Checkbox from '../../components/Checkbox.jsx';
+import Label from '../../components/Label.jsx';
+import { isLogarithmicIntParameter } from './controls/intParameterScale.js';
 
 export default function ParameterNameBlock({
         item,
@@ -25,12 +27,13 @@ export default function ParameterNameBlock({
                                 />
                         ) : null}
                         <label title={tooltipText}>{displayName || item.name}</label>
+                        {item.origin ? <Label uppercase={true}>{item.origin}</Label> : null}
+                        {isLogarithmicIntParameter(item) ? <Label title="logarithmic scale">log</Label> : null}
                         {item.hasSideEffects ? (
-                                <span className="param-side-effect-marker" title="reload required for dependent parameters">
-                                        <img src={reloadIcon} alt="reload" />
-                                </span>
+                                <Label iconOnly={true} title="reload required for dependent parameters" aria-label="reload required for dependent parameters">
+                                        <img src={reloadIcon} alt="" aria-hidden="true" />
+                                </Label>
                         ) : null}
-                        {item.origin ? <span className="param-badge">{item.origin}</span> : null}
                 </div>
         );
 }

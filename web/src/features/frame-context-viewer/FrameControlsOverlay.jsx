@@ -3,7 +3,7 @@ import { isColorRawFormat, isRawFormat } from '../../services/frameRendering.js'
 import bayerIcon from '../../assets/images/icon-bayer.svg';
 import ResetViewButton from '../../components/ResetViewButton.jsx';
 import Slider from '../../components/Slider.jsx';
-import UiButton from '../../components/UiButton.jsx';
+import Button from '../../components/Button.jsx';
 
 function bitshiftLabel(value) {
         if (value >= 8) {
@@ -66,7 +66,7 @@ export default function FrameControlsOverlay({
                         className="frame-overlay-controls"
                 >
                         {showBitshiftControl ? (
-                                <UiButton
+                                <Button
                                         className={`tool-chip tool-chip-shift ${currentShiftValue >= 8 ? 'active' : ''}`}
                                         type="button"
                                         aria-pressed={currentShiftValue >= 8}
@@ -75,10 +75,10 @@ export default function FrameControlsOverlay({
                                         onMouseLeave={closeShiftPanel}
                                 >
                                         {currentBitshiftLabel}
-                                </UiButton>
+                                </Button>
                         ) : null}
                         {showDebayerControl ? (
-                                <UiButton className={`tool-chip tool-chip-round ${debayerEnabled ? 'active' : ''}`} type="button" aria-pressed={debayerEnabled} icon={bayerIcon} iconOnly={true} onClick={() => setDebayerEnabled((value) => !value)} />
+                                <Button className={`tool-chip tool-chip-round ${debayerEnabled ? 'active' : ''}`} type="button" aria-pressed={debayerEnabled} icon={bayerIcon} iconOnly={true} onClick={() => setDebayerEnabled((value) => !value)} />
                         ) : null}
                         <ResetViewButton onClick={onResetView} />
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Input from '../../../components/Input.jsx';
 
 export default function StringParameterControl({ item, canEdit, onChange, parameterMeta }) {
         const [stringDraftValue, setStringDraftValue] = useState(String(item.value ?? ''));
@@ -12,7 +13,7 @@ export default function StringParameterControl({ item, canEdit, onChange, parame
         }
 
         return (
-                <input
+                <Input
                         type="text"
                         value={stringDraftValue}
                         disabled={!canEdit}

@@ -5,6 +5,7 @@ import clearLogIcon from '../../assets/images/icon-clear-log.svg';
 import closeIcon from '../../assets/images/icon-close.svg';
 import debugIcon from '../../assets/images/icon-debug-bug.svg';
 import Button from '../../components/Button.jsx';
+import Input from '../../components/Input.jsx';
 
 const SOURCE_OPTIONS = [
         { id: 'runtime', label: 'runtime' },
@@ -263,7 +264,7 @@ function RuntimeLogConsole({
                                                                                         {option.id === 'kernel' ? (
                                                                                                 <>
                                                                                                         <div className="runtime-log-search-field inline-runtime-log-search-field">
-                                                                                                                <input
+                                                                                                                <Input
                                                                                                                         type="text"
                                                                                                                         value={kernelRegexText}
                                                                                                                         placeholder="kernel regex"

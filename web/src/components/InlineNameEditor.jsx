@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import Input from './Input.jsx';
 
 export default function InlineNameEditor({ value, onCommit, className = '', inputClassName = '', ariaLabel = 'name' }) {
         const [editing, setEditing] = useState(false);
@@ -28,7 +29,7 @@ export default function InlineNameEditor({ value, onCommit, className = '', inpu
 
         if (editing) {
                 return (
-                        <input
+                        <Input
                                 className={inputClassName}
                                 type="text"
                                 value={draft}

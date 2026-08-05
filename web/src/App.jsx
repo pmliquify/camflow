@@ -5,6 +5,7 @@ import ContextMenu from './features/node-editor/ContextMenu.jsx';
 import FrameViewerPanel from './features/frame-context-viewer/FrameViewerPanel.jsx';
 import ParameterPanel from './features/parameter-browser/ParameterPanel.jsx';
 import Button from './components/Button.jsx';
+import Input from './components/Input.jsx';
 import useRemoteRuntimeStatus from './hooks/useRemoteRuntimeStatus.js';
 import {
         addNode,
@@ -2458,7 +2459,7 @@ export default function App() {
                                                 <h3>New Runtime</h3>
                                                 <label>
                                                         Runtime Name
-                                                        <input
+                                                        <Input
                                                                 type="text"
                                                                 value={dialogState.runtimeName}
                                                                 onChange={(event) => setDialogState((current) => ({ ...current, runtimeName: event.target.value }))}
@@ -2466,7 +2467,7 @@ export default function App() {
                                                 </label>
                                                 <label>
                                                         Runtime IP
-                                                        <input
+                                                        <Input
                                                                 type="text"
                                                                 value={dialogState.runtimeIp}
                                                                 onChange={(event) => setDialogState((current) => ({ ...current, runtimeIp: event.target.value }))}

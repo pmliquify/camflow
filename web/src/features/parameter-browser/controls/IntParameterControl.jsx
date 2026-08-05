@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Input from '../../../components/Input.jsx';
 import Slider from '../../../components/Slider.jsx';
 import {
         getIntParameterBounds,
@@ -41,7 +42,7 @@ export default function IntParameterControl({ item, canEdit, onChange, parameter
                                         onChange(item.name, nextValue, { ...parameterMeta, interaction: 'slider' });
                                 }}
                         />
-                        <input
+                        <Input
                                 type="number"
                                 min={item.min ?? item.value ?? 0}
                                 max={item.max ?? item.value ?? 100}

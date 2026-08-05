@@ -1,4 +1,5 @@
 import React from 'react';
+import Input from '../../../components/Input.jsx';
 import Slider from '../../../components/Slider.jsx';
 
 export default function DoubleParameterControl({ item, canEdit, onChange, parameterMeta }) {
@@ -15,7 +16,7 @@ export default function DoubleParameterControl({ item, canEdit, onChange, parame
                                 disabled={!canEdit}
                                 onChange={(event) => onChange(item.name, event.target.value, { ...parameterMeta, interaction: 'immediate' })}
                         />
-                        <input
+                        <Input
                                 type="number"
                                 min={item.min ?? item.value ?? 0}
                                 max={item.max ?? item.value ?? 100}

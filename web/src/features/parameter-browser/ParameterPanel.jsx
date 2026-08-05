@@ -3,6 +3,7 @@ import ParameterRow from './ParameterRow.jsx';
 import RuntimeActions from './RuntimeActions.jsx';
 import ScrollArea from '../../components/ScrollArea.jsx';
 import Button from '../../components/Button.jsx';
+import Input from '../../components/Input.jsx';
 import filterIcon from '../../assets/images/icon-filter.svg';
 import reloadIcon from '../../assets/images/icon-reload.svg';
 import closeIcon from '../../assets/images/icon-close.svg';
@@ -168,7 +169,7 @@ export default function ParameterPanel({
                         {filterOpen ? (
                                 <div className="parameter-filter-panel">
                                         <div className="parameter-search-field">
-                                                <input
+                                                <Input
                                                         ref={searchInputRef}
                                                         type="text"
                                                         value={filterText}

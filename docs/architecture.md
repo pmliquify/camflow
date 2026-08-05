@@ -49,3 +49,13 @@ v4l2src(device=/dev/video0) -> debayer -> tcpsink(ip=192.168.1.20,port=9000)
 ```
 
 The built-in UI mode creates a single `v4l2src` node and serves a browser UI for live image preview and runtime parameter updates.
+
+## Logging
+
+Log records are categorized as `runtime`, `node`, `api` or `kernel`. The logger
+always stores every record in its history and publishes every record to listeners,
+including the `/ws/logs` web UI transport.
+
+Console output is a separate sink with its own source mask. The CLI option
+`-L`/`--log-source` configures only that sink and defaults to `node`; the web UI
+always receives the complete stream and applies its source filters locally.

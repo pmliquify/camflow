@@ -30,7 +30,7 @@ This document specifies the graph editor panel (`NodeEditorPanel`) behavior.
   - runtime start/stop action
   - inline runtime address editing support
   - log console show/hide action
-- Runtime lane bottom area includes an embedded, resizable log console for runtime, REST API and kernel messages.
+- Runtime lane bottom area includes an embedded, resizable log console for runtime, node, REST API and kernel messages.
 
 ## 5. Node interaction
 

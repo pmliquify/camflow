@@ -10,7 +10,7 @@ It auto-creates a source-only pipeline with `v4l2src0` and exposes:
 - live image preview in browser
 - runtime parameter browser for `v4l2src` node parameters
 - live frame-context execution updates over websocket
-- live runtime / REST API / kernel logs in the runtime window console
+- live runtime / node / REST API / kernel logs in the runtime window console
 - compact per-parameter tooltips that include description, datatype and source device
 
 No external GUI framework is required.
@@ -54,7 +54,7 @@ UI mode starts with a stopped pipeline so `device` and `subdevices` can be selec
 ## WebSocket endpoint
 
 - `GET /ws/frame`: websocket stream carrying both framecontext metadata (JSON text) and matching binary image packets
-- `GET /ws/logs`: websocket stream carrying runtime, REST API and kernel log records for the selected runtime window
+- `GET /ws/logs`: unfiltered websocket stream carrying runtime, node, REST API and kernel log records for the selected runtime window; console `-L` filtering does not affect it
 
 Each message contains:
 
@@ -93,7 +93,7 @@ Node editor interaction:
 
 The runtime badge next to `camflow` shows `running`/`stopped` and switches to `down` (red background) when the service is offline.
 
-Each runtime window includes a collapsible, resizable log console at the bottom. The console can filter messages by source (`kernel`, `runtime`, `api`) and can apply a kernel regex filter while editing.
+Each runtime window includes a collapsible, resizable log console at the bottom. The console can filter messages by source (`kernel`, `runtime`, `node`, `api`) and can apply a kernel regex filter while editing.
 
 ## Parameter model
 

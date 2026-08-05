@@ -98,9 +98,9 @@ void PipelineProfiler::logReport(const std::vector<std::string>& nodeOrder) cons
 
     std::scoped_lock lock(m_mutex);
 
-    LOG_INFO("Node profiling report:");
+    LOG_NODE_INFO("Node profiling report:");
     if (m_stats.empty()) {
-        LOG_INFO("  (no node executions)");
+        LOG_NODE_INFO("  (no node executions)");
         return;
     }
 
@@ -118,15 +118,15 @@ void PipelineProfiler::logReport(const std::vector<std::string>& nodeOrder) cons
 
         auto it = m_stats.find(nodeId);
         if (it == m_stats.end()) {
-            LOG_INFO("  " + nodeId + ": calls=0");
+            LOG_NODE_INFO("  " + nodeId + ": calls=0");
             continue;
         }
 
         const Stat& stat = it->second;
         const uint64_t avgNs = stat.calls > 0 ? (stat.totalNs / stat.calls) : 0;
 
-        LOG_INFO("  " + nodeId + ": calls=" + std::to_string(stat.calls) + ", fail=" + std::to_string(stat.failures) + ", avg=" + formatMs(avgNs) + " ms, min=" + formatMs(stat.minNs) +
-                 " ms, max=" + formatMs(stat.maxNs) + " ms, total=" + formatMs(stat.totalNs) + " ms");
+        LOG_NODE_INFO("  " + nodeId + ": calls=" + std::to_string(stat.calls) + ", fail=" + std::to_string(stat.failures) + ", avg=" + formatMs(avgNs) + " ms, min=" + formatMs(stat.minNs) +
+                  " ms, max=" + formatMs(stat.maxNs) + " ms, total=" + formatMs(stat.totalNs) + " ms");
 
         fallbackTotalFailures += stat.failures;
         fallbackTotalNs += stat.totalNs;
@@ -145,17 +145,17 @@ void PipelineProfiler::logReport(const std::vector<std::string>& nodeOrder) cons
     if (totalIt != m_stats.end()) {
         const Stat& total = totalIt->second;
         const uint64_t totalAvgNs = total.calls > 0 ? (total.totalNs / total.calls) : 0;
-        LOG_INFO("  TOTAL: calls=" + std::to_string(total.calls) + ", fail=" + std::to_string(total.failures) + ", avg=" + formatMs(totalAvgNs) + " ms, min=" + formatMs(total.minNs) +
-                 " ms, max=" + formatMs(total.maxNs) + " ms, total=" + formatMs(total.totalNs) + " ms");
+        LOG_NODE_INFO("  TOTAL: calls=" + std::to_string(total.calls) + ", fail=" + std::to_string(total.failures) + ", avg=" + formatMs(totalAvgNs) + " ms, min=" + formatMs(total.minNs) +
+                  " ms, max=" + formatMs(total.maxNs) + " ms, total=" + formatMs(total.totalNs) + " ms");
         return;
     }
 
     if (!haveNodeStats) {
-        LOG_INFO("  TOTAL: calls=0");
+        LOG_NODE_INFO("  TOTAL: calls=0");
         return;
     }
 
     const uint64_t totalAvgNs = fallbackTotalCalls > 0 ? (fallbackTotalNs / fallbackTotalCalls) : 0;
-    LOG_INFO("  TOTAL: calls=" + std::to_string(fallbackTotalCalls) + ", fail=" + std::to_string(fallbackTotalFailures) + ", avg=" + formatMs(totalAvgNs) + " ms, min=" + formatMs(fallbackMinNs) +
-             " ms, max=" + formatMs(fallbackMaxNs) + " ms, total=" + formatMs(fallbackTotalNs) + " ms");
+    LOG_NODE_INFO("  TOTAL: calls=" + std::to_string(fallbackTotalCalls) + ", fail=" + std::to_string(fallbackTotalFailures) + ", avg=" + formatMs(totalAvgNs) + " ms, min=" + formatMs(fallbackMinNs) +
+                  " ms, max=" + formatMs(fallbackMaxNs) + " ms, total=" + formatMs(fallbackTotalNs) + " ms");
 }

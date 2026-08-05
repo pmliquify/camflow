@@ -99,7 +99,8 @@ bool Application::getPositionalPipelineArgument(int argc, char** argv, std::stri
 {
     for (int i = 1; i < argc; ++i) {
         const std::string current = argv[i];
-        if (current == "-n" || current == "-G" || current == "--graph" || current == "--port" || current == "--device" || current == "--subdevices") {
+        if (current == "-n" || current == "-G" || current == "--graph" || current == "--port" || current == "--device" || current == "--subdevices" || current == "-L" ||
+            current == "--log-source") {
             ++i;
             continue;
         }
@@ -276,6 +277,8 @@ void Application::printHelp(const char* executableName, const GraphConfig& confi
     std::cout << "                                     except /api/runtime polling          \n";
     std::cout << "                             LEVEL=4 logs full API request/response bodies\n";
     std::cout << "      --debug                Show timestamp, log type and source file  \n";
+    std::cout << "  -L, --log-source LIST      Console sources: runtime,node,api,kernel \n";
+    std::cout << "                             Supports all, none and -source (default: node)\n";
     std::cout << "      --rest-api             Enable REST API server in pipeline mode     \n";
     std::cout << "      --port PORT            UI/REST server port (default: 8000)         \n";
     std::cout << "      --device PATH          V4L2 device for auto UI mode (default: /dev/video3)\n";
@@ -436,7 +439,9 @@ int Application::run(int argc, char** argv)
         return 0;
     }
 
-    configureLogger(argc, argv);
+    if (!configureLogger(argc, argv)) {
+        return 1;
+    }
 
     if (handleHelp(argc, argv, nullptr, nullptr)) {
         return 0;
@@ -489,9 +494,95 @@ bool Application::handleVersion(int argc, char** argv) const
     return true;
 }
 
-void Application::configureLogger(int argc, char** argv) const
+bool Application::configureLogger(int argc, char** argv) const
 {
     logger().setVerbose(hasFlag(argc, argv, "", "--debug"));
+
+    uint32_t sourceMask = logSourceMask(LogSource::Node);
+    std::string errorMessage;
+    if (!getLogSourceMask(argc, argv, sourceMask, errorMessage)) {
+        std::cerr << errorMessage << std::endl;
+        return false;
+    }
+    logger().setConsoleSourceMask(sourceMask);
+    return true;
+}
+
+bool Application::getLogSourceMask(int argc, char** argv, uint32_t& sourceMask, std::string& errorMessage) const
+{
+    bool present = false;
+    sourceMask = logSourceMask(LogSource::Node);
+    errorMessage.clear();
+
+    auto maskForName = [](const std::string& name, uint32_t& mask) {
+        if (name == "runtime") {
+            mask = logSourceMask(LogSource::Runtime);
+            return true;
+        }
+        if (name == "node") {
+            mask = logSourceMask(LogSource::Node);
+            return true;
+        }
+        if (name == "api") {
+            mask = logSourceMask(LogSource::Api);
+            return true;
+        }
+        if (name == "kernel") {
+            mask = logSourceMask(LogSource::Kernel);
+            return true;
+        }
+        return false;
+    };
+
+    for (int i = 1; i < argc; ++i) {
+        const std::string option = argv[i];
+        if (option != "-L" && option != "--log-source") {
+            continue;
+        }
+        if (i + 1 >= argc) {
+            errorMessage = "Missing value for " + option + ". Expected runtime, node, api, kernel, all, or none.";
+            return false;
+        }
+        if (!present) {
+            sourceMask = 0;
+            present = true;
+        }
+
+        std::istringstream values(argv[++i]);
+        std::string token;
+        while (std::getline(values, token, ',')) {
+            token.erase(token.begin(), std::find_if(token.begin(), token.end(), [](unsigned char c) { return std::isspace(c) == 0; }));
+            token.erase(std::find_if(token.rbegin(), token.rend(), [](unsigned char c) { return std::isspace(c) == 0; }).base(), token.end());
+            if (token.empty()) {
+                errorMessage = "Empty log source in " + option + ". Expected runtime, node, api, kernel, all, or none.";
+                return false;
+            }
+
+            bool remove = token.size() > 1 && token.front() == '-';
+            const std::string name = remove ? token.substr(1) : token;
+            if (name == "all") {
+                sourceMask = remove ? 0 : allLogSourceMask();
+                continue;
+            }
+            if (name == "none") {
+                sourceMask = remove ? allLogSourceMask() : 0;
+                continue;
+            }
+
+            uint32_t tokenMask = 0;
+            if (!maskForName(name, tokenMask)) {
+                errorMessage = "Unknown log source '" + name + "'. Expected runtime, node, api, kernel, all, or none.";
+                return false;
+            }
+            if (remove) {
+                sourceMask &= ~tokenMask;
+            } else {
+                sourceMask |= tokenMask;
+            }
+        }
+    }
+
+    return true;
 }
 
 bool Application::handleHelp(int argc, char** argv, const GraphConfig* config, const std::string* pipelineText) const

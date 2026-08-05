@@ -186,6 +186,14 @@ camflow -p -n 200 "v4l2src(device=/dev/video0)->logsink"
 camflow -s -p -n 200 "v4l2src(device=/dev/video0)->logsink"
 ```
 
+Console output shows node logs by default. Select additional sources with
+`-L`/`--log-source`; this does not filter the web UI log stream:
+
+```bash
+camflow -L node,api "v4l2src(device=/dev/video0)->logsink"
+camflow -L all,-kernel PIPELINE
+```
+
 If no `-G`/`--graph` option is provided, a pipeline string argument is required.
 
 Use `-n MAX_FRAMES` to stop the runtime after a fixed number of processed frames (`0` keeps running).

@@ -26,19 +26,18 @@ const char* colorReset()
     return "\033[0m";
 }
 
-const char* colorForSource(const std::string& file)
+const char* colorForSource(const std::string& source)
 {
-    if (file == "kernel") {
+    if (source == "kernel") {
         return "\033[37m"; // Light gray
     }
-    if (file.find("/runtime/network/WebServer.cpp") != std::string::npos || file.find("/runtime/network/RestApiInterface.cpp") != std::string::npos ||
-        file.find("/runtime/network/WebInterface.cpp") != std::string::npos) {
+    if (source == "api") {
         return "\033[34m"; // Blue
     }
-    if (file.find("/nodes/") != std::string::npos) {
+    if (source == "node") {
         return "\033[33m"; // Yellow
     }
-    if (file.find("/runtime/") != std::string::npos || file.find("/app/") != std::string::npos || file.find("/convert/") != std::string::npos) {
+    if (source == "runtime") {
         return "\033[32m"; // Green
     }
     return "";
@@ -58,6 +57,35 @@ std::string sourceForFile(const std::string& file)
     }
     if (file.find("/runtime/") != std::string::npos || file.find("/app/") != std::string::npos || file.find("/convert/") != std::string::npos) {
         return "runtime";
+    }
+    return "runtime";
+}
+
+uint32_t sourceMaskForName(const std::string& source)
+{
+    if (source == "node") {
+        return logSourceMask(LogSource::Node);
+    }
+    if (source == "api") {
+        return logSourceMask(LogSource::Api);
+    }
+    if (source == "kernel") {
+        return logSourceMask(LogSource::Kernel);
+    }
+    return logSourceMask(LogSource::Runtime);
+}
+
+const char* sourceName(LogSource source)
+{
+    switch (source) {
+    case LogSource::Runtime:
+        return "runtime";
+    case LogSource::Node:
+        return "node";
+    case LogSource::Api:
+        return "api";
+    case LogSource::Kernel:
+        return "kernel";
     }
     return "runtime";
 }
@@ -175,6 +203,12 @@ void Logger::setVerbose(bool verbose)
     m_verbose = verbose;
 }
 
+void Logger::setConsoleSourceMask(uint32_t sourceMask)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_consoleSourceMask = sourceMask & allLogSourceMask();
+}
+
 size_t Logger::addListener(LogListener listener)
 {
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -210,9 +244,11 @@ void Logger::publishRecord(LogRecord record)
 {
     std::vector<LogListener> listeners;
     bool verbose = false;
+    bool printToConsole = false;
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         verbose = m_verbose;
+        printToConsole = (m_consoleSourceMask & sourceMaskForName(record.source)) != 0;
         record.timestampMs = nowMs();
         if (record.rendered.empty()) {
             record.rendered = formatRenderedLine(record.type, verbose, record.source, record.sourceTag, record.file, record.line, record.message);
@@ -227,16 +263,18 @@ void Logger::publishRecord(LogRecord record)
         }
     }
 
-    const char* color = colorForSource(record.source == "kernel" ? std::string("kernel") : record.file);
-    const bool useColor = color[0] != '\0';
-    if (useColor) {
-        std::cout << color;
+    if (printToConsole) {
+        const char* color = colorForSource(record.source);
+        const bool useColor = color[0] != '\0';
+        if (useColor) {
+            std::cout << color;
+        }
+        std::cout << record.rendered;
+        if (useColor) {
+            std::cout << colorReset();
+        }
+        std::cout << std::endl;
     }
-    std::cout << record.rendered;
-    if (useColor) {
-        std::cout << colorReset();
-    }
-    std::cout << std::endl;
 
     for (const auto& listener : listeners) {
         if (listener) {
@@ -250,6 +288,18 @@ void Logger::log(LogType type, const std::string& file, int line, const std::str
     LogRecord record;
     record.type = type;
     record.source = sourceForFile(file);
+    record.sourceTag.clear();
+    record.file = file;
+    record.line = line;
+    record.message = message;
+    publishRecord(std::move(record));
+}
+
+void Logger::log(LogType type, LogSource source, const std::string& file, int line, const std::string& message)
+{
+    LogRecord record;
+    record.type = type;
+    record.source = sourceName(source);
     record.sourceTag.clear();
     record.file = file;
     record.line = line;

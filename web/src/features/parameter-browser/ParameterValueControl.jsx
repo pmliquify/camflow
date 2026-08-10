@@ -5,8 +5,12 @@ import ButtonParameterControl from './controls/ButtonParameterControl.jsx';
 import IntParameterControl from './controls/IntParameterControl.jsx';
 import DoubleParameterControl from './controls/DoubleParameterControl.jsx';
 import StringParameterControl from './controls/StringParameterControl.jsx';
+import MediaFlagsParameterControl from './controls/MediaFlagsParameterControl.jsx';
 
 export default function ParameterValueControl({ item, canEdit, onChange, parameterMeta }) {
+        if (item.type === 'media-flags') {
+                return <MediaFlagsParameterControl item={item} />;
+        }
         if (item.type === 'bool') {
                 return <BoolParameterControl item={item} canEdit={canEdit} onChange={onChange} parameterMeta={parameterMeta} />;
         }

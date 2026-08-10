@@ -33,7 +33,7 @@ export default function ParameterRow({ item, canEdit, onChange, showVisibilityCh
 
 
         return (
-                <section className="parameter" title={tooltipText}>
+                <section className={`parameter${item.type === 'media-flags' ? ' media-flags-parameter' : ''}`} title={tooltipText}>
                         <div className="parameter-row">
                                 <ParameterNameBlock
                                         item={item}

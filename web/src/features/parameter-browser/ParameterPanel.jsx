@@ -32,6 +32,41 @@ function parameterDisplayName(item) {
         return groupPrefix && fullName.startsWith(groupPrefix) ? fullName.slice(groupPrefix.length) : fullName;
 }
 
+function mediaDetail(selectedElement) {
+        if (!selectedElement?.item) return null;
+        const { kind, item, entity, graph } = selectedElement;
+        const value = (name, fieldValue, description) => ({ name, type: 'string', value: String(fieldValue ?? ''), description, runtimeWritable: false });
+        const flags = (flagKind, fieldValue, description) => ({ name: 'flags', type: 'media-flags', flagKind, value: fieldValue, description, runtimeWritable: false });
+        if (kind === 'entity') {
+                const totalPadCount = graph?.entities?.find((candidate) => candidate.id === item.id)?.pads?.length ?? item.pads?.length ?? 0;
+                return {
+                        title: item.name,
+                        parameters: [
+                                value('function', `${item.function} (0x${Number(item.functionId || 0).toString(16)})`, 'Media entity function and kernel function id'),
+                                value('pads', totalPadCount, 'Total number of entity pads'),
+                                flags('entity', item.flags, 'Entity flags and their states')
+                        ]
+                };
+        }
+        if (kind === 'pad') {
+                return {
+                        title: `${entity?.name || 'entity'} pad ${item.index}`,
+                        parameters: [
+                                value('id', item.id, 'Kernel media pad id'),
+                                flags('pad', item.flags, 'Pad flags and their states')
+                        ]
+                };
+        }
+        const entityName = (id) => graph?.entities?.find((candidate) => candidate.id === id)?.name || id;
+        return {
+                title: `${entityName(item.sourceEntityId)} -> ${entityName(item.sinkEntityId)}`,
+                parameters: [
+                        value('id', item.id, 'Kernel media link id'),
+                        flags('link', item.flags, 'Link flags and their states')
+                ]
+        };
+}
+
 export default function ParameterPanel({
         selectedNodeMeta,
         selectedRuntimeName,
@@ -41,7 +76,8 @@ export default function ParameterPanel({
         deleteRuntime,
         selectedNodeParams,
         updateParameter,
-        runtimeRunning
+        runtimeRunning,
+        selectedMediaElement
 }) {
         const initialFilter = readStoredParameterFilter();
         const [filterOpen, setFilterOpen] = useState(false);
@@ -71,9 +107,11 @@ export default function ParameterPanel({
                 }
         }, [filterText, visibleByName]);
 
+        const selectedMediaDetail = mediaDetail(selectedMediaElement);
+        const activeParams = selectedMediaDetail?.parameters || selectedNodeParams;
         const normalizedSearch = filterText.trim().toLowerCase();
-        const hasHiddenParameters = selectedNodeParams.some((item) => (visibleByName[item.name] ?? true) === false);
-        const displayedParams = selectedNodeParams.filter((item) => {
+        const hasHiddenParameters = !selectedMediaDetail && activeParams.some((item) => (visibleByName[item.name] ?? true) === false);
+        const displayedParams = activeParams.filter((item) => {
                 if (filterOpen) {
                         if (!normalizedSearch) {
                                 return true;
@@ -88,7 +126,7 @@ export default function ParameterPanel({
                                 || groupName.includes(normalizedSearch)
                                 || groupDescription.includes(normalizedSearch);
                 }
-                return (visibleByName[item.name] ?? true) === true;
+                return selectedMediaDetail ? true : (visibleByName[item.name] ?? true) === true;
         });
 
         const groupedParameterItems = [];
@@ -148,7 +186,7 @@ export default function ParameterPanel({
                 <section className="panel parameter-panel">
                         <div className="parameter-header">
                                 <div className="parameter-header-left">
-                                        {selectedNodeMeta ? <div className="selection compact-selection">{selectedNodeMeta.name || selectedNodeMeta.id}</div> : <div className="selection compact-selection">{selectedRuntimeName}</div>}
+                                        {selectedMediaDetail ? <div className="selection compact-selection media-detail-title">{selectedMediaDetail.title}</div> : selectedNodeMeta ? <div className="selection compact-selection">{selectedNodeMeta.name || selectedNodeMeta.id}</div> : <div className="selection compact-selection">{selectedRuntimeName}</div>}
                                 </div>
                                 <div className="parameter-header-right">
                                         <Button
@@ -161,9 +199,7 @@ export default function ParameterPanel({
                                         >
                                                 filter
                                         </Button>
-                                        <Button className="secondary param-reload-button" variant="secondary" type="button" icon={reloadIcon} onClick={onReload} title="Reload parameters">
-                                                reload
-                                        </Button>
+                                        {!selectedMediaDetail ? <Button className="secondary param-reload-button" variant="secondary" type="button" icon={reloadIcon} onClick={onReload} title="Reload parameters">reload</Button> : null}
                                 </div>
                         </div>
                         {filterOpen ? (
@@ -217,7 +253,7 @@ export default function ParameterPanel({
                                                 }
 
                                                 const item = entry.item;
-                                                const canEdit = !runtimeRunning || item.runtimeWritable !== false;
+                                                const canEdit = !selectedMediaDetail && (!runtimeRunning || item.runtimeWritable !== false);
                                                 return (
                                                         <ParameterRow
                                                                 key={entry.id}

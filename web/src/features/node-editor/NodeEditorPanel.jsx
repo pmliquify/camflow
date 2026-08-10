@@ -39,7 +39,10 @@ export default function NodeEditorPanel({
         runtimeLogs,
         runtimeLogPanels,
         onToggleRuntimeLogPanel,
-        onClearRuntimeLogs
+        onClearRuntimeLogs,
+        runtimeBaseUrl,
+        selectedMediaElement,
+        onSelectMediaElement
 }) {
         const [edgeDraft, setEdgeDraft] = useState(null);
         const [portMenu, setPortMenu] = useState({ open: false, direction: '', x: 0, y: 0, nodeId: '', ports: [] });
@@ -290,6 +293,9 @@ export default function NodeEditorPanel({
                                                         onRuntimeResizeStart={startRuntimeResize}
                                                         onStartRuntime={onStartRuntime}
                                                         onClearRuntimeLogs={onClearRuntimeLogs}
+                                                        runtimeBaseUrl={runtime.id === 'local' ? '' : runtimeBaseUrl(runtime.ip)}
+                                                        selectedMediaElement={selectedMediaElement}
+                                                        onSelectMediaElement={onSelectMediaElement}
                                                 />
                                         ))}
                                 </div>

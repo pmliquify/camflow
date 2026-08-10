@@ -41,6 +41,8 @@ REST responses include:
 | `/api/runtime` | `GET` | none | `state`, `ui` |
 | `/api/runtime` | `PUT` | `desiredState` (`running`/`stopped`) | `state`, `ui` |
 | `/api/runtime/version` | `GET` | none | `version`, `git`, `build`, `opencv` |
+| `/api/media` | `GET` | none | available `devices[]` |
+| `/api/media/{device}` | `GET` | path: `{device}` (for example `media0`) | media `entities[]`, pads and `links[]` |
 | `/api/pipeline` | `GET` | none | runtime graph JSON (`nodes`, `edges`, ...) |
 | `/api/pipeline` | `PUT` / `POST` | graph JSON (`nodes`, `edges`) | `ok` |
 | `/api/nodes` | `GET` | none | `sources`, `processors`, `sinks`, `schemas` |
@@ -68,6 +70,18 @@ Typical top-level fields:
 Status codes:
 
 - `200 OK`
+
+## GET /api/media and /api/media/{device}
+
+`GET /api/media` lists the media-controller devices currently present on the runtime host. `GET /api/media/{device}` reads a fresh kernel topology snapshot for one listed device. The device path is restricted to discovered `/dev/mediaX` entries.
+
+The graph response contains media device metadata, entities with associated `/dev/videoX` or `/dev/v4l-subdevX` nodes, entity pads with active pixel/media-bus format and image size, and pad-to-pad links. Entities, pads, and links expose their kernel `flags` as an unsigned numeric value; derived flag fields are not included.
+
+Status codes:
+
+- `200 OK`: device list or graph snapshot returned
+- `404 Not Found`: requested media device is not present
+- `500 Internal Server Error`: the media device or topology could not be queried
 
 ## GET /api/nodes
 

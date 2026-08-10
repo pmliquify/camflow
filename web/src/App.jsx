@@ -608,6 +608,7 @@ export default function App() {
         const [frameMeta, setFrameMeta] = useState(null);
         const [selectedNodeParams, setSelectedNodeParams] = useState([]);
         const [selectedNodeMeta, setSelectedNodeMeta] = useState(null);
+        const [selectedMediaElement, setSelectedMediaElement] = useState(null);
         const [debayerEnabled, setDebayerEnabled] = useState(false);
         const [viewMode, setViewMode] = useState(readInitialViewMode);
         const [runtimeMenu, setRuntimeMenu] = useState({ open: false, x: 0, y: 0, kind: 'background', runtimeId: null, nodeId: null, sources: [], processors: [], sinks: [] });
@@ -2316,6 +2317,9 @@ export default function App() {
                                         runtimeLogPanels={runtimeLogPanels}
                                         onToggleRuntimeLogPanel={onToggleRuntimeLogPanel}
                                         onClearRuntimeLogs={onClearRuntimeLogs}
+                                        runtimeBaseUrl={runtimeBaseUrl}
+                                        selectedMediaElement={selectedMediaElement}
+                                        onSelectMediaElement={setSelectedMediaElement}
                                 />
 
                                 <div
@@ -2429,6 +2433,7 @@ export default function App() {
                                         selectedNodeParams={selectedNodeParams}
                                         updateParameter={updateParameter}
                                         runtimeRunning={runtimeRunning}
+                                        selectedMediaElement={selectedMediaElement}
                                 />
                         </main>
 

@@ -42,6 +42,23 @@ export async function getPipeline() {
         return response.json();
 }
 
+export async function getMediaDevices(baseUrl = '') {
+        const response = await fetch(`${baseUrl}/api/media?t=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) {
+                throw new Error(`media devices ${response.status}`);
+        }
+        return response.json();
+}
+
+export async function getMediaGraph(device, baseUrl = '') {
+        const deviceName = String(device || '').replace(/^\/dev\//, '');
+        const response = await fetch(`${baseUrl}/api/media/${encodeURIComponent(deviceName)}?t=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) {
+                throw new Error(`media graph ${response.status}`);
+        }
+        return response.json();
+}
+
 export async function savePipeline(payload) {
         const response = await fetch('/api/pipeline', {
                 method: 'PUT',

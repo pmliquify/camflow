@@ -3,12 +3,17 @@ import RuntimeWindowIcon from './RuntimeWindowIcon.jsx';
 import NodeCard from './NodeCard.jsx';
 import EdgeLayer from './EdgeLayer.jsx';
 import RuntimeLogConsole from './RuntimeLogConsole.jsx';
+import MediaGraphView from './MediaGraphView.jsx';
 import logIcon from '../../assets/images/icon-log.svg';
+import mediaGraphIcon from '../../assets/images/icon-media-graph.svg';
+import reloadIcon from '../../assets/images/icon-reload.svg';
 import Button from '../../components/Button.jsx';
 import InlineNameEditor from '../../components/InlineNameEditor.jsx';
+import { getMediaDevices, getMediaGraph } from '../../services/runtimeApi.js';
 
 const RUNTIME_LOG_PREFS_STORAGE_PREFIX = 'camflow:runtime-log-prefs:';
 const RUNTIME_LOG_DEFAULT_FONT_STORAGE_KEY = 'camflow:runtime-log-default-font-size';
+const RUNTIME_MEDIA_PREFS_STORAGE_PREFIX = 'camflow:runtime-media-prefs:';
 const LOG_FONT_MIN = 5;
 const LOG_FONT_MAX = 15;
 const LOG_FONT_DEFAULT = 10;
@@ -72,6 +77,25 @@ function loadGlobalDefaultLogFontSize() {
         }
 }
 
+function loadRuntimeMediaPrefs(runtimeId) {
+        if (typeof window === 'undefined') {
+                return null;
+        }
+        try {
+                const raw = window.localStorage.getItem(`${RUNTIME_MEDIA_PREFS_STORAGE_PREFIX}${runtimeId}`);
+                if (!raw) {
+                        return null;
+                }
+                const parsed = JSON.parse(raw);
+                return {
+                        device: typeof parsed?.device === 'string' ? parsed.device : '',
+                        connectedOnly: Boolean(parsed?.connectedOnly)
+                };
+        } catch (_) {
+                return null;
+        }
+}
+
 export default function RuntimeLane({
         runtime,
         logEntries,
@@ -90,15 +114,26 @@ export default function RuntimeLane({
         onRuntimeDragStart,
         onRuntimeResizeStart,
         onStartRuntime,
-        onClearRuntimeLogs
+        onClearRuntimeLogs,
+        runtimeBaseUrl = '',
+        selectedMediaElement,
+        onSelectMediaElement
 }) {
         const initialLogPrefs = useMemo(() => loadRuntimeLogPrefs(runtime.id), [runtime.id]);
+        const initialMediaPrefs = useMemo(() => loadRuntimeMediaPrefs(runtime.id), [runtime.id]);
         const [filterOpen, setFilterOpen] = useState(() => initialLogPrefs?.filterOpen || false);
         const [visibleSources, setVisibleSources] = useState(() => initialLogPrefs?.visibleSources || { kernel: true, runtime: true, node: true, api: true });
         const [kernelRegexText, setKernelRegexText] = useState(() => initialLogPrefs?.kernelRegexText || '');
         const [showDebugDetails, setShowDebugDetails] = useState(() => initialLogPrefs?.showDebugDetails || false);
         const [logFontSize, setLogFontSize] = useState(() => initialLogPrefs?.logFontSize || loadGlobalDefaultLogFontSize());
         const [logConsoleHeight, setLogConsoleHeight] = useState(() => initialLogPrefs?.logConsoleHeight || LOG_CONSOLE_DEFAULT_HEIGHT);
+        const [mediaMode, setMediaMode] = useState(false);
+        const [mediaDevices, setMediaDevices] = useState([]);
+        const [mediaDevice, setMediaDevice] = useState(() => initialMediaPrefs?.device || '');
+        const [mediaGraph, setMediaGraph] = useState(null);
+        const [mediaLoading, setMediaLoading] = useState(false);
+        const [mediaError, setMediaError] = useState('');
+        const [mediaConnectedOnly, setMediaConnectedOnly] = useState(() => initialMediaPrefs?.connectedOnly || false);
 
         const filterActive = useMemo(() => {
                 return Object.values(visibleSources).some((value) => !value) || Boolean(kernelRegexText.trim());
@@ -124,6 +159,50 @@ export default function RuntimeLane({
                         // Ignore persistence failures (quota/private mode).
                 }
         }, [filterOpen, kernelRegexText, logConsoleHeight, logFontSize, runtime.id, showDebugDetails, visibleSources]);
+
+        useEffect(() => {
+                if (typeof window === 'undefined') {
+                        return;
+                }
+                try {
+                        window.localStorage.setItem(`${RUNTIME_MEDIA_PREFS_STORAGE_PREFIX}${runtime.id}`, JSON.stringify({
+                                device: mediaDevice,
+                                connectedOnly: mediaConnectedOnly
+                        }));
+                } catch (_) {
+                        // Ignore persistence failures (quota/private mode).
+                }
+        }, [mediaConnectedOnly, mediaDevice, runtime.id]);
+
+        async function loadMediaGraph(requestedDevice = mediaDevice) {
+                setMediaLoading(true);
+                setMediaError('');
+                onSelectMediaElement?.(null);
+                try {
+                        const payload = await getMediaDevices(runtimeBaseUrl);
+                        const devices = Array.isArray(payload?.devices) ? payload.devices : [];
+                        setMediaDevices(devices);
+                        const nextDevice = devices.includes(requestedDevice) ? requestedDevice : (devices[0] || '');
+                        setMediaDevice(nextDevice);
+                        if (!nextDevice) {
+                                setMediaGraph(null);
+                                setMediaError('no /dev/mediaX devices');
+                                return;
+                        }
+                        setMediaGraph(await getMediaGraph(nextDevice, runtimeBaseUrl));
+                } catch (error) {
+                        setMediaGraph(null);
+                        setMediaError(error instanceof Error ? error.message : 'media graph unavailable');
+                } finally {
+                        setMediaLoading(false);
+                }
+        }
+
+        useEffect(() => {
+                if (mediaMode) void loadMediaGraph();
+                // Reload only when the mode is activated or the target runtime changes.
+                // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [mediaMode, runtimeBaseUrl]);
 
         return (
                 <section
@@ -154,6 +233,62 @@ export default function RuntimeLane({
                                         <span className={`runtime-state state-${runtime.status}`}>{runtime.status}</span>
                                 </div>
                                 <div className="runtime-header-right">
+                                        {mediaMode ? (
+                                                <select
+                                                        className="runtime-media-device"
+                                                        value={mediaDevice}
+                                                        aria-label="media device"
+                                                        onMouseDown={(event) => event.stopPropagation()}
+                                                        onChange={(event) => void loadMediaGraph(event.target.value)}
+                                                >
+                                                        {mediaDevices.map((device) => <option key={device} value={device}>{device}</option>)}
+                                                </select>
+                                        ) : null}
+                                        {mediaMode ? (
+                                                <Button
+                                                        className={`secondary runtime-media-connected-toggle${mediaConnectedOnly ? ' active' : ''}`}
+                                                        variant="secondary"
+                                                        compact={true}
+                                                        type="button"
+                                                        title="show connected links only"
+                                                        aria-label="show connected links only"
+                                                        onMouseDown={(event) => event.stopPropagation()}
+                                                        onClick={() => {
+                                                                setMediaConnectedOnly((current) => !current);
+                                                                onSelectMediaElement?.(null);
+                                                        }}
+                                                >
+                                                        linked
+                                                </Button>
+                                        ) : null}
+                                        {mediaMode ? (
+                                                <Button
+                                                        className="secondary runtime-media-reload"
+                                                        variant="secondary"
+                                                        type="button"
+                                                        title="reload media graph"
+                                                        aria-label="reload media graph"
+                                                        icon={reloadIcon}
+                                                        iconOnly={true}
+                                                        disabled={mediaLoading || !mediaDevice}
+                                                        onMouseDown={(event) => event.stopPropagation()}
+                                                        onClick={() => void loadMediaGraph()}
+                                                />
+                                        ) : null}
+                                        <Button
+                                                className={`secondary runtime-media-toggle${mediaMode ? ' active' : ''}`}
+                                                variant="secondary"
+                                                type="button"
+                                                title="show media graph"
+                                                aria-label="show media graph"
+                                                icon={mediaGraphIcon}
+                                                iconOnly={true}
+                                                onMouseDown={(event) => event.stopPropagation()}
+                                                onClick={() => {
+                                                        setMediaMode((current) => !current);
+                                                        if (mediaMode) onSelectMediaElement?.(null);
+                                                }}
+                                        />
                                         <Button
                                                 className={`secondary runtime-log-toggle${logOpen ? ' active' : ''}`}
                                                 variant="secondary"
@@ -173,6 +308,7 @@ export default function RuntimeLane({
                                         />
                                         <Button
                                                 className="runtime-run"
+                                                compact={true}
                                                 type="button"
                                                 onMouseDown={(event) => event.stopPropagation()}
                                                 onClick={() => onStartRuntime(runtime.id, runtime.status)}
@@ -181,22 +317,33 @@ export default function RuntimeLane({
                                         </Button>
                                 </div>
                         </header>
-                        <div className="runtime-canvas" onContextMenu={(event) => onLaneContextMenu(event, runtime.id)}>
-                                {runtime.nodes.map((node) => (
-                                        <NodeCard
-                                                key={node.id}
-                                                node={node}
-                                                selected={selectedNodeId === node.id}
-                                                onSelect={onSelectNode}
-                                                onRename={(nextName) => runtime.onRenameNode?.(node.id, nextName)}
-                                                onDragStart={(event) => onNodeDragStart(event, runtime.id, node.id)}
-                                                onContextMenu={(event) => onNodeContextMenu(event, runtime.id, node.id)}
-                                                onPortAreaClick={(event, targetNode, direction) => onNodePortAreaClick(event, runtime.id, targetNode, direction)}
-                                                onPortMouseDown={(event, targetNode, portName) => onNodePortMouseDown(event, runtime.id, targetNode, portName)}
-                                                onHidePort={onHideNodePort}
+                        <div className={`runtime-canvas${mediaMode ? ' media-mode' : ''}`} onContextMenu={(event) => onLaneContextMenu(event, runtime.id)}>
+                                {mediaMode ? (
+                                        <MediaGraphView
+                                                graph={mediaGraph}
+                                                loading={mediaLoading}
+                                                error={mediaError}
+                                                connectedOnly={mediaConnectedOnly}
+                                                selectedElement={selectedMediaElement}
+                                                onSelectElement={onSelectMediaElement}
                                         />
-                                ))}
-                                <EdgeLayer runtime={runtime} onEdgePath={onEdgePath} onDeleteEdge={onDeleteEdge} />
+                                ) : <>
+                                        {runtime.nodes.map((node) => (
+                                                <NodeCard
+                                                        key={node.id}
+                                                        node={node}
+                                                        selected={selectedNodeId === node.id}
+                                                        onSelect={onSelectNode}
+                                                        onRename={(nextName) => runtime.onRenameNode?.(node.id, nextName)}
+                                                        onDragStart={(event) => onNodeDragStart(event, runtime.id, node.id)}
+                                                        onContextMenu={(event) => onNodeContextMenu(event, runtime.id, node.id)}
+                                                        onPortAreaClick={(event, targetNode, direction) => onNodePortAreaClick(event, runtime.id, targetNode, direction)}
+                                                        onPortMouseDown={(event, targetNode, portName) => onNodePortMouseDown(event, runtime.id, targetNode, portName)}
+                                                        onHidePort={onHideNodePort}
+                                                />
+                                        ))}
+                                        <EdgeLayer runtime={runtime} onEdgePath={onEdgePath} onDeleteEdge={onDeleteEdge} />
+                                </>}
                         </div>
                         <RuntimeLogConsole
                                 runtimeId={runtime.id}

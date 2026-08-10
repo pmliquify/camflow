@@ -4,6 +4,7 @@
 #include "RestApiInterface.hpp"
 
 #include "core/Logger.hpp"
+#include "media/MediaGraphInspector.hpp"
 #include "parameters/Parameter.hpp"
 #include "parser/JsonPipelineParser.hpp"
 
@@ -403,6 +404,27 @@ bool RestApiInterface::tryHandle(const std::string& method, const std::string& p
         statusCode = 200;
         contentType = "application/json";
         responseBody = runtimeVersionJson();
+        return true;
+    }
+
+    if (method == "GET" && requestPath == "/api/media") {
+        statusCode = 200;
+        contentType = "application/json";
+        responseBody = MediaGraphInspector::devicesJson();
+        return true;
+    }
+
+    if (method == "GET" && requestPath.rfind("/api/media/", 0) == 0) {
+        const std::string device = "/dev/" + decodeUrl(requestPath.substr(11));
+        std::string errorMessage;
+        if (!MediaGraphInspector::graphJson(device, responseBody, errorMessage)) {
+            statusCode = errorMessage == "media device not found" ? 404 : 500;
+            contentType = "application/json";
+            responseBody = "{\"error\":\"" + jsonEscape(errorMessage) + "\"}";
+            return true;
+        }
+        statusCode = 200;
+        contentType = "application/json";
         return true;
     }
 

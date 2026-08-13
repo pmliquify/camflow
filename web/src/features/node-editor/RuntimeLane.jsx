@@ -101,6 +101,7 @@ function loadRuntimeMediaPrefs(runtimeId) {
 }
 
 export default function RuntimeLane({
+        viewMode,
         runtime,
         logEntries,
         logOpen,
@@ -141,10 +142,12 @@ export default function RuntimeLane({
         const runtimePanGestureRef = useRef({ moved: false, button: null });
         const runtimePanCleanupRef = useRef(null);
         const runtimeCanvasRef = useRef(null);
+        const hasAutoCenteredRef = useRef(false);
 
         const runtimeZoom = runtimeViewport.zoom || 1;
         const runtimePanX = runtimeViewport.panX || 0;
         const runtimePanY = runtimeViewport.panY || 0;
+        const runtimeNodeIdsSignature = runtime.nodes.map((node) => node.id).join('|');
 
         const updateRuntimeViewport = (update) => {
                 onRuntimeViewportChange?.(runtime.id, update);
@@ -160,10 +163,13 @@ export default function RuntimeLane({
         const resetOrFitRuntimeViewport = () => {
                 const canvas = runtimeCanvasRef.current;
                 if (!canvas) {
-                        return;
+                        return false;
                 }
 
                 const viewport = runtimeViewportElement(canvas);
+                if (viewport.clientWidth === 0 || viewport.clientHeight === 0) {
+                        return false;
+                }
 
                 let minX = 0;
                 let minY = 0;
@@ -173,7 +179,7 @@ export default function RuntimeLane({
                         const graphCanvas = canvas.querySelector('.media-graph-canvas');
                         if (!(graphCanvas instanceof HTMLElement)) {
                                 updateRuntimeViewport({ zoom: 1, panX: 0, panY: 0 });
-                                return;
+                                return false;
                         }
                         maxX = Number.parseFloat(graphCanvas.style.width) || graphCanvas.offsetWidth;
                         maxY = Number.parseFloat(graphCanvas.style.height) || graphCanvas.offsetHeight;
@@ -181,7 +187,7 @@ export default function RuntimeLane({
                         const nodes = [...canvas.querySelectorAll('.node-card')];
                         if (nodes.length === 0) {
                                 updateRuntimeViewport({ zoom: 1, panX: 0, panY: 0 });
-                                return;
+                                return false;
                         }
                         minX = Math.min(...nodes.map((node) => node.offsetLeft));
                         minY = Math.min(...nodes.map((node) => node.offsetTop));
@@ -213,7 +219,22 @@ export default function RuntimeLane({
                         panX: (viewport.clientWidth - contentWidth * zoom) / 2 - minX * zoom,
                         panY: (viewport.clientHeight - contentHeight * zoom) / 2 - minY * zoom
                 });
+                return true;
         };
+
+        useEffect(() => {
+                if (hasAutoCenteredRef.current || runtime.nodes.length === 0) {
+                        return undefined;
+                }
+                const timerId = window.setTimeout(() => {
+                        if (resetOrFitRuntimeViewport()) {
+                                hasAutoCenteredRef.current = true;
+                        }
+                }, 0);
+                return () => window.clearTimeout(timerId);
+                // Fit once after this runtime's first node render.
+                // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [runtimeNodeIdsSignature, viewMode]);
 
         const onRuntimeWheelCapture = (event) => {
                 event.preventDefault();

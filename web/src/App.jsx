@@ -667,12 +667,15 @@ export default function App() {
         const debayerEnabledRef = useRef(debayerEnabled);
         const suppressNextNodeSelectRef = useRef(false);
         const suppressNextParameterReloadRef = useRef(false);
+        const hasAutoCenteredEditorRef = useRef(false);
+        const hasInitializedPipelineSelectionRef = useRef(false);
         const frameViewerSettingsRef = useRef(readFrameViewerSettings());
 
         const editorGraph = useMemo(
                 () => buildEditorGraph(pipelineGraph, localDraftRuntimes, localIp, runtimeLayouts, nodeLayouts, status, remoteRuntimeStatuses, nodeCatalog, nodeNames, runtimeNames, nodePortVisibility),
                 [pipelineGraph, localDraftRuntimes, localIp, runtimeLayouts, nodeLayouts, status, remoteRuntimeStatuses, nodeCatalog, nodeNames, runtimeNames, nodePortVisibility]
         );
+        const editorNodeIdsSignature = editorGraph.nodeIds.join('|');
         const displayedFrameNodeId = String(frameContextState?.nodeId || selectedNodeId || sourceNodeId).trim();
         const displayedFrameNodeName = useMemo(() => {
                 const liveNode = (pipelineGraph.nodes || []).find((node) => node.id === displayedFrameNodeId);
@@ -1052,6 +1055,39 @@ export default function App() {
                         const nextViewport = typeof update === 'function' ? update(currentViewport) : update;
                         return { ...current, [runtimeId]: nextViewport };
                 });
+        }
+
+        function fitEditorView() {
+                const viewport = editorViewportRef.current;
+                if (!viewport || editorGraph.runtimes.length === 0) {
+                        setEditorZoom(1);
+                        setEditorPanX(0);
+                        setEditorPanY(0);
+                        return false;
+                }
+                if (viewport.clientWidth === 0 || viewport.clientHeight === 0) {
+                        return false;
+                }
+
+                const bounds = editorGraph.runtimes.reduce((current, runtime) => {
+                        const rect = runtime.rect || { x: 0, y: 0, w: 0, h: 0 };
+                        return {
+                                minX: Math.min(current.minX, rect.x),
+                                minY: Math.min(current.minY, rect.y),
+                                maxX: Math.max(current.maxX, rect.x + rect.w),
+                                maxY: Math.max(current.maxY, rect.y + rect.h)
+                        };
+                }, { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+                const contentWidth = Math.max(1, bounds.maxX - bounds.minX);
+                const contentHeight = Math.max(1, bounds.maxY - bounds.minY);
+                const padding = 24;
+                const availableWidth = Math.max(1, viewport.clientWidth - padding * 2);
+                const availableHeight = Math.max(1, viewport.clientHeight - padding * 2);
+                const zoom = Math.max(0.01, Math.min(1, availableWidth / contentWidth, availableHeight / contentHeight));
+                setEditorZoom(zoom);
+                setEditorPanX((viewport.clientWidth - contentWidth * zoom) / 2 - bounds.minX * zoom);
+                setEditorPanY((viewport.clientHeight - contentHeight * zoom) / 2 - bounds.minY * zoom);
+                return true;
         }
 
         async function connectNodes(sourceNodeId, targetNodeId, sourcePort = 'image', targetPort = 'image') {
@@ -1448,11 +1484,24 @@ export default function App() {
                         const discovery = buildEditorGraph(graph, localDraftRuntimes, localIp, runtimeLayouts, nodeLayouts, status, remoteRuntimeStatuses, nodeCatalog, nodeNames, runtimeNames, nodePortVisibility);
                         setGraphStatusText(`discovered ${discovery.nodeIds.length} node(s) on ${discovery.runtimes.length} runtime(s)`);
                         const storedSelectedNodeId = readInitialSelectedNodeId();
-                        if (!discovery.nodeIds.includes(selectedNodeId) && discovery.nodeIds.length > 0) {
+                        const v4l2Sources = (graph.nodes || []).filter((node) => node.type === 'v4l2src');
+                        if (!hasInitializedPipelineSelectionRef.current && discovery.nodeIds.length > 0) {
+                                const initialNodeId = v4l2Sources.length === 1
+                                        ? v4l2Sources[0].id
+                                        : (storedSelectedNodeId && discovery.nodeIds.includes(storedSelectedNodeId) ? storedSelectedNodeId : discovery.nodeIds[0]);
+                                if (initialNodeId !== selectedNodeId) {
+                                        suppressNextParameterReloadRef.current = true;
+                                        setSelectedNodeId(initialNodeId);
+                                }
+                                void fetchNodeParameters(initialNodeId, graph.nodes);
+                        } else if (!discovery.nodeIds.includes(selectedNodeId) && discovery.nodeIds.length > 0) {
                                 const preferredNodeId = storedSelectedNodeId && discovery.nodeIds.includes(storedSelectedNodeId) ? storedSelectedNodeId : discovery.nodeIds[0];
                                 setSelectedNodeId(preferredNodeId);
                         } else if (!discovery.nodeIds.includes(selectedNodeId) && discovery.nodeIds.length === 0) {
                                 setSelectedNodeId('');
+                        }
+                        if (discovery.nodeIds.length > 0) {
+                                hasInitializedPipelineSelectionRef.current = true;
                         }
                         if (!discovery.runtimes.some((runtime) => runtime.id === selectedRuntimeId) && discovery.runtimes.length > 0) {
                                 setSelectedRuntimeId(discovery.runtimes[0].id);
@@ -1463,9 +1512,10 @@ export default function App() {
                 }
         }
 
-        async function fetchNodeParameters(nodeId) {
+        async function fetchNodeParameters(nodeId, graphNodes = pipelineGraph.nodes) {
                 if (!nodeId) return;
-                if (!liveNodeIds.has(nodeId)) {
+                const graphNode = (graphNodes || []).find((node) => node.id === nodeId);
+                if (!graphNode) {
                         for (const key of committedParameterValuesRef.current.keys()) {
                                 if (key.startsWith(`${nodeId}:`)) {
                                         committedParameterValuesRef.current.delete(key);
@@ -1492,7 +1542,7 @@ export default function App() {
                                 committedParameterValuesRef.current.set(`${nodeId}:${parameter.name}`, parameter.value);
                         });
                         setSelectedNodeParams(parameters);
-                        setSelectedNodeMeta((pipelineGraph.nodes || []).find((node) => node.id === nodeId) || null);
+                        setSelectedNodeMeta(graphNode);
                 } catch (_) {
                         for (const key of committedParameterValuesRef.current.keys()) {
                                 if (key.startsWith(`${nodeId}:`)) {
@@ -2020,6 +2070,20 @@ export default function App() {
         }, [editorGraph.runtimes]);
 
         useEffect(() => {
+                if (hasAutoCenteredEditorRef.current || editorGraph.nodeIds.length === 0) {
+                        return undefined;
+                }
+                const timerId = window.setTimeout(() => {
+                        if (fitEditorView()) {
+                                hasAutoCenteredEditorRef.current = true;
+                        }
+                }, 0);
+                return () => window.clearTimeout(timerId);
+                // Center only after the first discovered graph has reached the DOM.
+                // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [editorNodeIdsSignature, viewMode]);
+
+        useEffect(() => {
                 const moveHandler = (event) => {
                         const gesture = viewerPanGestureRef.current;
                         const buttonMask = gesture.button === 1 ? 4 : gesture.button === 2 ? 2 : 0;
@@ -2311,34 +2375,7 @@ export default function App() {
                                         editorZoom={editorZoom}
                                         editorPanX={editorPanX}
                                         editorPanY={editorPanY}
-                                        onResetView={() => {
-                                                const viewport = editorViewportRef.current;
-                                                if (!viewport || editorGraph.runtimes.length === 0) {
-                                                        setEditorZoom(1);
-                                                        setEditorPanX(0);
-                                                        setEditorPanY(0);
-                                                        return;
-                                                }
-
-                                                const bounds = editorGraph.runtimes.reduce((current, runtime) => {
-                                                        const rect = runtime.rect || { x: 0, y: 0, w: 0, h: 0 };
-                                                        return {
-                                                                minX: Math.min(current.minX, rect.x),
-                                                                minY: Math.min(current.minY, rect.y),
-                                                                maxX: Math.max(current.maxX, rect.x + rect.w),
-                                                                maxY: Math.max(current.maxY, rect.y + rect.h)
-                                                        };
-                                                }, { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
-                                                const contentWidth = Math.max(1, bounds.maxX - bounds.minX);
-                                                const contentHeight = Math.max(1, bounds.maxY - bounds.minY);
-                                                const padding = 24;
-                                                const availableWidth = Math.max(1, viewport.clientWidth - padding * 2);
-                                                const availableHeight = Math.max(1, viewport.clientHeight - padding * 2);
-                                                const zoom = Math.max(0.01, Math.min(1, availableWidth / contentWidth, availableHeight / contentHeight));
-                                                setEditorZoom(zoom);
-                                                setEditorPanX((viewport.clientWidth - contentWidth * zoom) / 2 - bounds.minX * zoom);
-                                                setEditorPanY((viewport.clientHeight - contentHeight * zoom) / 2 - bounds.minY * zoom);
-                                        }}
+                                        onResetView={fitEditorView}
                                         canvasWidth={canvasWidth}
                                         canvasHeight={canvasHeight}
                                         onPanMouseDown={(event) => {

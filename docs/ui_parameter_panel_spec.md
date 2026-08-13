@@ -26,7 +26,8 @@ The Parameter Panel provides a compact editor for the currently selected node's 
 
 - Browser storage key: `camflow:selected-node-id`.
 - On UI load:
-  - If saved node exists in the current pipeline, select it.
+  - If the pipeline contains exactly one `v4l2src` node, select it and load its parameters.
+  - Else if the saved node exists in the current pipeline, select it.
   - Else select the first pipeline node (if available).
   - Else no node is selected.
 - On each node selection change, persist the selected node id.

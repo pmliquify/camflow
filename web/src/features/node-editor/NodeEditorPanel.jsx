@@ -255,6 +255,7 @@ export default function NodeEditorPanel({
                                         {editorGraph.runtimes.map((runtime) => (
                                                 <RuntimeLane
                                                         key={runtime.id}
+                                                        viewMode={viewMode}
                                                         runtime={{
                                                                 ...runtime,
                                                                 displayName: runtimeDisplayLabel(runtime, localIp),

@@ -41,6 +41,9 @@ Media graph rendering is detailed in `docs/ui_media_graph_spec.md`.
 - Runtime reset measures nodes and internal links, or media graph dimensions.
   It centers at 100% when content fits and otherwise chooses the largest zoom
   at or below 100% that fits with 16px padding.
+- On initial UI load, the editor automatically fits and centers all runtime
+  windows once when the editor first becomes visible. Each runtime node view
+  independently performs the same one-time fit for its nodes and links.
 - The media graph viewport has no scrollbars; navigation uses the same runtime
   transform.
 

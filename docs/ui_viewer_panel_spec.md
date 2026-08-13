@@ -26,6 +26,10 @@ Frame rendering is client-side from raw packets. Context metadata and matching i
 - Aspect ratio follows current frame dimensions (`width/height`).
 - Fallback ratio before first frame is `4:3`.
 - The canvas is transformed independently of the fixed frame box.
+- When the frame box changes size, including viewer/editor mode switches, the
+	canvas transform is reapplied without requiring a new frame. Pan offsets are
+	scaled with the fit factor so the same image-space section remains visible at
+	the new display scale.
 - Before a frame is available, stopped state shows
 	`PIPELINE STOPPED - CLICK START PIPELINE`; down/offline state shows
 	`SERVICE OFFLINE`.

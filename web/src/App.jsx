@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import GlobalHeader from './features/header/GlobalHeader.jsx';
 import NodeEditorPanel from './features/node-editor/NodeEditorPanel.jsx';
 import ContextMenu from './features/node-editor/ContextMenu.jsx';
@@ -635,6 +635,7 @@ export default function App() {
         const [viewZoom, setViewZoom] = useState(1);
         const [viewPanX, setViewPanX] = useState(0);
         const [viewPanY, setViewPanY] = useState(0);
+        const [frameViewportSize, setFrameViewportSize] = useState({ width: 0, height: 0 });
         const [isPanning, setIsPanning] = useState(false);
         const [panOrigin, setPanOrigin] = useState({ x: 0, y: 0, baseX: 0, baseY: 0 });
         const [splitRatio, setSplitRatio] = useState(0.68);
@@ -669,6 +670,7 @@ export default function App() {
         const suppressNextParameterReloadRef = useRef(false);
         const hasAutoCenteredEditorRef = useRef(false);
         const hasInitializedPipelineSelectionRef = useRef(false);
+        const frameViewportScaleRef = useRef(0);
         const frameViewerSettingsRef = useRef(readFrameViewerSettings());
 
         const editorGraph = useMemo(
@@ -810,6 +812,28 @@ export default function App() {
                         storeFrameViewerSettings(displayedFrameNodeId, normalizedSettings);
                         return normalizedSettings.debayerEnabled;
                 });
+        }
+
+        function updateFrameViewportSize() {
+                const viewport = frameViewportRef.current;
+                const canvas = frameCanvasRef.current;
+                const width = viewport?.clientWidth || 0;
+                const height = viewport?.clientHeight || 0;
+                if (width <= 0 || height <= 0) {
+                        return;
+                }
+
+                const nextBaseScale = canvas?.width && canvas?.height
+                        ? Math.min(width / canvas.width, height / canvas.height)
+                        : 0;
+                const previousBaseScale = frameViewportScaleRef.current;
+                if (previousBaseScale > 0 && nextBaseScale > 0 && previousBaseScale !== nextBaseScale) {
+                        const scaleRatio = nextBaseScale / previousBaseScale;
+                        setViewPanX((current) => current * scaleRatio);
+                        setViewPanY((current) => current * scaleRatio);
+                }
+                frameViewportScaleRef.current = nextBaseScale;
+                setFrameViewportSize((current) => current.width === width && current.height === height ? current : { width, height });
         }
 
         function cleanupDrafts(drafts) {
@@ -2030,17 +2054,37 @@ export default function App() {
         }, [editorGraph.runtimes, selectedRuntimeId, localIp]);
 
         useEffect(() => {
+                const viewport = frameViewportRef.current;
+                if (!viewport || typeof ResizeObserver === 'undefined') {
+                        return undefined;
+                }
+
+                const observer = new ResizeObserver(updateFrameViewportSize);
+                observer.observe(viewport);
+                return () => observer.disconnect();
+                // The observer remains attached to the stable frame viewport element.
+                // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, []);
+
+        useLayoutEffect(() => {
+                updateFrameViewportSize();
+                // Recalculate synchronously after the mode's layout classes are committed.
+                // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [viewMode]);
+
+        useEffect(() => {
                 const canvas = frameCanvasRef.current;
                 const viewport = frameViewportRef.current;
                 if (!canvas || !viewport) return;
                 const baseScale = Math.min((viewport.clientWidth || 1) / (canvas.width || 1), (viewport.clientHeight || 1) / (canvas.height || 1));
+                frameViewportScaleRef.current = baseScale;
                 const scale = baseScale * viewZoom;
                 const scaledWidth = (canvas.width || 1) * scale;
                 const scaledHeight = (canvas.height || 1) * scale;
                 const baseX = ((viewport.clientWidth || 1) - scaledWidth) / 2;
                 const baseY = ((viewport.clientHeight || 1) - scaledHeight) / 2;
                 canvas.style.transform = `translate(${baseX + viewPanX}px, ${baseY + viewPanY}px) scale(${scale})`;
-        }, [viewZoom, viewPanX, viewPanY, frameMeta]);
+        }, [viewZoom, viewPanX, viewPanY, frameMeta, frameViewportSize]);
 
         useEffect(() => {
                 setRuntimeLayouts((current) => {

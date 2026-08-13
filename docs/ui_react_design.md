@@ -1,206 +1,180 @@
-# camflow React UI Design Notes
+# camflow React UI Architecture
 
-This document captures all UI design requirements discussed specifically for the React-based embedded UI. It complements and details the baseline design from docs/ui_design.md.
+This document describes how the current React implementation realizes the UI
+design. It is an architecture reference, not a chronological decision log.
+Visual rules live in `docs/ui_design.md`; component behavior lives in the
+canonical panel specifications.
 
-## 1. Design Source
+## 1. Technology and entry points
 
-- Primary design baseline: docs/ui_design.md
-- React implementation must follow its color, spacing, typography and interaction direction.
-- This file is the React-specific execution log of all additional design decisions.
+- React 18 with function components and hooks.
+- JavaScript/JSX; no TypeScript layer.
+- Vite 5 with `@vitejs/plugin-react`.
+- Entry assets: `web/index.html`, `web/src/main.jsx`, `web/src/App.jsx` and
+  `web/src/styles.css`.
+- One global stylesheet defines tokens, panel layout and component classes.
+- No external state-management or component library is used.
 
-## 2. Typography and Sizing (Strict)
+## 2. Component ownership
 
-- Use one font family for the complete UI: Rajdhani.
-- Apply Rajdhani consistently to all UI elements (text, controls, labels, graph text, header, badges).
-- Target font sizes from the base design must be respected:
-  - App name camflow: 26px
-  - Normal controls and labels: 11px to 13px
-  - Graph text: 12px
-  - Status strip text: 12px
+`App` is the state and integration owner. Its main rendered tree is:
 
-## 3. Global Edge and Header-Line Behavior
+```text
+App
+|- GlobalHeader
+|- NodeEditorPanel
+|  `- RuntimeLane[]
+|     |- NodeCard[] + EdgeLayer
+|     |- MediaGraphView
+|     `- RuntimeLogConsole
+|- FrameViewerPanel
+|  `- FrameViewport + metadata/control overlays
+|- ParameterPanel
+|- ContextMenu
+`- runtime creation Dialog
+```
 
-- Header and status-strip separator lines must visually run across the full browser width.
-- Header/status content text must keep a small internal inset (must not touch the left edge).
-- Avoid a visible outer page frame at the browser edge.
-- Left alignment rule: the left edge of the header icon, the status-strip text, and the left edge of lower widget content must be vertically aligned to the same inset line.
+Shared primitives under `web/src/components` provide buttons, labels, inputs,
+scroll areas, context menus, inline name editing and reset controls.
 
-## 4. Top Header (Current React Variant)
+## 3. State model
 
-Canonical header behavior is specified in:
+### 3.1 Runtime and graph state
 
-- `docs/ui_header_spec.md`
+- Runtime status/version, remote statuses and graph discovery originate from
+  REST/WebSocket integration in `App`.
+- `pipelineGraph` is combined with local draft runtimes and browser-local layout,
+  display-name and port-visibility state to derive `editorGraph`.
+- Auto marker ids prefixed with `__auto__` remain implementation details and are
+  excluded from user-facing runtime/node models.
+- Graph mutations use runtime API functions and enforce stopped-pipeline
+  semantics where required.
 
-- Left area:
-  - App icon.
-  - White, bold "camflow" label.
-  - Version directly after camflow in the same line (compact header).
-  - Version styling:
-    - Primary version token (e.g. v0.1.0): brighter/highlighted.
-    - Remaining version text: darker/subdued.
-- Right area:
-  - Only Editor/Viewer mode switch.
-- Explicitly removed from top header:
-  - Runtime status text.
-  - `reload graph` / `reload parameters` button.
-  - `stop pipeline` / `start pipeline` button.
+### 3.2 Selection state
 
-## 5. Runtime Window Model
+- Node selection drives frame subscription and Parameter Panel content.
+- Runtime selection provides fallback panel context and runtime actions.
+- Media element selection temporarily switches the Parameter Panel to a
+  read-only entity/pad/link inspector.
+- Node selection persists and falls back to the first current pipeline node when
+  a saved id is no longer available.
 
-Canonical editor panel behavior is specified in:
+### 3.3 Viewport and gesture state
 
-- `docs/ui_editor_panel_spec.md`
+- Outer editor zoom/pan is owned by `App`.
+- Runtime viewport state is keyed by runtime id and passed into each
+  `RuntimeLane`.
+- Viewer zoom/pan is owned by `App`; the canvas render transform combines fitted
+  base placement with user zoom/pan.
+- Gesture refs retain synchronous button/movement state while React state drives
+  rendering.
+- Editor, runtime and viewer pan use an 8px threshold and exact mouse-button
+  masks. Cleanup occurs on release/blur and defensively on lost button state.
 
-- Runtime is represented as an independent floating window in the editor canvas.
-- Runtime windows are draggable.
-- Runtime windows are resizable.
-- Runtime windows must not overlap.
-- Runtime canvas supports context menu over the full runtime area.
+## 4. Data transport
 
-## 6. Runtime Header Layout
+### 4.1 REST
 
-- Header left side:
-  - SVG runtime icon (instead of text label "runtime").
-  - Immediately to the right: runtime label (IP or host name).
-  - Runtime status badge appears directly next to runtime label.
-  - Status badge shape: oval.
-  - Status colors:
-    - Running: green
-    - Stopped: blue
-    - Down: red
-- Header right side:
-  - Start/Stop button.
+The UI uses runtime endpoints for status/version, pipeline graph, node catalog,
+node parameters, graph mutation and media-device/topology discovery. API details
+remain canonical in `docs/rest_api.md`.
 
-## 7. Runtime Button Semantics
+### 4.2 WebSockets
 
-- Button label must be:
-  - Start when runtime is not running.
-  - Stop when runtime is running.
-- Clicking Start/Stop must immediately update the local runtime UI state after API response.
-- Start/Stop click must not be swallowed by header drag interactions.
+- `/ws/frame` multiplexes frame-context JSON and matching binary image packets.
+- The client sends `subscribe` commands when the selected node or image key
+  changes. Binary processing is serialized and sequence-checked.
+- `/ws/logs` streams unfiltered runtime/node/API/kernel records per runtime.
+- Sockets are closed when their owning runtime/view state no longer requires
+  them and reconnect through the application lifecycle.
 
-## 8. Runtime Address Editing
+## 5. Browser persistence
 
-- Runtime address/host in header supports inline editing.
-- Enter commits the change.
-- Escape cancels the edit.
-- Blur also commits when value is valid.
+All storage access is guarded; unavailable or malformed storage falls back to
+safe defaults.
 
-## 9. Runtime Defaults
+| Key | Persisted value |
+| --- | --- |
+| `camflow:view-mode` | `viewer` or `editor` |
+| `camflow:selected-node-id` | selected node id |
+| `camflow:runtime-layouts` | runtime rectangles |
+| `camflow:node-layouts` | node graph coordinates |
+| `camflow:runtime-names` | runtime display names |
+| `camflow:node-names` | node display/id names |
+| `camflow:node-port-visibility` | visible input/output names per node |
+| `camflow:frame-viewer-settings:v1` | per-node debayer state |
+| `camflow:param-filter:v1` | parameter search/visibility state |
+| `camflow:runtime-log-prefs:<id>` | log filters, debug mode, font and height |
+| `camflow:runtime-log-default-font-size` | default for new runtime consoles |
+| `camflow:runtime-media-prefs:<id>` | media device and linked-only mode |
 
-- New runtime defaults to localhost or machine host name.
-- Runtime creation dialog includes editable IP/host field.
+Editor/runtime/viewer pan and zoom, panel split ratio and media selection are
+session-only React state.
 
-## 10. Node Interaction Rules
+## 6. Layout implementation
 
-- Nodes are draggable inside their runtime window.
-- Nodes must not overlap each other.
-- Node position remains stable after runtime updates.
-- Node and runtime click interactions must remain functional while drag is enabled.
+- `App` applies `mode-editor` or `mode-viewer` to the main CSS grid.
+- The desktop split ratio defaults to 0.68 and is clamped to 0.42–0.82.
+- At `max-width: 980px`, CSS stacks panels and hides the splitter; the splitter
+  mouse handler also refuses to start at that width.
+- Panels remain mounted through the common render tree, preserving relevant
+  component state as mode changes.
 
-## 11. Drag/Resize Stability
+## 7. Editing and event boundaries
 
-- Drag and resize must stop reliably when releasing pointer.
-- Losing pointer focus (blur, mouse leave) must cancel active drag state.
-- Interaction handlers must not create sticky-drag behavior.
-- Interactive controls inside draggable headers (buttons/inputs) must not accidentally start drag.
+- Runtime headers own left-button window drag; controls opt out by stopping
+  mouse-down propagation.
+- Runtime canvases own their local wheel/pan and free-space context menu.
+- The outer editor excludes runtime canvases and logs from outer navigation.
+- Nodes own left-button selection/drag and port interaction, but intentionally
+  have no node-surface context menu.
+- Context menus open on right-button release after checking drag state. Opening
+  a menu ends the corresponding pan state so later pointer movement cannot move
+  a canvas.
+- Edge hit paths provide a wider invisible interaction stroke than the visible
+  line and own edge deletion.
 
-## 12. Streaming/Runtime Stop Behavior
+## 8. Frame rendering pipeline
 
-- Stopping runtime should stop ongoing image transfer updates in the viewer path.
-- Frame request logic should respect runtime stopped/down state.
+- Frame metadata determines canvas dimensions, aspect ratio, format, stride,
+  bit shift and sequence association.
+- Supported raw/Bayer, monochrome, RGB/BGR and YUYV formats are converted in the
+  browser.
+- A render cache reuses RGBA only when all render-affecting metadata and debayer
+  state match.
+- Capture and render FPS are smoothed separately and exposed in the overlay.
+- Debayer preference follows a renamed node id during local state migration.
 
-## 13. Auto-ID Visibility
+## 9. Parameter update pipeline
 
-- Internal auto-generated marker ID (__auto__) is implementation detail.
-- Such markers must never appear as visible runtime windows or user-facing labels.
+- Schema selects the concrete row control and runtime editability.
+- Updates are type-normalized and compared with the committed-value cache before
+  transmission.
+- Integer sliders use a 200ms delayed send; text/numeric inputs commit on Enter
+  or blur as specified.
+- A full reload occurs only on selection, explicit reload or a successful update
+  whose schema marks `hasSideEffects`.
 
-## 14. Runtime Status Semantics
+## 10. Build and development configuration
 
-- Local runtime status uses runtime API state.
-- Non-local runtime windows may use a separate style/state representation (e.g. remote).
+`web/vite.config.js` supports:
 
-## 15. Ongoing Documentation Rule
+- `CAMFLOW_WEB_OUT_DIR` (default `dist`),
+- `CAMFLOW_WEB_DEV_PORT` (default `8081`),
+- `CAMFLOW_WEB_API_TARGET` (default `http://127.0.0.1:8000`),
+- `VITE_CAMFLOW_WS_TARGET` as an explicit browser WebSocket target.
 
-- Every future UI design clarification from user discussions must be appended here.
-- Keep this file as a chronological and implementation-oriented design reference for React UI.
-- Do this automatically during implementation work; no explicit reminder from user is required.
+The Vite dev server proxies `/api` and `/ws`, converts the API target to the
+matching WebSocket scheme, and returns JSON `503 runtime-unreachable` or
+`502 proxy-error` responses for proxy failures. Production output uses stable
+`assets/app.js` and `assets/app.css` names for embedding.
 
-## 16. Screenshot Parity: Legacy Header and ImageViewer
+## 11. Canonical specifications
 
-Canonical viewer panel behavior is specified in:
-
-- `docs/ui_viewer_panel_spec.md`
-
-This section captures the explicit visual reference from attached legacy UI screenshots and must be treated as high-priority for React parity.
-
-### 16.1 Header (Legacy Parity, historical reference)
-
-- Header layout:
-  - Left cluster: app icon, white bold "camflow", runtime state badge, version string.
-  - Right cluster: legacy variant included action buttons, but this is superseded by section 4 for current implementation.
-- Version styling:
-  - `v0.1.0` highlighted brighter.
-  - Remaining part (`| opencv ...`) subdued/muted.
-- Runtime state badge in header:
-  - Oval pill.
-  - Running = green style.
-  - Stopped = blue/neutral style.
-  - Down = red style.
-- Header and status-strip separators remain full-width (edge-to-edge), while content keeps a consistent inset line.
-
-### 16.2 Status Strip (Legacy Parity)
-
-- Single-line status message below header.
-- Left-aligned to same inset as header icon and lower content.
-- Top and bottom separator lines clearly visible across full viewport width.
-
-### 16.3 ImageViewer Controls (Legacy Parity)
-
-- Controls are overlaid inside the image frame, top-right.
-- Two circular controls in one row:
-  - Debayer toggle (icon-only RGB dots).
-  - Reset/fit icon button.
-- The websocket frame metadata supplies `bitShift`, which is applied automatically before conversion.
-- Metadata overlay in image frame (top-left):
-  - `seq`, `ts`, format/dimensions.
-  - capture/render FPS line.
-
-## 17. Viewer Mode Pane Arrangement (Current Requirement)
-
-- Viewer mode must place panes as follows:
-  - Top-left: FrameContext/ImageViewer panel.
-  - Top-right: Parameter panel.
-  - Bottom-left: Editor panel.
-- Right-bottom area is not used by a main panel in this arrangement.
-
-## 18. Image Aspect Ratio Rule (Current Requirement)
-
-- The image display area must always remain rectangular.
-- Viewer frame box aspect ratio must follow the received image dimensions (`width/height`).
-- Default fallback ratio before first frame is `4:3`.
-
-## 19. Pixel Match Policy (Latest)
-
-- The header **content model** follows section 4 (new definition by user).
-- Header **visual style** may follow legacy spacing/color language, but do not reintroduce removed header content.
-- All non-header areas (viewer frame, overlays, parameter panel arrangement, controls) should be matched as closely as possible to legacy screenshot proportions and spacing.
-
-## 20. Content Consistency Across Modes
-
-- Editor, FrameContext (viewer), and Parameter panels contain the same information across modes.
-- Modes only change panel arrangement, not panel content.
-- In viewer mode, the parameter header still shows the selected node name and the same related controls/content as in editor mode.
-
-## 21. Parameter Tooltip-Only Metadata
-
-The detailed and current parameter panel specification was moved to:
-
-- `docs/ui_parameter_panel_spec.md`
-
-This includes the latest runtime update semantics:
-
-- selected node persistence with fallback behavior
-- full-reload triggers only on selection, reload button, or `hasSideEffects`
-- no runtime update for unchanged values
-- integer slider throttling and integer input commit behavior
+- Global visual/layout design: `docs/ui_design.md`
+- Header: `docs/ui_header_spec.md`
+- Editor, runtimes, nodes, edges and logs: `docs/ui_editor_panel_spec.md`
+- Media graph: `docs/ui_media_graph_spec.md`
+- Viewer: `docs/ui_viewer_panel_spec.md`
+- Parameter Panel: `docs/ui_parameter_panel_spec.md`
+- Web service and launch path: `docs/web_ui.md`

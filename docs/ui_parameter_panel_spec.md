@@ -7,9 +7,9 @@ This document is the canonical specification for the Parameter Panel used in the
 - Component: `ParameterPanel` and `ParameterRow`.
 - Runtime integration owner: `App` state and runtime API functions.
 - This document supersedes parameter panel descriptions that were previously spread across:
-  - `docs/web_ui.md` (`Parameter model` section)
-  - `docs/ui_design.md` (`9. ParameterView` section)
-  - `docs/ui_react_design.md` (`21. Parameter Tooltip-Only Metadata` and related behavior notes)
+  - `docs/web_ui.md`,
+  - `docs/ui_design.md`,
+  - `docs/ui_react_design.md`.
 
 ## 2. Purpose
 
@@ -92,19 +92,21 @@ No runtime request is sent if normalized next value equals normalized current co
 - Left: selected node display name (`name` or `id`).
 - Fallback when no selected node metadata: selected runtime label.
 - Right: `filter` and `reload` buttons.
+- When a media entity, pad or link is selected, the left side shows its
+  inspection title and the runtime-parameter reload action is hidden.
 
-### 6.4 Filter controls
+### 6.2 Filter controls
 
 - The `filter` button toggles parameter-filter edit mode.
 - The `reload` button keeps its existing behavior and remains independent from filter state.
 - The `filter` button shows an active highlight whenever one or more parameters are currently hidden by checkbox state.
 
-### 6.2 Scroll area
+### 6.3 Scroll area
 
 - Vertical scroll container with transient visual scrollbar behavior.
 - Wheel events are captured to avoid unintended parent-pan behavior.
 
-### 6.3 Error status
+### 6.4 Error status
 
 - Parameter update failures are shown in the header status line.
 - No separate error line is rendered below the parameter list.
@@ -124,6 +126,8 @@ No runtime request is sent if normalized next value equals normalized current co
   - If missing description: `no description (<type>)`
   - Append optional metadata parts: `source: ...`, `origin: ...`
 - Dynamic-origin parameters may show a compact origin badge (for example `v4l2`).
+- Parameters with a group are preceded by a group separator using the group
+  description when available.
 
 ### 7.2 Type to control mapping
 
@@ -133,12 +137,14 @@ No runtime request is sent if normalized next value equals normalized current co
 - `int` -> slider + numeric input
 - `double` -> slider + numeric input
 - `string` -> text input
+- `media-flags` -> read-only hexadecimal value and named flag states
 
 ## 8. Edit and commit behavior
 
 ### 8.1 Immediate commit types
 
-- `bool`, `option`, `button`, `double`, and default text field behavior use direct commit events.
+- `bool`, `option`, `button`, and `double` commit directly.
+- String/default text input commits on `Enter` or blur.
 
 ### 8.2 Integer behavior (strict)
 
@@ -156,32 +162,47 @@ If selected node is not a live runtime node:
 - Panel shows local/draft parameter representation.
 - No runtime parameter write is attempted.
 
-## 12. Parameter filter behavior (UI-only)
+## 10. Runtime and media actions
 
-### 12.1 Scope
+- When no node is selected and the selected runtime is non-local, the panel
+  offers the runtime delete action.
+- Selecting a media graph entity, pad or link replaces node parameters with a
+  read-only detail list.
+- Entity details include function, pad count and entity flags.
+- Pad details include kernel id and pad flags.
+- Link details include kernel id and link flags; the title identifies source
+  and sink entities.
+- Media flag rows show the hexadecimal value and individual set/unset flag
+  states. They never invoke `updateParameter`.
+
+## 11. Parameter filter behavior (UI-only)
+
+### 11.1 Scope
 
 - The filter is strictly a UI presentation feature.
 - It must not change runtime values, runtime schema, or runtime API behavior.
 
-### 12.2 Search field semantics
+### 11.2 Search field semantics
 
 - Label/placeholder text: `search by parameter name`.
 - Search is a helper for finding rows while filter edit mode is open.
 - Search is not the persistent visibility filter itself.
+- Matching covers internal name, display name, group name and group
+  description, case-insensitively.
 
-### 12.3 Edit mode list behavior
+### 11.3 Edit mode list behavior
 
 - While filter edit mode is open:
   - all parameters are shown by default,
   - except when search text is entered, in which case only name matches are shown.
 - Unchecking a row's visibility checkbox in edit mode does not immediately remove that row from the current edit-mode list.
 
-### 12.4 Applied visibility behavior
+### 11.4 Applied visibility behavior
 
 - After leaving filter edit mode, the stored checkbox state is applied as the actual visibility filter.
 - Rows with unchecked visibility are hidden from the normal parameter list.
 
-### 12.5 Actions in filter panel
+### 11.5 Actions in filter panel
 
 - `clear filter`:
   - clears search text,
@@ -191,7 +212,7 @@ If selected node is not a live runtime node:
   - unchecks all parameter visibility checkboxes,
   - resulting in no parameters visible outside edit mode.
 
-### 12.6 Persistence
+### 11.6 Persistence
 
 - Filter state is persisted in browser local storage.
 - Storage key: `camflow:param-filter:v1`.
@@ -200,7 +221,7 @@ If selected node is not a live runtime node:
   - per-parameter visibility map.
 - The persisted state is restored on subsequent UI loads in the same browser profile.
 
-## 10. API contract summary
+## 12. API contract summary
 
 - Read: `GET /api/nodes/{nodeId}/parameters`
 - Write one value: `PUT /api/nodes/{nodeId}/parameters/{name}`
@@ -213,7 +234,7 @@ Expected parameter payload fields consumed by UI:
 - `origin`, `source`
 - `hasSideEffects`
 
-## 11. Non-goals
+## 13. Non-goals
 
 - Automatic periodic full reload is not part of this panel.
 - Global runtime status polling is not a panel concern.

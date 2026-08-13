@@ -1,170 +1,158 @@
 # camflow Web UI Design
 
-This document is the detailed visual and interaction specification for the built-in camflow web UI.
+This document defines the current visual system, global layout and interaction
+language of the built-in camflow web UI. Component behavior is canonical in the
+linked panel specifications.
 
-## 1. Design direction
+## 1. Product direction
 
-The web UI uses a technical dark theme with cyan/blue accents.
+The UI is a compact technical workspace for camera bring-up, graph editing,
+live image inspection and runtime diagnostics.
 
-- Goal: fast diagnostics for live image pipelines with minimal visual noise.
-- Tone: compact, precise, instrument-like UI.
-- Typography: one consistent font family across the whole UI (`Rajdhani`).
+- Dark, instrument-like presentation with cyan/blue interaction accents.
+- Dense controls and overlays favor repeated engineering workflows over
+  marketing composition.
+- Runtime, graph, image and parameter state remain visible without navigation
+  to separate pages.
+- The UI has no separate status strip; runtime, discovery and error status are
+  integrated into the global header.
 
-## 2. Color and typography system
+## 2. Visual system
 
-### 2.1 Core colors
+### 2.1 Typography
 
-- App background gradient:
-	- `#080f1b` -> `#111b2e`
-- Panel border:
-	- `#223a5f`
-- Main text:
-	- `#e8f1ff`
-- Muted text:
-	- `#95a9c8`
-- Accent:
-	- `#02d7ff`
+- Primary family: `Rajdhani` for labels, controls, headers and graph text.
+- Monospace family: `Roboto Mono` with platform monospace fallbacks for content
+  that benefits from fixed-width alignment.
+- Base UI text is 13px; compact controls generally use 10–13px.
+- Product name is 27px and graph/runtime labels remain compact.
 
-### 2.2 Status colors
+### 2.2 Core tokens
 
-- Runtime running badge:
-	- background `#133a24`
-	- border `#2d9a58`
-	- text `#d6ffe5`
-- Runtime down badge:
-	- background `#3f1523`
-	- border `#7c2236`
-	- text `#ffd0d8`
-- Offline status-strip:
-	- background `rgba(140, 25, 40, 0.35)`
-	- border `#7c2236`
+The implementation exposes these CSS variables:
 
-### 2.3 Font sizes
+- background: `--bg: #080f1b`, `--bg2: #111b2e`,
+- panel: `--panel: rgba(17, 30, 50, 0.96)`,
+- border: `--line: #223a5f`,
+- text: `--text: #e8f1ff`,
+- muted text: `--muted: #95a9c8`,
+- primary accent: `--accent: #02d7ff`,
+- secondary accent: `--accent2: #3ae0a7`.
 
-- App name (`camflow`): 26px
-- Normal controls and labels: 11px to 13px
-- Graph text: 12px
-- Status strip: 12px
+The page background combines two restrained radial fields with a dark linear
+gradient. Panels use layered dark fills, 1px borders, 14px outer radii and a
+soft depth shadow. Adjacent panes remove shared-side radii/borders so they read
+as one workspace rather than separate cards.
 
-## 3. Global layout
+### 2.3 Semantic status
 
-Desktop layout is two-column:
+- `running`: green success treatment,
+- `stopped`: blue information treatment,
+- `down`: red danger treatment,
+- operation errors: pale red header-status text.
 
-- Left (`~1.6fr`): ImageView + GraphView
-- Right (`min 360px`): ParameterView
+Status is communicated by both text and color.
 
-Mobile (`max-width: 860px`) switches to one column.
+## 3. Application shell
 
-All panels use:
+- The application fills the viewport and prevents page-level scrolling.
+- A sticky full-width header remains above the workspace.
+- The workspace uses a two-column grid above 980px and a stacked grid at or
+  below 980px.
+- The draggable vertical splitter defaults to 68% left width, is clamped to
+  42–82%, maintains a 320px minimum right column and is hidden on narrow
+  layouts. Split ratio is session state, not browser-persisted state.
 
-- rounded corners (`14px`)
-- dark layered fill
-- soft depth shadow
+### 3.1 Editor mode
 
-## 4. Top row (AppHeader)
+Desktop grid:
 
-Detailed header behavior is maintained in:
+- left column: Node Editor spanning both rows,
+- upper right: Frame Viewer,
+- lower right: Parameter Panel.
 
-- `docs/ui_header_spec.md`
+At 980px or below the order becomes Editor, Viewer, Parameter Panel.
 
-## 5. Status strip
+### 3.2 Viewer mode
 
-A thin strip below AppHeader communicates transport/runtime state.
+Desktop grid:
 
-Examples:
+- left column: Frame Viewer,
+- right column: Parameter Panel,
+- Node Editor hidden by layout mode.
 
-- `waiting for websocket data`
-- `frame websocket connected`
-- `service offline - waiting for reconnect`
+At 980px or below the Viewer is stacked above the Parameter Panel.
 
-## 6. ImageView
+Switching mode changes placement/visibility, not the underlying selected node,
+frame, parameter or graph state. Mode persists under `camflow:view-mode`.
 
-Detailed viewer panel behavior is maintained in:
+## 4. Header
 
-- `docs/ui_viewer_panel_spec.md`
+The header combines brand/version, runtime status, graph/error status, global
+Start/Stop and the `viewer`/`editor` segmented mode switch. There is no separate
+status strip and no graph-edit action in the header.
 
-### 6.1 Base frame area
+Canonical behavior: `docs/ui_header_spec.md`.
 
-- 4:3 viewport with rounded border
-- canvas rendering for converted pixel output
-- waiting dummy placeholder until first frame
+## 5. Editor and runtimes
 
-### 6.2 Metadata overlay (top-left)
+The editor presents a supergraph of non-overlapping runtime windows. Runtime
+windows contain an independently navigable node graph or media graph plus an
+optional diagnostic log console. Outer editor navigation and each runtime's
+inner navigation are deliberately isolated.
 
-Always shown over the image frame:
+Canonical behavior: `docs/ui_editor_panel_spec.md`.
 
-- line 1: `seq: #<seq> | ts: <ts> ms`
-- line 2: `capture fps: <fps> | render fps: <fps>`
+Media topology behavior: `docs/ui_media_graph_spec.md`.
 
-### 6.3 ImageViewControll (top-right)
+## 6. Frame Viewer
 
-This is the compact control area over ImageView.
+The viewer preserves the source image aspect ratio, uses a canvas for converted
+pixels and overlays compact metadata and format-aware controls. The fixed frame
+box clips a separately transformed canvas, allowing pointer-centered zoom and
+pan without affecting surrounding layout.
 
-Always visible:
+Canonical behavior: `docs/ui_viewer_panel_spec.md`.
 
-- `reset` button (resets zoom + pan)
+## 7. Parameter Panel
 
-Context dependent (by pixel format):
+The Parameter Panel is a schema-driven editor for the selected node and a
+read-only inspector for selected media entities, pads and links. It uses compact
+type-specific controls, grouped rows, persistent visibility filtering and
+runtime-aware editability.
 
-- RGB debayer toggle button:
-	- icon-only: three colored dots (R/G/B)
-	- active state uses highlighted border/inset
+Canonical behavior: `docs/ui_parameter_panel_spec.md`.
 
-Behavior:
+## 8. Interaction language
 
-- Frame metadata supplies `bitShift`; the client applies it automatically before conversion.
+- Familiar icon-only actions use tooltips and accessible labels.
+- Binary choices use active-state buttons or checkboxes; modes use segmented
+  controls; numeric ranges use slider plus input.
+- Middle/right drag pans editor, runtime and viewer canvases only while the
+  initiating button remains pressed and after an 8px threshold.
+- Wheel zoom is pointer-centered. Reset controls restore deterministic centered
+  transforms instead of toggling between arbitrary previous states.
+- Interactive controls stop drag initiation in draggable headers/surfaces.
+- Context menus open only on explicitly owned free-canvas surfaces; native menus
+  are suppressed where right drag or application actions own the gesture.
 
-## 7. Zoom and pan behavior
+## 9. Accessibility
 
-- Mouse wheel zoom range: `1.0x` to `24.0x`
-- Right mouse button drag pans the zoomed image
-- Context menu is disabled over ImageView (right-drag reserved for panning)
-- `reset` button resets transform to fit view
+- Commands use semantic buttons and form controls.
+- Icon-only buttons expose `title` and/or `aria-label` text.
+- Active mode/status states are represented in text and classes, not color alone.
+- The layout splitter and log resize handle expose separator roles and labels.
+- Viewer and parameter overlays maintain high contrast over live imagery.
+- Standard keyboard focus remains available for header controls, form fields,
+  mode buttons and the complete-version tooltip.
 
-Important stability rule:
+## 10. Responsive and overflow rules
 
-- incoming live frames must not force-fit reset while format stays unchanged
-- zoom is preserved during live streaming
-
-## 8. Rendering and conversion pipeline
-
-Image transport and conversion strategy:
-
-- frame data fetched via `/ws/frame` as binary packets
-- conversion done client-side for supported formats
-- no server-side JPEG dependency in the web UI path
-
-Conversion cache rule:
-
-- if no new frame content is present (same sequence/format/bitshift/debayer state), reuse already converted RGBA buffer
-- avoids unnecessary re-conversion work and keeps interaction smooth while zooming
-
-## 9. ParameterView (right panel)
-
-The detailed parameter panel specification was moved to:
-
-- `docs/ui_parameter_panel_spec.md`
-
-## 10. GraphView (below ImageView)
-
-Detailed editor panel behavior is maintained in:
-
-- `docs/ui_editor_panel_spec.md`
-
-## 11. Runtime state synchronization
-
-Polled state endpoint:
-
-- `/api/runtime`
-
-Rules:
-
-- `running`: green badge style
-- `stopped`: neutral badge style
-- `down`: red badge style + offline strip
-
-## 12. Accessibility and interaction notes
-
-- Debayer button is an actual toggle button with `aria-pressed`
-- reset and control buttons are keyboard-focusable standard buttons
-- overlays are designed for high contrast on live imagery
+- Fixed-format controls have stable dimensions so active/hover states do not
+  shift layout.
+- Runtime and editor viewports clip final graph presentation; edge paths may
+  overflow intermediate SVG layers.
+- Parameter and log areas own their scrolling and prevent wheel propagation into
+  parent canvas navigation.
+- The Media Graph has no scrollbars and uses runtime pan/zoom exclusively.
+- Narrow layouts stack panels without changing their content model.

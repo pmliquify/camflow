@@ -2,10 +2,14 @@
 
 ## UI Specifications
 
+- Visual Design and Layout: `docs/ui_design.md`
+- React Architecture: `docs/ui_react_design.md`
 - Parameter Panel: `docs/ui_parameter_panel_spec.md`
 - Header: `docs/ui_header_spec.md`
 - Editor Panel: `docs/ui_editor_panel_spec.md`
+- Media Graph: `docs/ui_media_graph_spec.md`
 - Viewer Panel: `docs/ui_viewer_panel_spec.md`
+- Web UI Service and Development: `docs/web_ui.md`
 
 CamFlow API documentation is generated with Doxygen and styled with doxygen-awesome.
 

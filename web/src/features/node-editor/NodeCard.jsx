@@ -1,7 +1,7 @@
 import React from 'react';
 import InlineNameEditor from '../../components/InlineNameEditor.jsx';
 
-function PortSide({ direction, ports, disabled, onAreaClick, onPortMouseDown, onHidePort }) {
+function PortSide({ direction, ports, disabled, onAreaClick, onPortMouseDown }) {
         return (
                 <div
                         className={`node-port-side node-port-side-${direction}${disabled ? ' disabled' : ''}`}
@@ -19,7 +19,6 @@ function PortSide({ direction, ports, disabled, onAreaClick, onPortMouseDown, on
                                         onContextMenu={portName ? (event) => {
                                                 event.preventDefault();
                                                 event.stopPropagation();
-                                                onHidePort(direction, portName);
                                         } : undefined}
                                 >
                                         {portName || 'no port'}
@@ -29,7 +28,7 @@ function PortSide({ direction, ports, disabled, onAreaClick, onPortMouseDown, on
         );
 }
 
-export default function NodeCard({ node, selected, onSelect, onRename, onDragStart, onContextMenu, onPortAreaClick, onPortMouseDown, onHidePort }) {
+export default function NodeCard({ node, selected, onSelect, onRename, onDragStart, onPortAreaClick, onPortMouseDown }) {
         return (
                 <div
                         className={`node-card ${selected ? 'selected' : ''}`}
@@ -40,7 +39,6 @@ export default function NodeCard({ node, selected, onSelect, onRename, onDragSta
                         onContextMenu={(event) => {
                                 event.preventDefault();
                                 event.stopPropagation();
-                                onContextMenu(event, node.id);
                         }}
                 >
                         <div className="node-title">
@@ -58,7 +56,6 @@ export default function NodeCard({ node, selected, onSelect, onRename, onDragSta
                                         ports={node.visibleInputs || []}
                                         disabled={!node.inputs?.length}
                                         onAreaClick={(event) => onPortAreaClick(event, node, 'input')}
-                                        onHidePort={(direction, portName) => onHidePort(node, direction, portName)}
                                 />
                                 <PortSide
                                         direction="output"
@@ -66,7 +63,6 @@ export default function NodeCard({ node, selected, onSelect, onRename, onDragSta
                                         disabled={!node.outputs?.length}
                                         onAreaClick={(event) => onPortAreaClick(event, node, 'output')}
                                         onPortMouseDown={(event, portName) => onPortMouseDown(event, node, portName)}
-                                        onHidePort={(direction, portName) => onHidePort(node, direction, portName)}
                                 />
                         </div>
                 </div>

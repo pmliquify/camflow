@@ -23,7 +23,6 @@ export default function NodeEditorPanel({
         renameRuntime,
         renameNode,
         setNodePortVisibility,
-        deleteEdgesForPort,
         selectedNodeId,
         suppressNextNodeSelectRef,
         connectNodes,
@@ -42,7 +41,9 @@ export default function NodeEditorPanel({
         onClearRuntimeLogs,
         runtimeBaseUrl,
         selectedMediaElement,
-        onSelectMediaElement
+        onSelectMediaElement,
+        runtimeViewports,
+        onRuntimeViewportChange
 }) {
         const [edgeDraft, setEdgeDraft] = useState(null);
         const [portMenu, setPortMenu] = useState({ open: false, direction: '', x: 0, y: 0, nodeId: '', ports: [] });
@@ -190,8 +191,22 @@ export default function NodeEditorPanel({
                         <div
                                 ref={editorViewportRef}
                                 className="runtime-stack"
-                                onContextMenu={onOpenBackgroundMenu}
+                                onContextMenu={(event) => event.preventDefault()}
+                                onMouseUpCapture={(event) => {
+                                        if (event.button !== 2) {
+                                                return;
+                                        }
+                                        const target = event.target instanceof Element ? event.target : null;
+                                        if (!target || target.closest('.runtime-canvas,.runtime-log-console,.cross-edge-hit-path,button,input,select,textarea')) {
+                                                return;
+                                        }
+                                        if (target.closest('.runtime-lane')) {
+                                                return;
+                                        }
+                                        onOpenBackgroundMenu(event);
+                                }}
                                 onWheelCapture={onWheelCapture}
+                                onMouseDown={onPanMouseDown}
                         >
                                 <div className="editor-tools">
                                         <ResetViewButton onClick={onResetView} className="editor-reset-view-button" />
@@ -204,7 +219,6 @@ export default function NodeEditorPanel({
                                                 transform: `translate(${editorPanX}px, ${editorPanY}px) scale(${editorZoom})`,
                                                 transformOrigin: '0 0'
                                         }}
-                                        onMouseDown={onPanMouseDown}
                                 >
                                         <svg className="cross-edge-layer" viewBox={`0 0 ${canvasWidth} ${canvasHeight}`} preserveAspectRatio="none">
                                                 <defs>
@@ -259,10 +273,6 @@ export default function NodeEditorPanel({
                                                                 setSelectedNodeId(nodeId);
                                                         }}
                                                         onLaneContextMenu={(event, runtimeId) => openMenu(event, 'runtime', runtimeId)}
-                                                        onNodeContextMenu={(event, runtimeId, nodeId) => {
-                                                                setSelectedRuntimeId(runtimeId);
-                                                                openMenu(event, 'node', runtimeId, nodeId);
-                                                        }}
                                                         onEdgePath={edgeCurvePath}
                                                         onDeleteEdge={(edge) => {
                                                                 const edgeText = `${edge.fromNode}.${edge.fromPort || 'image'} -> ${edge.toNode}.${edge.toPort || 'image'}`;
@@ -284,11 +294,6 @@ export default function NodeEditorPanel({
                                                                 setSelectedNodeId(node.id);
                                                                 startEdgeDraft(event, node, portName);
                                                         }}
-                                                        onHideNodePort={async (node, direction, portName) => {
-                                                                if (await deleteEdgesForPort(node.id, direction, portName)) {
-                                                                        updatePortVisibility(node, direction, (visible) => visible.filter((name) => name !== portName));
-                                                                }
-                                                        }}
                                                         onRuntimeDragStart={startRuntimeDrag}
                                                         onRuntimeResizeStart={startRuntimeResize}
                                                         onStartRuntime={onStartRuntime}
@@ -296,6 +301,8 @@ export default function NodeEditorPanel({
                                                         runtimeBaseUrl={runtime.id === 'local' ? '' : runtimeBaseUrl(runtime.ip)}
                                                         selectedMediaElement={selectedMediaElement}
                                                         onSelectMediaElement={onSelectMediaElement}
+                                                        runtimeViewport={runtimeViewports?.[runtime.id]}
+                                                        onRuntimeViewportChange={onRuntimeViewportChange}
                                                 />
                                         ))}
                                 </div>

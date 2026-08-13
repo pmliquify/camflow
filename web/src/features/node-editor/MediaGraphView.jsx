@@ -210,7 +210,7 @@ function connectedGraph(graph, connectedOnly) {
         };
 }
 
-export default function MediaGraphView({ graph, loading, error, connectedOnly, selectedElement, onSelectElement }) {
+export default function MediaGraphView({ graph, loading, error, connectedOnly, selectedElement, onSelectElement, zoom = 1, panX = 0, panY = 0 }) {
         const markerId = `media-link-arrow-${useId().replace(/:/g, '')}`;
         const enabledMarkerId = `${markerId}-enabled`;
         const disabledMarkerId = `${markerId}-disabled`;
@@ -243,7 +243,14 @@ export default function MediaGraphView({ graph, loading, error, connectedOnly, s
 
         return (
                 <div className="media-graph-scroll" onMouseDown={(event) => event.stopPropagation()}>
-                        <div className="media-graph-canvas" style={{ width: layout.width, height: layout.height }}>
+                        <div
+                                className="media-graph-canvas"
+                                style={{
+                                        width: layout.width,
+                                        height: layout.height,
+                                        transform: `translate(${panX}px, ${panY}px) scale(${zoom})`
+                                }}
+                        >
                                 <svg className="media-link-layer" width={layout.width} height={layout.height}>
                                         <defs>
                                                 <marker id={enabledMarkerId} markerWidth="10" markerHeight="11" refX="9" refY="5.5" orient="auto" markerUnits="userSpaceOnUse">

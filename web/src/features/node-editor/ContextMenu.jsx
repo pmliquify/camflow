@@ -3,7 +3,7 @@ import StandardContextMenu from '../../components/StandardContextMenu.jsx';
 
 const GROUPS = ['sources', 'processors', 'sinks'];
 
-export default function ContextMenu({ menu, onClose, onAddRuntime, onAddNode, onDeleteRuntime, onDeleteNode, localRuntimeId }) {
+export default function ContextMenu({ menu, onClose, onAddRuntime, onAddNode, onDeleteRuntime, onDeleteNode, onHidePort, localRuntimeId }) {
         const supportsNodeCreate = menu.kind === 'runtime' || menu.kind === 'node';
         const firstAvailableGroup = GROUPS.find((key) => Array.isArray(menu[key]) && menu[key].length > 0) || 'sources';
 
@@ -35,10 +35,17 @@ export default function ContextMenu({ menu, onClose, onAddRuntime, onAddNode, on
                         nextActions.push({ id: 'delete-runtime', label: 'Delete Runtime', danger: true, onSelect: () => onDeleteRuntime(menu.runtimeId) });
                 }
                 if (menu.kind === 'node') {
+                        if (menu.portName) {
+                                nextActions.push({
+                                        id: 'hide-port',
+                                        label: `hide ${menu.portDirection} ${menu.portName}`,
+                                        onSelect: () => onHidePort(menu.nodeId, menu.portDirection, menu.portName)
+                                });
+                        }
                         nextActions.push({ id: 'delete-node', label: 'delete', danger: true, onSelect: () => onDeleteNode(menu.nodeId) });
                 }
                 return nextActions;
-        }, [localRuntimeId, menu.kind, menu.nodeId, menu.runtimeId, onDeleteNode, onDeleteRuntime]);
+        }, [localRuntimeId, menu.kind, menu.nodeId, menu.portDirection, menu.portName, menu.runtimeId, onDeleteNode, onDeleteRuntime, onHidePort]);
 
         return (
                 <StandardContextMenu

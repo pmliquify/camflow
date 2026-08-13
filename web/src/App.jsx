@@ -53,6 +53,8 @@ const RUNTIME_MIN_WIDTH = 190;
 const RUNTIME_MIN_HEIGHT = 120;
 const EDITOR_MIN_ZOOM = 0.35;
 const EDITOR_MAX_ZOOM = 2.25;
+const PAN_DRAG_THRESHOLD = 8;
+const DEFAULT_RUNTIME_VIEWPORT = { zoom: 1, panX: 0, panY: 0 };
 const DEFAULT_RUNTIME_API_PORT = '8000';
 
 function isAutoNodeId(id) {
@@ -197,9 +199,10 @@ function runtimeBaseUrl(runtimeIp) {
 function portAnchor(node, portName, direction) {
         const ports = direction === 'output' ? node.visibleOutputs : node.visibleInputs;
         const index = Math.max(0, (ports || []).indexOf(portName));
+        const scale = node.scale || 1;
         return {
-                x: direction === 'output' ? node.x + NODE_WIDTH : node.x,
-                y: node.y + NODE_HEADER_HEIGHT + index * NODE_PORT_ROW_HEIGHT + NODE_PORT_ROW_HEIGHT * 0.5
+                x: direction === 'output' ? node.x + NODE_WIDTH * scale : node.x,
+                y: node.y + (NODE_HEADER_HEIGHT + index * NODE_PORT_ROW_HEIGHT + NODE_PORT_ROW_HEIGHT * 0.5) * scale
         };
 }
 
@@ -611,12 +614,13 @@ export default function App() {
         const [selectedMediaElement, setSelectedMediaElement] = useState(null);
         const [debayerEnabled, setDebayerEnabled] = useState(false);
         const [viewMode, setViewMode] = useState(readInitialViewMode);
-        const [runtimeMenu, setRuntimeMenu] = useState({ open: false, x: 0, y: 0, kind: 'background', runtimeId: null, nodeId: null, sources: [], processors: [], sinks: [] });
+        const [runtimeMenu, setRuntimeMenu] = useState({ open: false, x: 0, y: 0, kind: 'background', runtimeId: null, nodeId: null, portDirection: '', portName: '', sources: [], processors: [], sinks: [] });
         const [dialogState, setDialogState] = useState({ open: false, mode: null, runtimeId: null, runtimeName: '', runtimeIp: '', nodeType: '', nodeId: '' });
         const [editorError, setEditorError] = useState('');
         const [runtimeLogs, setRuntimeLogs] = useState({});
         const [runtimeLogPanels, setRuntimeLogPanels] = useState({});
         const [runtimeLayouts, setRuntimeLayouts] = useState(readInitialRuntimeLayouts);
+        const [runtimeViewports, setRuntimeViewports] = useState({});
         const [nodeLayouts, setNodeLayouts] = useState(readInitialNodeLayouts);
         const [nodeNames, setNodeNames] = useState(readInitialNodeNames);
         const [runtimeNames, setRuntimeNames] = useState(readInitialRuntimeNames);
@@ -825,20 +829,6 @@ export default function App() {
                 return runtime.rect || runtimeDefaultRect(index);
         }
 
-        function clampNodePosInRuntime(runtimeId, nextPos, nodeId = '') {
-                const runtime = editorGraph.runtimes.find((item) => item.id === runtimeId);
-                if (!runtime) {
-                        return { x: Math.max(8, nextPos.x), y: Math.max(8, nextPos.y) };
-                }
-                const canvasWidth = Math.max(180, (runtime.rect?.w || 400) - 20);
-                const canvasHeight = Math.max(120, (runtime.rect?.h || 260) - 60);
-                const nodeHeight = runtime.nodes.find((node) => node.id === nodeId)?.height || NODE_HEIGHT;
-                return {
-                        x: Math.max(8, Math.min(nextPos.x, canvasWidth - NODE_WIDTH - 8)),
-                        y: Math.max(8, Math.min(nextPos.y, canvasHeight - nodeHeight - 8))
-                };
-        }
-
         function canPlaceRuntime(runtimeId, nextRect) {
                 if (nextRect.w < RUNTIME_MIN_WIDTH || nextRect.h < RUNTIME_MIN_HEIGHT) {
                         return false;
@@ -855,8 +845,8 @@ export default function App() {
                 setRuntimeMenu((menu) => ({ ...menu, open: false }));
         }
 
-        function openMenu(event, kind, runtimeId = null, nodeId = null) {
-                if (event.button === 2 && (editorPanGestureRef.current.active || editorPanGestureRef.current.moved)) {
+        function openMenu(event, kind, runtimeId = null, nodeId = null, portDirection = '', portName = '') {
+                if (event.button === 2 && editorPanGestureRef.current.moved) {
                         event.preventDefault();
                         event.stopPropagation();
                         editorPanGestureRef.current = { active: false, moved: false, startX: 0, startY: 0, button: null };
@@ -865,6 +855,7 @@ export default function App() {
                 event.preventDefault();
                 event.stopPropagation();
                 editorPanGestureRef.current = { active: false, moved: false, startX: 0, startY: 0, button: null };
+                setEditorPanning(false);
                 setRuntimeMenu({
                         open: true,
                         x: event.clientX,
@@ -872,6 +863,8 @@ export default function App() {
                         kind,
                         runtimeId,
                         nodeId,
+                        portDirection,
+                        portName,
                         sources: nodeCatalog.sources.length ? nodeCatalog.sources : FALLBACK_NODE_TYPES.sources,
                         processors: nodeCatalog.processors.length ? nodeCatalog.processors : FALLBACK_NODE_TYPES.processors,
                         sinks: nodeCatalog.sinks.length ? nodeCatalog.sinks : FALLBACK_NODE_TYPES.sinks
@@ -928,10 +921,11 @@ export default function App() {
                         const graphX = (runtimeMenu.x - rect.left - editorPanX) / Math.max(editorZoom, 0.0001);
                         const graphY = (runtimeMenu.y - rect.top - editorPanY) / Math.max(editorZoom, 0.0001);
                         const runtimeRect = runtimeRectById(runtime.id);
-                        nextNodePos = clampNodePosInRuntime(runtime.id, {
-                                x: graphX - runtimeRect.x - NODE_WIDTH * 0.5,
-                                y: graphY - runtimeRect.y - RUNTIME_HEADER_HEIGHT - NODE_HEIGHT * 0.5
-                        });
+                        const runtimeViewport = runtimeViewports[runtime.id] || DEFAULT_RUNTIME_VIEWPORT;
+                        nextNodePos = {
+                                x: (graphX - runtimeRect.x - runtimeViewport.panX) / runtimeViewport.zoom - NODE_WIDTH * 0.5,
+                                y: (graphY - runtimeRect.y - RUNTIME_HEADER_HEIGHT - runtimeViewport.panY) / runtimeViewport.zoom - NODE_HEIGHT * 0.5
+                        };
                 }
                 setLocalDraftRuntimes((current) => {
                         if (current.some((entry) => entry.id === runtimeId)) {
@@ -1048,7 +1042,16 @@ export default function App() {
                 if (!node) {
                         return;
                 }
-                setDragState({ kind: 'node', runtimeId, nodeId, startX: event.clientX, startY: event.clientY, startPos: { x: node.x, y: node.y } });
+                const runtimeZoom = runtimeViewports[runtimeId]?.zoom || 1;
+                setDragState({ kind: 'node', runtimeId, nodeId, startX: event.clientX, startY: event.clientY, runtimeZoom, startPos: { x: node.x, y: node.y } });
+        }
+
+        function updateRuntimeViewport(runtimeId, update) {
+                setRuntimeViewports((current) => {
+                        const currentViewport = current[runtimeId] || DEFAULT_RUNTIME_VIEWPORT;
+                        const nextViewport = typeof update === 'function' ? update(currentViewport) : update;
+                        return { ...current, [runtimeId]: nextViewport };
+                });
         }
 
         async function connectNodes(sourceNodeId, targetNodeId, sourcePort = 'image', targetPort = 'image') {
@@ -1233,6 +1236,28 @@ export default function App() {
                         setEditorError('failed to delete port edges');
                         return false;
                 }
+        }
+
+        async function hideNodePort(nodeId, direction, portName) {
+                if (!nodeId || !direction || !portName || !await deleteEdgesForPort(nodeId, direction, portName)) {
+                        return;
+                }
+                const node = editorGraph.runtimes.flatMap((runtime) => runtime.nodes).find((candidate) => candidate.id === nodeId);
+                if (!node) {
+                        return;
+                }
+                const key = direction === 'input' ? 'inputs' : 'outputs';
+                const inputs = node.visibleInputs || [];
+                const outputs = node.visibleOutputs || [];
+                setNodePortVisibility((current) => ({
+                        ...current,
+                        [nodeId]: {
+                                inputs,
+                                outputs,
+                                [key]: (key === 'inputs' ? inputs : outputs).filter((name) => name !== portName)
+                        }
+                }));
+                closeMenu();
         }
 
         function edgeTouchesNode(edgeText, nodeId) {
@@ -1996,15 +2021,17 @@ export default function App() {
 
         useEffect(() => {
                 const moveHandler = (event) => {
-                        if (!event.buttons || !isPanning) return;
                         const gesture = viewerPanGestureRef.current;
+                        const buttonMask = gesture.button === 1 ? 4 : gesture.button === 2 ? 2 : 0;
+                        if (!isPanning || !buttonMask || (event.buttons & buttonMask) === 0) return;
                         if (gesture.active && !gesture.moved) {
                                 const dx = event.clientX - gesture.startX;
                                 const dy = event.clientY - gesture.startY;
-                                if ((dx * dx + dy * dy) >= 9) {
+                                if ((dx * dx + dy * dy) >= PAN_DRAG_THRESHOLD * PAN_DRAG_THRESHOLD) {
                                         gesture.moved = true;
                                 }
                         }
+                        if (!gesture.moved) return;
                         setViewPanX(panOrigin.baseX + (event.clientX - panOrigin.x));
                         setViewPanY(panOrigin.baseY + (event.clientY - panOrigin.y));
                 };
@@ -2024,15 +2051,17 @@ export default function App() {
 
         useEffect(() => {
                 const moveHandler = (event) => {
-                        if (!event.buttons || !editorPanning) return;
                         const gesture = editorPanGestureRef.current;
+                        const buttonMask = gesture.button === 1 ? 4 : gesture.button === 2 ? 2 : 0;
+                        if (!editorPanning || !buttonMask || (event.buttons & buttonMask) === 0) return;
                         if (gesture.active && !gesture.moved) {
                                 const dx = event.clientX - gesture.startX;
                                 const dy = event.clientY - gesture.startY;
-                                if ((dx * dx + dy * dy) >= 9) {
+                                if ((dx * dx + dy * dy) >= PAN_DRAG_THRESHOLD * PAN_DRAG_THRESHOLD) {
                                         gesture.moved = true;
                                 }
                         }
+                        if (!gesture.moved) return;
                         setEditorPanX(editorPanOrigin.baseX + (event.clientX - editorPanOrigin.x));
                         setEditorPanY(editorPanOrigin.baseY + (event.clientY - editorPanOrigin.y));
                 };
@@ -2093,11 +2122,10 @@ export default function App() {
                         if (dragState.kind === 'node') {
                                 suppressNextNodeSelectRef.current = true;
                                 const nextPos = {
-                                        x: dragState.startPos.x + dx,
-                                        y: dragState.startPos.y + dy
+                                        x: dragState.startPos.x + dx / Math.max(dragState.runtimeZoom || 1, 0.0001),
+                                        y: dragState.startPos.y + dy / Math.max(dragState.runtimeZoom || 1, 0.0001)
                                 };
-                                const clamped = clampNodePosInRuntime(dragState.runtimeId, nextPos, dragState.nodeId);
-                                setNodeLayouts((current) => ({ ...current, [dragState.nodeId]: clamped }));
+                                setNodeLayouts((current) => ({ ...current, [dragState.nodeId]: nextPos }));
                         }
                 };
 
@@ -2178,14 +2206,26 @@ export default function App() {
                 if (!fromNode || !toNode) {
                         return null;
                 }
+                const fromViewport = runtimeViewports[fromRuntime.id] || DEFAULT_RUNTIME_VIEWPORT;
+                const toViewport = runtimeViewports[toRuntime.id] || DEFAULT_RUNTIME_VIEWPORT;
                 return {
                         id: edge.id,
                         fromNode: edge.fromNode,
                         fromPort: edge.fromPort,
                         toNode: edge.toNode,
                         toPort: edge.toPort,
-                        from: { ...fromNode, x: fromRuntime.rect.x + fromNode.x, y: fromRuntime.rect.y + RUNTIME_HEADER_HEIGHT + fromNode.y },
-                        to: { ...toNode, x: toRuntime.rect.x + toNode.x, y: toRuntime.rect.y + RUNTIME_HEADER_HEIGHT + toNode.y }
+                        from: {
+                                ...fromNode,
+                                x: fromRuntime.rect.x + fromViewport.panX + fromNode.x * fromViewport.zoom,
+                                y: fromRuntime.rect.y + RUNTIME_HEADER_HEIGHT + fromViewport.panY + fromNode.y * fromViewport.zoom,
+                                scale: fromViewport.zoom
+                        },
+                        to: {
+                                ...toNode,
+                                x: toRuntime.rect.x + toViewport.panX + toNode.x * toViewport.zoom,
+                                y: toRuntime.rect.y + RUNTIME_HEADER_HEIGHT + toViewport.panY + toNode.y * toViewport.zoom,
+                                scale: toViewport.zoom
+                        }
                 };
         }).filter(Boolean);
 
@@ -2229,7 +2269,7 @@ export default function App() {
                                         }}
                                         onWheelCapture={(event) => {
                                                 const target = event.target instanceof Element ? event.target : null;
-                                                if (target && target.closest('.runtime-log-console,.runtime-log-filter-panel,.runtime-log-scroll-area,.runtime-log-search-field')) {
+                                                if (target && target.closest('.runtime-canvas,.runtime-log-console,.runtime-log-filter-panel,.runtime-log-scroll-area,.runtime-log-search-field')) {
                                                         return;
                                                 }
 
@@ -2271,7 +2311,34 @@ export default function App() {
                                         editorZoom={editorZoom}
                                         editorPanX={editorPanX}
                                         editorPanY={editorPanY}
-                                        onResetView={() => { setEditorZoom(1); setEditorPanX(0); setEditorPanY(0); }}
+                                        onResetView={() => {
+                                                const viewport = editorViewportRef.current;
+                                                if (!viewport || editorGraph.runtimes.length === 0) {
+                                                        setEditorZoom(1);
+                                                        setEditorPanX(0);
+                                                        setEditorPanY(0);
+                                                        return;
+                                                }
+
+                                                const bounds = editorGraph.runtimes.reduce((current, runtime) => {
+                                                        const rect = runtime.rect || { x: 0, y: 0, w: 0, h: 0 };
+                                                        return {
+                                                                minX: Math.min(current.minX, rect.x),
+                                                                minY: Math.min(current.minY, rect.y),
+                                                                maxX: Math.max(current.maxX, rect.x + rect.w),
+                                                                maxY: Math.max(current.maxY, rect.y + rect.h)
+                                                        };
+                                                }, { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+                                                const contentWidth = Math.max(1, bounds.maxX - bounds.minX);
+                                                const contentHeight = Math.max(1, bounds.maxY - bounds.minY);
+                                                const padding = 24;
+                                                const availableWidth = Math.max(1, viewport.clientWidth - padding * 2);
+                                                const availableHeight = Math.max(1, viewport.clientHeight - padding * 2);
+                                                const zoom = Math.max(0.01, Math.min(1, availableWidth / contentWidth, availableHeight / contentHeight));
+                                                setEditorZoom(zoom);
+                                                setEditorPanX((viewport.clientWidth - contentWidth * zoom) / 2 - bounds.minX * zoom);
+                                                setEditorPanY((viewport.clientHeight - contentHeight * zoom) / 2 - bounds.minY * zoom);
+                                        }}
                                         canvasWidth={canvasWidth}
                                         canvasHeight={canvasHeight}
                                         onPanMouseDown={(event) => {
@@ -2300,7 +2367,6 @@ export default function App() {
                                         renameRuntime={renameRuntime}
                                         renameNode={renameNode}
                                         setNodePortVisibility={setNodePortVisibility}
-                                        deleteEdgesForPort={deleteEdgesForPort}
                                         selectedNodeId={selectedNodeId}
                                         suppressNextNodeSelectRef={suppressNextNodeSelectRef}
                                         connectNodes={connectNodes}
@@ -2320,6 +2386,8 @@ export default function App() {
                                         runtimeBaseUrl={runtimeBaseUrl}
                                         selectedMediaElement={selectedMediaElement}
                                         onSelectMediaElement={setSelectedMediaElement}
+                                        runtimeViewports={runtimeViewports}
+                                        onRuntimeViewportChange={updateRuntimeViewport}
                                 />
 
                                 <div
@@ -2472,6 +2540,7 @@ export default function App() {
                                 onAddNode={(runtimeId, type) => openNodeDialog(runtimeId || selectedRuntimeId, type)}
                                 onDeleteRuntime={(runtimeId) => void deleteRuntime(runtimeId)}
                                 onDeleteNode={(nodeId) => void deleteNode(nodeId)}
+                                onHidePort={(nodeId, direction, portName) => void hideNodePort(nodeId, direction, portName)}
                                 localRuntimeId={LOCAL_RUNTIME_ID}
                         />
                 </div>

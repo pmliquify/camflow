@@ -708,6 +708,7 @@ button:hover {
         inset: 0;
         width: 100%;
         height: 100%;
+        overflow: visible;
         pointer-events: none;
         z-index: 6;
 }
@@ -735,6 +736,7 @@ button:hover {
         inset: 0;
         width: 100%;
         height: 100%;
+        overflow: visible;
         pointer-events: none;
         z-index: 7;
 }
@@ -1249,17 +1251,44 @@ button:hover {
         background: linear-gradient(180deg, #071820, #091d26);
 }
 
+.runtime-canvas-inner {
+        position: absolute;
+        inset: 0;
+        transform-origin: 0 0;
+        will-change: transform;
+}
+
+.runtime-canvas-tools {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 8;
+}
+
+.runtime-canvas-tools .runtime-reset-view-button {
+        width: 24px;
+        min-width: 24px;
+        height: 24px;
+        border-radius: 50%;
+}
+
+.runtime-reset-view-button .button-icon {
+        width: 12px;
+        height: 12px;
+}
+
 .media-graph-scroll {
         position: absolute;
         inset: 0;
-        overflow: auto;
-        scrollbar-color: rgba(51, 205, 220, 0.5) transparent;
+        overflow: hidden;
 }
 
 .media-graph-canvas {
         position: relative;
         min-width: 100%;
         min-height: 100%;
+        transform-origin: 0 0;
+        will-change: transform;
 }
 
 .media-graph-state {
@@ -1605,6 +1634,7 @@ button:hover {
         inset: 0;
         width: 100%;
         height: 100%;
+        overflow: visible;
         pointer-events: none;
 }
 

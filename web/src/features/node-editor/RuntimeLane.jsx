@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import RuntimeWindowIcon from './RuntimeWindowIcon.jsx';
 import NodeCard from './NodeCard.jsx';
 import EdgeLayer from './EdgeLayer.jsx';
@@ -9,6 +9,7 @@ import mediaGraphIcon from '../../assets/images/icon-media-graph.svg';
 import reloadIcon from '../../assets/images/icon-reload.svg';
 import Button from '../../components/Button.jsx';
 import InlineNameEditor from '../../components/InlineNameEditor.jsx';
+import ResetViewButton from '../../components/ResetViewButton.jsx';
 import { getMediaDevices, getMediaGraph } from '../../services/runtimeApi.js';
 
 const RUNTIME_LOG_PREFS_STORAGE_PREFIX = 'camflow:runtime-log-prefs:';
@@ -20,6 +21,9 @@ const LOG_FONT_DEFAULT = 10;
 const LOG_CONSOLE_MIN_HEIGHT = 112;
 const LOG_CONSOLE_MAX_HEIGHT = 320;
 const LOG_CONSOLE_DEFAULT_HEIGHT = 154;
+const RUNTIME_MIN_ZOOM = 0.01;
+const RUNTIME_MAX_ZOOM = 2.25;
+const RUNTIME_PAN_DRAG_THRESHOLD = 8;
 
 function clampLogFontSize(value) {
         const parsed = Number(value);
@@ -104,20 +108,20 @@ export default function RuntimeLane({
         selectedNodeId,
         onSelectNode,
         onLaneContextMenu,
-        onNodeContextMenu,
         onEdgePath,
         onDeleteEdge,
         onNodeDragStart,
         onNodePortAreaClick,
         onNodePortMouseDown,
-        onHideNodePort,
         onRuntimeDragStart,
         onRuntimeResizeStart,
         onStartRuntime,
         onClearRuntimeLogs,
         runtimeBaseUrl = '',
         selectedMediaElement,
-        onSelectMediaElement
+        onSelectMediaElement,
+        runtimeViewport = { zoom: 1, panX: 0, panY: 0 },
+        onRuntimeViewportChange
 }) {
         const initialLogPrefs = useMemo(() => loadRuntimeLogPrefs(runtime.id), [runtime.id]);
         const initialMediaPrefs = useMemo(() => loadRuntimeMediaPrefs(runtime.id), [runtime.id]);
@@ -134,6 +138,189 @@ export default function RuntimeLane({
         const [mediaLoading, setMediaLoading] = useState(false);
         const [mediaError, setMediaError] = useState('');
         const [mediaConnectedOnly, setMediaConnectedOnly] = useState(() => initialMediaPrefs?.connectedOnly || false);
+        const runtimePanGestureRef = useRef({ moved: false, button: null });
+        const runtimePanCleanupRef = useRef(null);
+        const runtimeCanvasRef = useRef(null);
+
+        const runtimeZoom = runtimeViewport.zoom || 1;
+        const runtimePanX = runtimeViewport.panX || 0;
+        const runtimePanY = runtimeViewport.panY || 0;
+
+        const updateRuntimeViewport = (update) => {
+                onRuntimeViewportChange?.(runtime.id, update);
+        };
+
+        const runtimeViewportElement = (canvas) => {
+                if (!mediaMode) {
+                        return canvas;
+                }
+                return canvas.querySelector('.media-graph-scroll') || canvas;
+        };
+
+        const resetOrFitRuntimeViewport = () => {
+                const canvas = runtimeCanvasRef.current;
+                if (!canvas) {
+                        return;
+                }
+
+                const viewport = runtimeViewportElement(canvas);
+
+                let minX = 0;
+                let minY = 0;
+                let maxX = 0;
+                let maxY = 0;
+                if (mediaMode) {
+                        const graphCanvas = canvas.querySelector('.media-graph-canvas');
+                        if (!(graphCanvas instanceof HTMLElement)) {
+                                updateRuntimeViewport({ zoom: 1, panX: 0, panY: 0 });
+                                return;
+                        }
+                        maxX = Number.parseFloat(graphCanvas.style.width) || graphCanvas.offsetWidth;
+                        maxY = Number.parseFloat(graphCanvas.style.height) || graphCanvas.offsetHeight;
+                } else {
+                        const nodes = [...canvas.querySelectorAll('.node-card')];
+                        if (nodes.length === 0) {
+                                updateRuntimeViewport({ zoom: 1, panX: 0, panY: 0 });
+                                return;
+                        }
+                        minX = Math.min(...nodes.map((node) => node.offsetLeft));
+                        minY = Math.min(...nodes.map((node) => node.offsetTop));
+                        maxX = Math.max(...nodes.map((node) => node.offsetLeft + node.offsetWidth));
+                        maxY = Math.max(...nodes.map((node) => node.offsetTop + node.offsetHeight));
+                        const edgeLayer = canvas.querySelector('.edge-layer');
+                        if (edgeLayer instanceof SVGGraphicsElement) {
+                                const edgeBounds = edgeLayer.getBBox();
+                                if (edgeBounds.width > 0 || edgeBounds.height > 0) {
+                                        minX = Math.min(minX, edgeBounds.x);
+                                        minY = Math.min(minY, edgeBounds.y);
+                                        maxX = Math.max(maxX, edgeBounds.x + edgeBounds.width);
+                                        maxY = Math.max(maxY, edgeBounds.y + edgeBounds.height);
+                                }
+                        }
+                }
+
+                const contentWidth = Math.max(1, maxX - minX);
+                const contentHeight = Math.max(1, maxY - minY);
+                viewport.scrollLeft = 0;
+                viewport.scrollTop = 0;
+
+                const padding = 16;
+                const availableWidth = Math.max(1, viewport.clientWidth - padding * 2);
+                const availableHeight = Math.max(1, viewport.clientHeight - padding * 2);
+                const zoom = Math.max(0.01, Math.min(1, availableWidth / contentWidth, availableHeight / contentHeight));
+                updateRuntimeViewport({
+                        zoom,
+                        panX: (viewport.clientWidth - contentWidth * zoom) / 2 - minX * zoom,
+                        panY: (viewport.clientHeight - contentHeight * zoom) / 2 - minY * zoom
+                });
+        };
+
+        const onRuntimeWheelCapture = (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (event.shiftKey || event.altKey) {
+                        updateRuntimeViewport((current) => ({
+                                ...current,
+                                panX: current.panX - (event.shiftKey ? event.deltaY : 0),
+                                panY: current.panY - (event.altKey ? event.deltaY : 0)
+                        }));
+                        return;
+                }
+
+                const canvas = event.currentTarget;
+                const viewport = runtimeViewportElement(canvas);
+                const rect = viewport.getBoundingClientRect();
+                const outerScaleX = rect.width > 0 ? viewport.offsetWidth / rect.width : 1;
+                const outerScaleY = rect.height > 0 ? viewport.offsetHeight / rect.height : outerScaleX;
+                const cursorX = (event.clientX - rect.left) * outerScaleX + (viewport.scrollLeft || 0);
+                const cursorY = (event.clientY - rect.top) * outerScaleY + (viewport.scrollTop || 0);
+                const factor = Math.exp(-event.deltaY * 0.0016);
+                updateRuntimeViewport((current) => {
+                        const currentZoom = current.zoom || 1;
+                        const currentPanX = current.panX || 0;
+                        const currentPanY = current.panY || 0;
+                        const nextZoom = Math.max(RUNTIME_MIN_ZOOM, Math.min(RUNTIME_MAX_ZOOM, currentZoom * factor));
+                        if (nextZoom === currentZoom) {
+                                return current;
+                        }
+                        const graphX = (cursorX - currentPanX) / currentZoom;
+                        const graphY = (cursorY - currentPanY) / currentZoom;
+                        return {
+                                zoom: nextZoom,
+                                panX: cursorX - graphX * nextZoom,
+                                panY: cursorY - graphY * nextZoom
+                        };
+                });
+        };
+
+        const onRuntimePanMouseDownCapture = (event) => {
+                if ((event.button !== 1 && event.button !== 2) || (event.target instanceof Element && event.target.closest('button,input,select,textarea'))) {
+                        return;
+                }
+                runtimePanCleanupRef.current?.();
+                event.preventDefault();
+                event.stopPropagation();
+                const canvas = event.currentTarget;
+                const rect = canvas.getBoundingClientRect();
+                const outerScaleX = rect.width > 0 ? canvas.offsetWidth / rect.width : 1;
+                const outerScaleY = rect.height > 0 ? canvas.offsetHeight / rect.height : outerScaleX;
+                const startX = event.clientX;
+                const startY = event.clientY;
+                const startPanX = runtimePanX;
+                const startPanY = runtimePanY;
+                runtimePanGestureRef.current = { moved: false, button: event.button };
+
+                const moveHandler = (moveEvent) => {
+                        const buttonMask = event.button === 1 ? 4 : 2;
+                        if ((moveEvent.buttons & buttonMask) === 0) {
+                                stopHandler();
+                                return;
+                        }
+                        const deltaX = moveEvent.clientX - startX;
+                        const deltaY = moveEvent.clientY - startY;
+                        if (!runtimePanGestureRef.current.moved && deltaX * deltaX + deltaY * deltaY >= RUNTIME_PAN_DRAG_THRESHOLD * RUNTIME_PAN_DRAG_THRESHOLD) {
+                                runtimePanGestureRef.current.moved = true;
+                        }
+                        if (!runtimePanGestureRef.current.moved) {
+                                return;
+                        }
+                        updateRuntimeViewport((current) => ({
+                                ...current,
+                                panX: startPanX + deltaX * outerScaleX,
+                                panY: startPanY + deltaY * outerScaleY
+                        }));
+                };
+                function stopHandler() {
+                        runtimePanGestureRef.current = { moved: false, button: null };
+                        runtimePanCleanupRef.current = null;
+                        window.removeEventListener('mousemove', moveHandler);
+                        window.removeEventListener('mouseup', stopHandler);
+                        window.removeEventListener('blur', stopHandler);
+                }
+                window.addEventListener('mousemove', moveHandler);
+                window.addEventListener('mouseup', stopHandler);
+                window.addEventListener('blur', stopHandler);
+                runtimePanCleanupRef.current = stopHandler;
+        };
+
+        const onRuntimeContextMenuMouseUpCapture = (event) => {
+                const gesture = { ...runtimePanGestureRef.current };
+                if (event.button === gesture.button) {
+                        runtimePanCleanupRef.current?.();
+                }
+                if (event.button !== 2 || gesture.button !== 2 || gesture.moved) {
+                        return;
+                }
+                const target = event.target instanceof Element ? event.target : null;
+                if (!target || target.closest('.edge-hit-path,button,input,select,textarea')) {
+                        return;
+                }
+                if (target.closest('.node-card')) {
+                        return;
+                }
+                onLaneContextMenu(event, runtime.id);
+        };
 
         const filterActive = useMemo(() => {
                 return Object.values(visibleSources).some((value) => !value) || Boolean(kernelRegexText.trim());
@@ -207,6 +394,7 @@ export default function RuntimeLane({
         return (
                 <section
                         className="runtime-lane"
+                        data-runtime-id={runtime.id}
                         style={{ left: runtime.rect.x, top: runtime.rect.y, width: runtime.rect.w, height: runtime.rect.h }}
                         onMouseDown={(event) => {
                                 if (event.button !== 0) {
@@ -220,7 +408,7 @@ export default function RuntimeLane({
                                 }
                         }}
                 >
-                        <header onContextMenu={(event) => onLaneContextMenu(event, runtime.id)} onMouseDown={(event) => onRuntimeDragStart(event, runtime.id)}>
+                        <header onMouseDown={(event) => onRuntimeDragStart(event, runtime.id)}>
                                 <div className="runtime-header-left">
                                         <RuntimeWindowIcon />
                                         <InlineNameEditor
@@ -317,33 +505,56 @@ export default function RuntimeLane({
                                         </Button>
                                 </div>
                         </header>
-                        <div className={`runtime-canvas${mediaMode ? ' media-mode' : ''}`} onContextMenu={(event) => onLaneContextMenu(event, runtime.id)}>
-                                {mediaMode ? (
-                                        <MediaGraphView
-                                                graph={mediaGraph}
-                                                loading={mediaLoading}
-                                                error={mediaError}
-                                                connectedOnly={mediaConnectedOnly}
-                                                selectedElement={selectedMediaElement}
-                                                onSelectElement={onSelectMediaElement}
+                        <div
+                                ref={runtimeCanvasRef}
+                                className={`runtime-canvas${mediaMode ? ' media-mode' : ''}`}
+                                onWheelCapture={onRuntimeWheelCapture}
+                                onMouseDownCapture={onRuntimePanMouseDownCapture}
+                                onMouseUpCapture={onRuntimeContextMenuMouseUpCapture}
+                                onContextMenu={(event) => {
+                                        event.preventDefault();
+                                        event.stopPropagation();
+                                }}
+                        >
+                                <div className="runtime-canvas-tools">
+                                        <ResetViewButton
+                                                onClick={resetOrFitRuntimeViewport}
+                                                className="runtime-reset-view-button"
+                                                ariaLabel={`reset view for ${runtime.displayName || runtime.ip}`}
                                         />
-                                ) : <>
-                                        {runtime.nodes.map((node) => (
-                                                <NodeCard
-                                                        key={node.id}
-                                                        node={node}
-                                                        selected={selectedNodeId === node.id}
-                                                        onSelect={onSelectNode}
-                                                        onRename={(nextName) => runtime.onRenameNode?.(node.id, nextName)}
-                                                        onDragStart={(event) => onNodeDragStart(event, runtime.id, node.id)}
-                                                        onContextMenu={(event) => onNodeContextMenu(event, runtime.id, node.id)}
-                                                        onPortAreaClick={(event, targetNode, direction) => onNodePortAreaClick(event, runtime.id, targetNode, direction)}
-                                                        onPortMouseDown={(event, targetNode, portName) => onNodePortMouseDown(event, runtime.id, targetNode, portName)}
-                                                        onHidePort={onHideNodePort}
+                                </div>
+                                <div
+                                        className={`runtime-canvas-inner${mediaMode ? ' media-mode' : ''}`}
+                                        style={mediaMode ? undefined : { transform: `translate(${runtimePanX}px, ${runtimePanY}px) scale(${runtimeZoom})` }}
+                                >
+                                        {mediaMode ? (
+                                                <MediaGraphView
+                                                        graph={mediaGraph}
+                                                        loading={mediaLoading}
+                                                        error={mediaError}
+                                                        connectedOnly={mediaConnectedOnly}
+                                                        selectedElement={selectedMediaElement}
+                                                        onSelectElement={onSelectMediaElement}
+                                                        zoom={runtimeZoom}
+                                                        panX={runtimePanX}
+                                                        panY={runtimePanY}
                                                 />
-                                        ))}
-                                        <EdgeLayer runtime={runtime} onEdgePath={onEdgePath} onDeleteEdge={onDeleteEdge} />
-                                </>}
+                                        ) : <>
+                                                {runtime.nodes.map((node) => (
+                                                        <NodeCard
+                                                                key={node.id}
+                                                                node={node}
+                                                                selected={selectedNodeId === node.id}
+                                                                onSelect={onSelectNode}
+                                                                onRename={(nextName) => runtime.onRenameNode?.(node.id, nextName)}
+                                                                onDragStart={(event) => onNodeDragStart(event, runtime.id, node.id)}
+                                                                onPortAreaClick={(event, targetNode, direction) => onNodePortAreaClick(event, runtime.id, targetNode, direction)}
+                                                                onPortMouseDown={(event, targetNode, portName) => onNodePortMouseDown(event, runtime.id, targetNode, portName)}
+                                                        />
+                                                ))}
+                                                <EdgeLayer runtime={runtime} onEdgePath={onEdgePath} onDeleteEdge={onDeleteEdge} />
+                                        </>}
+                                </div>
                         </div>
                         <RuntimeLogConsole
                                 runtimeId={runtime.id}

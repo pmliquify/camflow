@@ -2576,6 +2576,7 @@ export default function App() {
                                         absoluteCrossEdges={absoluteCrossEdges}
                                         absoluteEdgeCurvePath={absoluteEdgeCurvePath}
                                         onDeleteEdgeByText={deleteEdgeByText}
+                                        onDeleteNode={deleteNode}
                                         editorGraph={editorGraph}
                                         localIp={localIp}
                                         renameRuntime={renameRuntime}

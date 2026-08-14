@@ -18,6 +18,7 @@ export default function NodeEditorPanel({
         absoluteCrossEdges,
         absoluteEdgeCurvePath,
         onDeleteEdgeByText,
+        onDeleteNode,
         editorGraph,
         localIp,
         renameRuntime,
@@ -48,7 +49,7 @@ export default function NodeEditorPanel({
         onRuntimeViewportChange
 }) {
         const [edgeDraft, setEdgeDraft] = useState(null);
-        const [portMenu, setPortMenu] = useState({ open: false, direction: '', x: 0, y: 0, nodeId: '', ports: [] });
+        const [targetMenu, setTargetMenu] = useState({ open: false, kind: '', direction: '', x: 0, y: 0, nodeId: '', edgeText: '', ports: [], visibleNames: [] });
         const isEdgeDraftActive = Boolean(edgeDraft);
         const edgeDraftRef = useRef(null);
         const runtimesRef = useRef(editorGraph.runtimes);
@@ -149,22 +150,21 @@ export default function NodeEditorPanel({
         };
 
         const openPortMenu = (event, node, direction) => {
+                event.preventDefault();
                 event.stopPropagation();
                 setEdgeDraft(null);
                 const availablePorts = direction === 'input' ? node.inputs || [] : node.outputs || [];
                 const visibleNames = new Set(direction === 'input' ? node.visibleInputs || [] : node.visibleOutputs || []);
-                const hiddenPorts = availablePorts.filter((port) => !visibleNames.has(port.name));
-                if (hiddenPorts.length === 0) {
-                        setPortMenu((current) => ({ ...current, open: false }));
-                        return;
-                }
-                setPortMenu({
+                setTargetMenu({
                         open: true,
+                        kind: 'port',
                         direction,
                         x: event.clientX,
                         y: event.clientY,
                         nodeId: node.id,
-                        ports: hiddenPorts
+                        edgeText: '',
+                        ports: availablePorts,
+                        visibleNames: [...visibleNames]
                 });
         };
 
@@ -180,12 +180,21 @@ export default function NodeEditorPanel({
                 }));
         };
 
-        const showPort = (port) => {
-                const node = runtimesRef.current.flatMap((runtime) => runtime.nodes).find((candidate) => candidate.id === portMenu.nodeId);
+        const togglePort = (port) => {
+                const node = runtimesRef.current.flatMap((runtime) => runtime.nodes).find((candidate) => candidate.id === targetMenu.nodeId);
                 if (node) {
-                        updatePortVisibility(node, portMenu.direction, (visible) => [...new Set([...visible, port.name])]);
+                        updatePortVisibility(node, targetMenu.direction, (visible) => visible.includes(port.name)
+                                ? visible.filter((name) => name !== port.name)
+                                : [...new Set([...visible, port.name])]);
                 }
-                setPortMenu((current) => ({ ...current, open: false }));
+                setTargetMenu((current) => ({ ...current, open: false }));
+        };
+
+        const openTargetMenu = (event, menu) => {
+                event.preventDefault();
+                event.stopPropagation();
+                setEdgeDraft(null);
+                setTargetMenu({ open: true, direction: '', nodeId: '', edgeText: '', ports: [], visibleNames: [], ...menu, x: event.clientX, y: event.clientY });
         };
 
         return (
@@ -234,10 +243,8 @@ export default function NodeEditorPanel({
                                                                         className="cross-edge-hit-path"
                                                                         d={absoluteEdgeCurvePath(edge.from, edge.to, edge)}
                                                                         onContextMenu={(event) => {
-                                                                                event.preventDefault();
-                                                                                event.stopPropagation();
                                                                                 const edgeText = `${edge.fromNode}.${edge.fromPort || 'image'} -> ${edge.toNode}.${edge.toPort || 'image'}`;
-                                                                                void onDeleteEdgeByText(edgeText);
+                                                                                openTargetMenu(event, { kind: 'edge', edgeText });
                                                                         }}
                                                                 />
                                                                 <path className="cross-edge-visual" d={absoluteEdgeCurvePath(edge.from, edge.to, edge)} markerEnd="url(#cross-edge-arrow)" />
@@ -277,9 +284,9 @@ export default function NodeEditorPanel({
                                                         }}
                                                         onLaneContextMenu={(event, runtimeId) => openMenu(event, 'runtime', runtimeId)}
                                                         onEdgePath={edgeCurvePath}
-                                                        onDeleteEdge={(edge) => {
+                                                        onEdgeContextMenu={(event, edge) => {
                                                                 const edgeText = `${edge.fromNode}.${edge.fromPort || 'image'} -> ${edge.toNode}.${edge.toPort || 'image'}`;
-                                                                void onDeleteEdgeByText(edgeText);
+                                                                openTargetMenu(event, { kind: 'edge', edgeText });
                                                         }}
                                                         onNodeDragStart={(event, runtimeId, nodeId) => {
                                                                 if (edgeDraftRef.current) {
@@ -287,7 +294,12 @@ export default function NodeEditorPanel({
                                                                 }
                                                                 startNodeDrag(event, runtimeId, nodeId);
                                                         }}
-                                                        onNodePortAreaClick={(event, runtimeId, node, direction) => {
+                                                        onNodeContextMenu={(event, runtimeId, node) => {
+                                                                setSelectedRuntimeId(runtimeId);
+                                                                setSelectedNodeId(node.id);
+                                                                openTargetMenu(event, { kind: 'node', nodeId: node.id });
+                                                        }}
+                                                        onNodePortContextMenu={(event, runtimeId, node, direction) => {
                                                                 setSelectedRuntimeId(runtimeId);
                                                                 setSelectedNodeId(node.id);
                                                                 openPortMenu(event, node, direction);
@@ -313,18 +325,35 @@ export default function NodeEditorPanel({
                                 </div>
                         </div>
                         <StandardContextMenu
-                                open={portMenu.open}
-                                x={portMenu.x}
-                                y={portMenu.y}
+                                open={targetMenu.open}
+                                x={targetMenu.x}
+                                y={targetMenu.y}
                                 onClose={() => {
-                                        setPortMenu((current) => ({ ...current, open: false }));
+                                        setTargetMenu((current) => ({ ...current, open: false }));
                                 }}
-                                items={portMenu.ports.map((port) => ({
+                                items={targetMenu.kind === 'port' ? targetMenu.ports.map((port) => ({
                                         id: port.name,
-                                        label: `${port.name} · ${port.type || port.dataType}`,
-                                        onSelect: () => showPort(port)
-                                }))}
-                                emptyLabel="all ports visible"
+                                        label: `${targetMenu.visibleNames.includes(port.name) ? 'hide' : 'show'} ${port.name}`,
+                                        onSelect: () => togglePort(port)
+                                })) : []}
+                                actions={targetMenu.kind === 'node' ? [{
+                                        id: 'delete-node',
+                                        label: 'delete node',
+                                        danger: true,
+                                        onSelect: () => {
+                                                setTargetMenu((current) => ({ ...current, open: false }));
+                                                void onDeleteNode(targetMenu.nodeId);
+                                        }
+                                }] : targetMenu.kind === 'edge' ? [{
+                                        id: 'delete-edge',
+                                        label: 'delete edge',
+                                        danger: true,
+                                        onSelect: () => {
+                                                setTargetMenu((current) => ({ ...current, open: false }));
+                                                void onDeleteEdgeByText(targetMenu.edgeText);
+                                        }
+                                }] : []}
+                                emptyLabel="no ports"
                         />
                 </section>
         );

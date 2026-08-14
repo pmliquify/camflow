@@ -110,9 +110,10 @@ export default function RuntimeLane({
         onSelectNode,
         onLaneContextMenu,
         onEdgePath,
-        onDeleteEdge,
+        onEdgeContextMenu,
         onNodeDragStart,
-        onNodePortAreaClick,
+        onNodeContextMenu,
+        onNodePortContextMenu,
         onNodePortMouseDown,
         onRuntimeDragStart,
         onRuntimeResizeStart,
@@ -583,11 +584,12 @@ export default function RuntimeLane({
                                                                 onSelect={onSelectNode}
                                                                 onRename={(nextName) => runtime.onRenameNode?.(node.id, nextName)}
                                                                 onDragStart={(event) => onNodeDragStart(event, runtime.id, node.id)}
-                                                                onPortAreaClick={(event, targetNode, direction) => onNodePortAreaClick(event, runtime.id, targetNode, direction)}
+                                                                onContextMenu={(event, targetNode) => onNodeContextMenu(event, runtime.id, targetNode)}
+                                                                onPortContextMenu={(event, targetNode, direction) => onNodePortContextMenu(event, runtime.id, targetNode, direction)}
                                                                 onPortMouseDown={(event, targetNode, portName) => onNodePortMouseDown(event, runtime.id, targetNode, portName)}
                                                         />
                                                 ))}
-                                                <EdgeLayer runtime={runtime} onEdgePath={onEdgePath} onDeleteEdge={onDeleteEdge} />
+                                                <EdgeLayer runtime={runtime} onEdgePath={onEdgePath} onEdgeContextMenu={onEdgeContextMenu} />
                                         </>}
                                 </div>
                         </div>

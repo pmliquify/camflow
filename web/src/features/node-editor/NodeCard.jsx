@@ -1,12 +1,12 @@
 import React from 'react';
 import InlineNameEditor from '../../components/InlineNameEditor.jsx';
 
-function PortSide({ direction, ports, disabled, onAreaClick, onPortMouseDown }) {
+function PortSide({ direction, ports, disabled, onContextMenu, onPortMouseDown }) {
         return (
                 <div
                         className={`node-port-side node-port-side-${direction}${disabled ? ' disabled' : ''}`}
                         data-node-side={direction}
-                        onClick={disabled ? undefined : onAreaClick}
+                        onContextMenu={disabled ? undefined : onContextMenu}
                         onMouseDown={(event) => event.stopPropagation()}
                 >
                         {(ports.length ? ports : ['']).map((portName, index) => (
@@ -16,10 +16,6 @@ function PortSide({ direction, ports, disabled, onAreaClick, onPortMouseDown }) 
                                         data-port-direction={direction}
                                         key={portName || `empty-${index}`}
                                         onMouseDown={portName && direction === 'output' ? (event) => onPortMouseDown(event, portName) : undefined}
-                                        onContextMenu={portName ? (event) => {
-                                                event.preventDefault();
-                                                event.stopPropagation();
-                                        } : undefined}
                                 >
                                         {portName || 'no port'}
                                 </span>
@@ -28,7 +24,7 @@ function PortSide({ direction, ports, disabled, onAreaClick, onPortMouseDown }) 
         );
 }
 
-export default function NodeCard({ node, selected, onSelect, onRename, onDragStart, onPortAreaClick, onPortMouseDown }) {
+export default function NodeCard({ node, selected, onSelect, onRename, onDragStart, onContextMenu, onPortContextMenu, onPortMouseDown }) {
         return (
                 <div
                         className={`node-card ${selected ? 'selected' : ''}`}
@@ -36,10 +32,7 @@ export default function NodeCard({ node, selected, onSelect, onRename, onDragSta
                         style={{ left: node.x, top: node.y, height: node.height }}
                         onClick={() => onSelect(node.id)}
                         onMouseDown={(event) => onDragStart(event, node.id)}
-                        onContextMenu={(event) => {
-                                event.preventDefault();
-                                event.stopPropagation();
-                        }}
+                        onContextMenu={(event) => onContextMenu(event, node)}
                 >
                         <div className="node-title">
                                 <InlineNameEditor
@@ -55,13 +48,13 @@ export default function NodeCard({ node, selected, onSelect, onRename, onDragSta
                                         direction="input"
                                         ports={node.visibleInputs || []}
                                         disabled={!node.inputs?.length}
-                                        onAreaClick={(event) => onPortAreaClick(event, node, 'input')}
+                                        onContextMenu={(event) => onPortContextMenu(event, node, 'input')}
                                 />
                                 <PortSide
                                         direction="output"
                                         ports={node.visibleOutputs || []}
                                         disabled={!node.outputs?.length}
-                                        onAreaClick={(event) => onPortAreaClick(event, node, 'output')}
+                                        onContextMenu={(event) => onPortContextMenu(event, node, 'output')}
                                         onPortMouseDown={(event, portName) => onPortMouseDown(event, node, portName)}
                                 />
                         </div>

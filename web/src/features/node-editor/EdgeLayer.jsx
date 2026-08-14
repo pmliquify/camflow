@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function EdgeLayer({ runtime, onEdgePath, onDeleteEdge }) {
+export default function EdgeLayer({ runtime, onEdgePath, onEdgeContextMenu }) {
         const nodesById = new Map(runtime.nodes.map((node) => [node.id, node]));
         const markerId = `edge-arrow-${String(runtime.id || 'runtime').replace(/[^a-zA-Z0-9_-]/g, '-')}`;
         return (
@@ -25,9 +25,7 @@ export default function EdgeLayer({ runtime, onEdgePath, onDeleteEdge }) {
                                                         onContextMenu={(event) => {
                                                                 event.preventDefault();
                                                                 event.stopPropagation();
-                                                                if (onDeleteEdge) {
-                                                                        onDeleteEdge(edge);
-                                                                }
+                                                                onEdgeContextMenu?.(event, edge);
                                                         }}
                                                 />
                                                 <path className="edge-visual" d={pathD} markerEnd={`url(#${markerId})`} />

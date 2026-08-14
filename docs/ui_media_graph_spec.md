@@ -27,8 +27,8 @@ per runtime under `camflow:runtime-media-prefs:<runtimeId>`.
 
 ## 3. Navigation and viewport
 
-- Media entities and links use the same independent zoom, pan and reset state as
-  the runtime node graph.
+- Media entities and links use a zoom, pan and reset state that is independent
+  from the runtime node graph and restored when returning to the media view.
 - Wheel zoom range is `0.01x` to `2.25x` and remains pointer-centered.
 - Middle/right drag pans only while the initiating button remains pressed and
   after the 8px threshold has been crossed.

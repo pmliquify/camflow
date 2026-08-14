@@ -318,7 +318,7 @@ export default function NodeEditorPanel({
                                                         runtimeBaseUrl={runtime.id === 'local' ? '' : runtimeBaseUrl(runtime.ip)}
                                                         selectedMediaElement={selectedMediaElement}
                                                         onSelectMediaElement={onSelectMediaElement}
-                                                        runtimeViewport={runtimeViewports?.[runtime.id]}
+                                                        runtimeViewports={runtimeViewports?.[runtime.id]}
                                                         onRuntimeViewportChange={onRuntimeViewportChange}
                                                 />
                                         ))}

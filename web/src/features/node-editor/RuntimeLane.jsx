@@ -124,7 +124,7 @@ export default function RuntimeLane({
         runtimeBaseUrl = '',
         selectedMediaElement,
         onSelectMediaElement,
-        runtimeViewport = { zoom: 1, panX: 0, panY: 0 },
+        runtimeViewports = {},
         onRuntimeViewportChange
 }) {
         const initialLogPrefs = useMemo(() => loadRuntimeLogPrefs(runtime.id), [runtime.id]);
@@ -145,15 +145,19 @@ export default function RuntimeLane({
         const runtimePanGestureRef = useRef({ moved: false, button: null });
         const runtimePanCleanupRef = useRef(null);
         const runtimeCanvasRef = useRef(null);
-        const hasAutoCenteredRef = useRef(false);
+        const hasAutoCenteredRef = useRef({ node: false, media: false });
 
+        const runtimeViewportKind = mediaMode ? 'media' : 'node';
+        const runtimeViewport = runtimeViewports[runtimeViewportKind] || { zoom: 1, panX: 0, panY: 0 };
+        const hasStoredRuntimeViewport = Boolean(runtimeViewports[runtimeViewportKind]);
         const runtimeZoom = runtimeViewport.zoom || 1;
         const runtimePanX = runtimeViewport.panX || 0;
         const runtimePanY = runtimeViewport.panY || 0;
         const runtimeNodeIdsSignature = runtime.nodes.map((node) => node.id).join('|');
+        const mediaGraphSignature = (mediaGraph?.entities || []).map((entity) => entity.id).join('|');
 
         const updateRuntimeViewport = (update) => {
-                onRuntimeViewportChange?.(runtime.id, update);
+                onRuntimeViewportChange?.(runtime.id, runtimeViewportKind, update);
         };
 
         const runtimeViewportElement = (canvas) => {
@@ -181,7 +185,6 @@ export default function RuntimeLane({
                 if (mediaMode) {
                         const graphCanvas = canvas.querySelector('.media-graph-canvas');
                         if (!(graphCanvas instanceof HTMLElement)) {
-                                updateRuntimeViewport({ zoom: 1, panX: 0, panY: 0 });
                                 return false;
                         }
                         maxX = Number.parseFloat(graphCanvas.style.width) || graphCanvas.offsetWidth;
@@ -189,7 +192,6 @@ export default function RuntimeLane({
                 } else {
                         const nodes = [...canvas.querySelectorAll('.node-card')];
                         if (nodes.length === 0) {
-                                updateRuntimeViewport({ zoom: 1, panX: 0, panY: 0 });
                                 return false;
                         }
                         minX = Math.min(...nodes.map((node) => node.offsetLeft));
@@ -226,18 +228,19 @@ export default function RuntimeLane({
         };
 
         useEffect(() => {
-                if (hasAutoCenteredRef.current || runtime.nodes.length === 0) {
+                const hasContent = mediaMode ? (mediaGraph?.entities || []).length > 0 : runtime.nodes.length > 0;
+                if (hasStoredRuntimeViewport || hasAutoCenteredRef.current[runtimeViewportKind] || !hasContent) {
                         return undefined;
                 }
                 const timerId = window.setTimeout(() => {
                         if (resetOrFitRuntimeViewport()) {
-                                hasAutoCenteredRef.current = true;
+                                hasAutoCenteredRef.current[runtimeViewportKind] = true;
                         }
                 }, 0);
                 return () => window.clearTimeout(timerId);
-                // Fit once after this runtime's first node render.
+                // Fit each view once after its first content render.
                 // eslint-disable-next-line react-hooks/exhaustive-deps
-        }, [runtimeNodeIdsSignature, viewMode]);
+        }, [hasStoredRuntimeViewport, mediaGraphSignature, mediaMode, runtimeNodeIdsSignature, viewMode]);
 
         const onRuntimeWheelCapture = (event) => {
                 event.preventDefault();

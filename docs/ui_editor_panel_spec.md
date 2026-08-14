@@ -34,7 +34,8 @@ Media graph rendering is detailed in `docs/ui_media_graph_spec.md`.
 - Each runtime canvas has an independent `0.01x` to `2.25x` wheel zoom,
   middle/right pan and reset action. Its zoom preserves the local graph point
   under the pointer even when the outer editor is scaled.
-- Runtime viewport transforms apply equally to the node graph and media graph view.
+- Node graph and media graph keep independent runtime viewport transforms and
+  restore their last zoom and pan when switching views.
 - Runtime navigation input affects only that runtime. Runtime headers remain
   part of the outer editor navigation surface.
 - Runtime log consoles are excluded from both runtime and editor viewport navigation.
@@ -43,7 +44,8 @@ Media graph rendering is detailed in `docs/ui_media_graph_spec.md`.
   at or below 100% that fits with 16px padding.
 - On initial UI load, the editor automatically fits and centers all runtime
   windows once when the editor first becomes visible. Each runtime node view
-  independently performs the same one-time fit for its nodes and links.
+  and media graph independently perform the same one-time fit when their
+  content first becomes visible.
 - The media graph viewport has no scrollbars; navigation uses the same runtime
   transform.
 

@@ -1013,7 +1013,7 @@ export default function App() {
                         const graphX = (runtimeMenu.x - rect.left - editorPanX) / Math.max(editorZoom, 0.0001);
                         const graphY = (runtimeMenu.y - rect.top - editorPanY) / Math.max(editorZoom, 0.0001);
                         const runtimeRect = runtimeRectById(runtime.id);
-                        const runtimeViewport = runtimeViewports[runtime.id] || DEFAULT_RUNTIME_VIEWPORT;
+                        const runtimeViewport = runtimeViewports[runtime.id]?.node || DEFAULT_RUNTIME_VIEWPORT;
                         nextNodePos = {
                                 x: (graphX - runtimeRect.x - runtimeViewport.panX) / runtimeViewport.zoom - NODE_WIDTH * 0.5,
                                 y: (graphY - runtimeRect.y - RUNTIME_HEADER_HEIGHT - runtimeViewport.panY) / runtimeViewport.zoom - NODE_HEIGHT * 0.5
@@ -1134,15 +1134,19 @@ export default function App() {
                 if (!node) {
                         return;
                 }
-                const runtimeZoom = runtimeViewports[runtimeId]?.zoom || 1;
+                const runtimeZoom = runtimeViewports[runtimeId]?.node?.zoom || 1;
                 setDragState({ kind: 'node', runtimeId, nodeId, startX: event.clientX, startY: event.clientY, runtimeZoom, startPos: { x: node.x, y: node.y } });
         }
 
-        function updateRuntimeViewport(runtimeId, update) {
+        function updateRuntimeViewport(runtimeId, viewportKind, update) {
                 setRuntimeViewports((current) => {
-                        const currentViewport = current[runtimeId] || DEFAULT_RUNTIME_VIEWPORT;
+                        const currentRuntimeViewports = current[runtimeId] || {};
+                        const currentViewport = currentRuntimeViewports[viewportKind] || DEFAULT_RUNTIME_VIEWPORT;
                         const nextViewport = typeof update === 'function' ? update(currentViewport) : update;
-                        return { ...current, [runtimeId]: nextViewport };
+                        return {
+                                ...current,
+                                [runtimeId]: { ...currentRuntimeViewports, [viewportKind]: nextViewport }
+                        };
                 });
         }
 
@@ -2445,8 +2449,8 @@ export default function App() {
                 if (!fromNode || !toNode) {
                         return null;
                 }
-                const fromViewport = runtimeViewports[fromRuntime.id] || DEFAULT_RUNTIME_VIEWPORT;
-                const toViewport = runtimeViewports[toRuntime.id] || DEFAULT_RUNTIME_VIEWPORT;
+                const fromViewport = runtimeViewports[fromRuntime.id]?.node || DEFAULT_RUNTIME_VIEWPORT;
+                const toViewport = runtimeViewports[toRuntime.id]?.node || DEFAULT_RUNTIME_VIEWPORT;
                 return {
                         id: edge.id,
                         fromNode: edge.fromNode,

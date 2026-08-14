@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ScrollArea from '../../components/ScrollArea.jsx';
 import filterIcon from '../../assets/images/icon-filter.svg';
 import clearLogIcon from '../../assets/images/icon-clear-log.svg';
@@ -178,6 +178,7 @@ function RuntimeLogConsole({
                         return compiledKernelRegex.test(haystack);
                 });
         }, [compiledKernelRegex, entries, kernelRegexInvalid, visibleSources]);
+        const lastDisplayedEntry = displayedEntries[displayedEntries.length - 1] || null;
 
         const maxHeight = Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, Math.max(0, runtimeHeight - 94) || MAX_HEIGHT));
         const currentHeight = Math.max(MIN_HEIGHT, Math.min(consoleHeight, maxHeight));
@@ -196,13 +197,13 @@ function RuntimeLogConsole({
                 }
         }, [open]);
 
-        useEffect(() => {
+        useLayoutEffect(() => {
                 const element = scrollAreaRef.current;
                 if (!element || !stickToBottomRef.current) {
                         return;
                 }
                 element.scrollTop = element.scrollHeight;
-        }, [displayedEntries.length, open]);
+        }, [displayedEntries.length, filterOpen, lastDisplayedEntry, logFontSize, open, showDebugDetails]);
 
         useEffect(() => {
                 if (!open || !filterOpen || filterFocusRequest === 0) {

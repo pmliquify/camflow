@@ -131,6 +131,9 @@ Media graph rendering is detailed in `docs/ui_media_graph_spec.md`.
 - The console follows new records while already near the bottom and preserves
   manual scroll position otherwise. Selected text supports native copy and a
   clipboard fallback.
+- Auto-follow reacts to the newest displayed record rather than only the record
+  count, so it continues after the 300-record display limit starts replacing
+  old records.
 - Per-runtime preferences persist filter-panel state, source visibility, kernel
   regex, debug-details mode, font size and height under
   `camflow:runtime-log-prefs:<runtimeId>`. The latest font size is also the

@@ -522,6 +522,11 @@ bool V4L2Source::refreshControlSchema()
 
     m_controls = V4L2ControlAccess::enumerate(deviceFd, deviceName, subDeviceFds);
     std::unordered_set<std::string> selectedSubdeviceSet(selectedSubdevices.begin(), selectedSubdevices.end());
+    std::unordered_map<std::string, std::string> subdeviceLabels;
+    for (size_t index = 0; index < m_subDeviceOptions.size(); ++index) {
+        const std::string& label = index < m_subDeviceOptionLabels.size() ? m_subDeviceOptionLabels[index] : m_subDeviceOptions[index];
+        subdeviceLabels.emplace(m_subDeviceOptions[index], label);
+    }
     std::map<std::string, int> parameterNameCounts;
 
     m_controlSchema.clear();
@@ -539,8 +544,9 @@ bool V4L2Source::refreshControlSchema()
         }
         if (!control.sourceDevice.empty() && selectedSubdeviceSet.find(control.sourceDevice) != selectedSubdeviceSet.end()) {
             const std::string groupName = subdeviceGroupName(control.sourceDevice);
+            const auto label = subdeviceLabels.find(control.sourceDevice);
             info.group = groupName;
-            info.groupDescription = groupName + " (" + control.sourceDevice + ")";
+            info.groupDescription = label != subdeviceLabels.end() ? label->second : control.sourceDevice;
 
             const std::string baseControlName = V4L2ControlAccess::parameterNameFromControlName(control.controlName);
             std::string uniqueParameterName = groupName + "." + baseControlName;

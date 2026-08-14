@@ -1707,7 +1707,7 @@ button:hover {
 
 .node-card.selected {
         border-color: var(--accent);
-        box-shadow: 0 0 0 1px rgba(2, 215, 255, 0.35) inset;
+        box-shadow: 0 0 0 1px rgba(83, 239, 251, 0.42) inset, 0 0 14px rgba(35, 203, 218, 0.22);
 }
 
 

@@ -33,7 +33,13 @@ export default function ParameterRow({ item, canEdit, onChange, showVisibilityCh
 
 
         return (
-                <section className={`parameter${item.type === 'media-flags' ? ' media-flags-parameter' : ''}`} title={tooltipText}>
+                <section
+                        className={`parameter${item.type === 'media-flags' ? ' media-flags-parameter' : ''}`}
+                        title={tooltipText}
+                        tabIndex={-1}
+                        data-parameter-name={displayName || item.name}
+                        data-parameter-full-name={item.name}
+                >
                         <div className="parameter-row">
                                 <ParameterNameBlock
                                         item={item}

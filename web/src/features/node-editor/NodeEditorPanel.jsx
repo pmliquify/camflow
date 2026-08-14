@@ -39,6 +39,8 @@ export default function NodeEditorPanel({
         runtimeLogPanels,
         onToggleRuntimeLogPanel,
         onClearRuntimeLogs,
+        runtimeLogFilterOpenRequest,
+        filterCloseRequest,
         runtimeBaseUrl,
         selectedMediaElement,
         onSelectMediaElement,
@@ -299,6 +301,8 @@ export default function NodeEditorPanel({
                                                         onRuntimeResizeStart={startRuntimeResize}
                                                         onStartRuntime={onStartRuntime}
                                                         onClearRuntimeLogs={onClearRuntimeLogs}
+                                                        logFilterOpenRequest={runtimeLogFilterOpenRequest}
+                                                        filterCloseRequest={filterCloseRequest}
                                                         runtimeBaseUrl={runtime.id === 'local' ? '' : runtimeBaseUrl(runtime.ip)}
                                                         selectedMediaElement={selectedMediaElement}
                                                         onSelectMediaElement={onSelectMediaElement}

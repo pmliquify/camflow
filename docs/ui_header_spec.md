@@ -18,6 +18,7 @@ This document is the canonical specification for the top header (`GlobalHeader`)
 - Right cluster:
   - Runtime toggle button (`Start`/`Stop`).
   - Mode switch (`viewer`, `editor`).
+  - Keyboard-shortcut help button and anchored shortcut popover.
 
 The complete secondary version string is shown in a tooltip when the compact
 version receives hover or keyboard focus.
@@ -57,13 +58,39 @@ version receives hover or keyboard focus.
 - Clicking a mode button updates persisted view mode in app state.
 - Browser storage key: `camflow:view-mode`.
 
-## 7. Content constraints
+## 7. Keyboard shortcuts
+
+- `Alt+V` (`Option+V` on macOS) toggles between viewer and editor mode.
+- `Alt+R` (`Option+R` on macOS) toggles the local runtime between started and
+  stopped.
+- `Alt+H` (`Option+H` on macOS) opens the keyboard-shortcut help popover.
+- `Alt+F` (`Option+F` on macOS) opens the parameter filter, focuses its search
+  field and selects its complete existing value.
+- `Alt+K` (`Option+K` on macOS) clears the log entries for the currently
+  selected runtime, matching that runtime log window's clear button.
+- `Alt+G` (`Option+G` on macOS) opens the selected runtime's log panel and log
+  filter, focuses the kernel-regex field and selects its complete existing
+  value.
+- `Escape` closes the parameter filter and all runtime-log filter modes without
+  clearing their configured filter values.
+- `Tab` remains reserved for normal focus navigation, including parameter
+  controls. Only visible, enabled controls within parameter rows participate in
+  the `Tab` and `Shift+Tab` sequence. `Space` retains its native behavior in
+  editable controls.
+- Shortcuts ignore key-repeat events and combinations with additional
+  `Ctrl`, `Shift` or `Meta` modifiers.
+- Shortcuts are disabled while an application dialog is open.
+- The rightmost header button opens a small popover listing both shortcuts.
+  It displays the modifier as `⌥` on Apple devices. Clicking outside or
+  pressing `Escape` closes it.
+
+## 8. Content constraints
 
 - No `start all` or `stop all` actions in the global header.
 - No aggregated runtime counters in the global header.
 - Node-level or graph-level editing actions do not belong in this component.
 
-## 8. Data inputs
+## 9. Data inputs
 
 `GlobalHeader` consumes:
 
@@ -75,10 +102,14 @@ version receives hover or keyboard focus.
 - `onToggleRuntime`
 - `viewMode`
 - `onSetViewMode`
+- `shortcutPanelOpen`
+- `onSetShortcutPanelOpen`
 
-## 9. Accessibility
+## 10. Accessibility
 
 - Interactive elements use semantic `button` controls.
 - Mode switch remains keyboard-operable.
+- Shortcut help exposes `aria-expanded`, `aria-controls`, a dialog label and
+  returns focus to its trigger when closed with `Escape`.
 - The compact version is focusable and exposes the full version through a
   tooltip with an accessible label.

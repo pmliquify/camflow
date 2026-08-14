@@ -99,6 +99,8 @@ No runtime request is sent if normalized next value equals normalized current co
 ### 6.2 Filter controls
 
 - The `filter` button toggles parameter-filter edit mode.
+- `Escape` closes parameter-filter edit mode without clearing the search text
+  or parameter visibility selections.
 - The `reload` button keeps its existing behavior and remains independent from filter state.
 - The `filter` button shows an active highlight whenever one or more parameters are currently hidden by checkbox state.
 
@@ -113,6 +115,17 @@ No runtime request is sent if normalized next value equals normalized current co
 - No separate error line is rendered below the parameter list.
 
 ## 7. Parameter row rendering
+
+- Focusing a text or numeric value input selects its complete value so the next
+  typed value replaces it directly.
+- Pressing `Enter` commits the current value without moving keyboard focus and
+  selects the complete value again for immediate replacement.
+- Typing a letter outside an actively edited text, number or option control
+  focuses the first visible parameter whose display or full name starts with
+  that letter.
+- Letters typed within 700 ms of each other form one case-insensitive search
+  word. While that word is being built, letters do not modify the parameter
+  control focused by the typeahead search.
 
 ### 7.0 Visibility checkbox mode
 

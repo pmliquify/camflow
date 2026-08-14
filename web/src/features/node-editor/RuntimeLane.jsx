@@ -118,6 +118,8 @@ export default function RuntimeLane({
         onRuntimeResizeStart,
         onStartRuntime,
         onClearRuntimeLogs,
+        logFilterOpenRequest,
+        filterCloseRequest = 0,
         runtimeBaseUrl = '',
         selectedMediaElement,
         onSelectMediaElement,
@@ -346,6 +348,18 @@ export default function RuntimeLane({
         const filterActive = useMemo(() => {
                 return Object.values(visibleSources).some((value) => !value) || Boolean(kernelRegexText.trim());
         }, [kernelRegexText, visibleSources]);
+
+        useEffect(() => {
+                if (logFilterOpenRequest?.runtimeId === runtime.id && logFilterOpenRequest.sequence > 0) {
+                        setFilterOpen(true);
+                }
+        }, [logFilterOpenRequest, runtime.id]);
+
+        useEffect(() => {
+                if (filterCloseRequest > 0) {
+                        setFilterOpen(false);
+                }
+        }, [filterCloseRequest]);
 
         useEffect(() => {
                 if (typeof window === 'undefined') {
@@ -585,6 +599,7 @@ export default function RuntimeLane({
                                 runtimeHeight={runtime.rect?.h || 0}
                                 initialConsoleHeight={logConsoleHeight}
                                 filterOpen={filterOpen}
+                                filterFocusRequest={logFilterOpenRequest?.runtimeId === runtime.id ? logFilterOpenRequest.sequence : 0}
                                 filterActive={filterActive}
                                 visibleSources={visibleSources}
                                 kernelRegexText={kernelRegexText}

@@ -15,6 +15,18 @@ export default function DoubleParameterControl({ item, canEdit, onChange, parame
                                 value={item.value ?? 0}
                                 disabled={!canEdit}
                                 onChange={(event) => onChange(item.name, event.target.value, { ...parameterMeta, interaction: 'immediate' })}
+                                onFocus={(event) => event.currentTarget.select()}
+                                onKeyDown={(event) => {
+                                        if (event.key === 'Enter') {
+                                                event.preventDefault();
+                                        }
+                                }}
+                                onKeyUp={(event) => {
+                                        if (event.key === 'Enter') {
+                                                event.currentTarget.blur();
+                                                event.currentTarget.focus({ preventScroll: true });
+                                        }
+                                }}
                         />
                         <Input
                                 type="number"

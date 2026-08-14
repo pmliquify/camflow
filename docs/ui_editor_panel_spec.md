@@ -120,6 +120,11 @@ Media graph rendering is detailed in `docs/ui_media_graph_spec.md`.
 - Source toggles independently show/hide `runtime`, `node`, `api` and `kernel`.
 - Kernel records can additionally be filtered by a case-insensitive regular
   expression. Invalid syntax is reported inline and does not apply a regex.
+- `Alt+G` (`Option+G` on macOS) opens the selected runtime's console and filter,
+  focuses the kernel-regex input and selects its complete value. Repeating the
+  shortcut reselects the current value.
+- `Escape` closes runtime-log filter mode without clearing source selections or
+  the kernel regex.
 - Debug-details mode restores timestamp, type, source location or kernel tag;
   normal mode strips those prefixes for compact reading.
 - Font controls span `5px` through `15px`; clear removes buffered records.

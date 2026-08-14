@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Input from '../../../components/Input.jsx';
 import Slider from '../../../components/Slider.jsx';
 import {
@@ -11,6 +11,7 @@ import {
 
 export default function IntParameterControl({ item, canEdit, onChange, parameterMeta }) {
         const [intDraftValue, setIntDraftValue] = useState(String(item.value ?? ''));
+        const suppressNextBlurRef = useRef(false);
         const { minimum, maximum } = getIntParameterBounds(item);
         const useLogarithmicSlider = isLogarithmicIntParameter(item);
         const sliderValue = useLogarithmicSlider
@@ -22,7 +23,7 @@ export default function IntParameterControl({ item, canEdit, onChange, parameter
         }, [item.value, item.name]);
 
         function commitIntDraftValue() {
-                onChange(item.name, intDraftValue, { ...parameterMeta, interaction: 'number-commit' });
+                return onChange(item.name, intDraftValue, { ...parameterMeta, interaction: 'number-commit' });
         }
 
         return (
@@ -50,12 +51,25 @@ export default function IntParameterControl({ item, canEdit, onChange, parameter
                                 value={intDraftValue}
                                 disabled={!canEdit}
                                 onChange={(event) => setIntDraftValue(event.target.value)}
-                                onBlur={commitIntDraftValue}
+                                onFocus={(event) => event.currentTarget.select()}
+                                onBlur={() => {
+                                        if (suppressNextBlurRef.current) {
+                                                suppressNextBlurRef.current = false;
+                                                return;
+                                        }
+                                        void commitIntDraftValue();
+                                }}
                                 onKeyDown={(event) => {
                                         if (event.key === 'Enter') {
                                                 event.preventDefault();
-                                                commitIntDraftValue();
+                                                void commitIntDraftValue();
+                                        }
+                                }}
+                                onKeyUp={(event) => {
+                                        if (event.key === 'Enter') {
+                                                suppressNextBlurRef.current = true;
                                                 event.currentTarget.blur();
+                                                event.currentTarget.focus({ preventScroll: true });
                                         }
                                 }}
                         />

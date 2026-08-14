@@ -77,7 +77,9 @@ export default function ParameterPanel({
         selectedNodeParams,
         updateParameter,
         runtimeRunning,
-        selectedMediaElement
+        selectedMediaElement,
+        filterOpenRequest = 0,
+        filterCloseRequest = 0
 }) {
         const initialFilter = readStoredParameterFilter();
         const [filterOpen, setFilterOpen] = useState(false);
@@ -106,6 +108,29 @@ export default function ParameterPanel({
                         // Ignore storage write failures.
                 }
         }, [filterText, visibleByName]);
+
+        useEffect(() => {
+                if (filterOpenRequest > 0) {
+                        setFilterOpen(true);
+                }
+        }, [filterOpenRequest]);
+
+        useEffect(() => {
+                if (!filterOpen || filterOpenRequest === 0) {
+                        return undefined;
+                }
+                const frameId = window.requestAnimationFrame(() => {
+                        searchInputRef.current?.focus();
+                        searchInputRef.current?.select();
+                });
+                return () => window.cancelAnimationFrame(frameId);
+        }, [filterOpen, filterOpenRequest]);
+
+        useEffect(() => {
+                if (filterCloseRequest > 0) {
+                        setFilterOpen(false);
+                }
+        }, [filterCloseRequest]);
 
         const selectedMediaDetail = mediaDetail(selectedMediaElement);
         const activeParams = selectedMediaDetail?.parameters || selectedNodeParams;

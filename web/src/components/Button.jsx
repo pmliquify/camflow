@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { forwardRef } from 'react';
 
-export default function Button({
+const Button = forwardRef(function Button({
         variant = 'primary',
         icon = null,
         compact = false,
@@ -8,7 +8,7 @@ export default function Button({
         className = '',
         children,
         ...buttonProps
-}) {
+}, ref) {
         const resolvedClassName = [
                 'ui-button',
                 variant === 'secondary' ? 'secondary' : '',
@@ -22,9 +22,11 @@ export default function Button({
                 : icon;
 
         return (
-                <button {...buttonProps} className={resolvedClassName}>
+                <button {...buttonProps} ref={ref} className={resolvedClassName}>
                         {iconElement}
                         {children ? <span className="ui-button-label">{children}</span> : null}
                 </button>
         );
-}
+});
+
+export default Button;

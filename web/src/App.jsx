@@ -56,6 +56,7 @@ const EDITOR_MAX_ZOOM = 2.25;
 const PAN_DRAG_THRESHOLD = 8;
 const DEFAULT_RUNTIME_VIEWPORT = { zoom: 1, panX: 0, panY: 0 };
 const DEFAULT_RUNTIME_API_PORT = '8000';
+const PARAMETER_TYPEAHEAD_TIMEOUT_MS = 700;
 
 function isAutoNodeId(id) {
         return String(id || '').startsWith(AUTO_NODE_PREFIX);
@@ -153,6 +154,64 @@ function runtimeDisplayLabel(runtime, localIp) {
 function isInteractiveHeaderTarget(target) {
         const element = target instanceof Element ? target : null;
         return Boolean(element && element.closest('button,input,select,textarea,a'));
+}
+
+function areKeyboardShortcutsBlocked() {
+        return Boolean(document.querySelector('.dialog-backdrop'));
+}
+
+function focusAdjacentParameter(event) {
+        event.preventDefault();
+        if (areKeyboardShortcutsBlocked()) {
+                return;
+        }
+        const controls = Array.from(document.querySelectorAll('.parameter input, .parameter select, .parameter button'))
+                .filter((element) => !element.disabled && element.getClientRects().length > 0);
+        if (controls.length === 0) {
+                return;
+        }
+
+        const currentIndex = controls.indexOf(document.activeElement);
+        const nextIndex = event.shiftKey
+                ? (currentIndex <= 0 ? controls.length - 1 : currentIndex - 1)
+                : (currentIndex < 0 || currentIndex === controls.length - 1 ? 0 : currentIndex + 1);
+        controls[nextIndex].focus();
+}
+
+function focusParameterByTypeahead(event, typeaheadRef) {
+        if (event.defaultPrevented || event.repeat || event.altKey || event.ctrlKey || event.metaKey || event.key.length !== 1 || !/\p{L}/u.test(event.key)) {
+                return false;
+        }
+
+        const now = Date.now();
+        const current = typeaheadRef.current;
+        const continuing = now - current.timestamp <= PARAMETER_TYPEAHEAD_TIMEOUT_MS;
+        const target = event.target instanceof Element ? event.target : null;
+        const editableTarget = target?.closest('textarea, select, [contenteditable="true"], input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"])');
+        if (editableTarget && editableTarget !== current.focusedElement) {
+                return false;
+        }
+
+        event.preventDefault();
+        const searchText = `${continuing ? current.text : ''}${event.key}`.toLocaleLowerCase();
+        typeaheadRef.current = { text: searchText, timestamp: now, focusedElement: current.focusedElement };
+        const rows = Array.from(document.querySelectorAll('.parameter[data-parameter-name]'))
+                .filter((row) => row.getClientRects().length > 0);
+        const match = rows.find((row) => {
+                const displayName = String(row.dataset.parameterName || '').toLocaleLowerCase();
+                const fullName = String(row.dataset.parameterFullName || '').toLocaleLowerCase();
+                return displayName.startsWith(searchText) || fullName.startsWith(searchText);
+        });
+        if (!match) {
+                return true;
+        }
+
+        const controls = Array.from(match.querySelectorAll('input, select, button'))
+                .filter((element) => !element.disabled && element.getClientRects().length > 0 && !element.closest('.param-name'));
+        const focusTarget = controls[0] || match;
+        focusTarget.focus();
+        typeaheadRef.current.focusedElement = focusTarget;
+        return true;
 }
 
 function splitVersionText(versionText) {
@@ -614,6 +673,10 @@ export default function App() {
         const [selectedMediaElement, setSelectedMediaElement] = useState(null);
         const [debayerEnabled, setDebayerEnabled] = useState(false);
         const [viewMode, setViewMode] = useState(readInitialViewMode);
+        const [shortcutPanelOpen, setShortcutPanelOpen] = useState(false);
+        const [parameterFilterOpenRequest, setParameterFilterOpenRequest] = useState(0);
+        const [filterCloseRequest, setFilterCloseRequest] = useState(0);
+        const [runtimeLogFilterOpenRequest, setRuntimeLogFilterOpenRequest] = useState({ runtimeId: '', sequence: 0 });
         const [runtimeMenu, setRuntimeMenu] = useState({ open: false, x: 0, y: 0, kind: 'background', runtimeId: null, nodeId: null, portDirection: '', portName: '', sources: [], processors: [], sinks: [] });
         const [dialogState, setDialogState] = useState({ open: false, mode: null, runtimeId: null, runtimeName: '', runtimeIp: '', nodeType: '', nodeId: '' });
         const [editorError, setEditorError] = useState('');
@@ -665,6 +728,8 @@ export default function App() {
         const lastRenderWallMsRef = useRef(0);
         const lastFrameSeenAtRef = useRef(0);
         const statusRef = useRef('starting');
+        const selectedRuntimeIdRef = useRef(selectedRuntimeId);
+        const parameterTypeaheadRef = useRef({ text: '', timestamp: 0, focusedElement: null });
         const debayerEnabledRef = useRef(debayerEnabled);
         const suppressNextNodeSelectRef = useRef(false);
         const suppressNextParameterReloadRef = useRef(false);
@@ -1860,6 +1925,72 @@ export default function App() {
         }, [status]);
 
         useEffect(() => {
+                selectedRuntimeIdRef.current = selectedRuntimeId;
+        }, [selectedRuntimeId]);
+
+        useEffect(() => {
+                const keydownHandler = (event) => {
+                        if (event.code === 'Escape' && !areKeyboardShortcutsBlocked()) {
+                                setFilterCloseRequest((request) => request + 1);
+                                return;
+                        }
+                        if (event.code === 'Tab' && !event.altKey && !event.ctrlKey && !event.metaKey) {
+                                focusAdjacentParameter(event);
+                                return;
+                        }
+                        if (focusParameterByTypeahead(event, parameterTypeaheadRef)) {
+                                return;
+                        }
+                        if (event.defaultPrevented || event.repeat || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || areKeyboardShortcutsBlocked()) {
+                                return;
+                        }
+                        if (event.code === 'KeyV') {
+                                event.preventDefault();
+                                setViewMode((current) => current === 'viewer' ? 'editor' : 'viewer');
+                                return;
+                        }
+                        if (event.code === 'KeyR') {
+                                event.preventDefault();
+                                void setPipelineStopped(statusRef.current === 'running');
+                                return;
+                        }
+                        if (event.code === 'KeyH') {
+                                event.preventDefault();
+                                setShortcutPanelOpen(true);
+                                return;
+                        }
+                        if (event.code === 'KeyF') {
+                                event.preventDefault();
+                                setParameterFilterOpenRequest((request) => request + 1);
+                                return;
+                        }
+                        if (event.code === 'KeyK') {
+                                event.preventDefault();
+                                onClearRuntimeLogs(selectedRuntimeIdRef.current);
+                                return;
+                        }
+                        if (event.code === 'KeyG') {
+                                event.preventDefault();
+                                const runtimeId = selectedRuntimeIdRef.current;
+                                setRuntimeLogPanels((current) => ({ ...current, [runtimeId]: true }));
+                                setRuntimeLogFilterOpenRequest((request) => ({ runtimeId, sequence: request.sequence + 1 }));
+                        }
+                };
+                const pointerDownHandler = () => {
+                        parameterTypeaheadRef.current = { text: '', timestamp: 0, focusedElement: null };
+                };
+
+                window.addEventListener('keydown', keydownHandler);
+                document.addEventListener('pointerdown', pointerDownHandler);
+                return () => {
+                        window.removeEventListener('keydown', keydownHandler);
+                        document.removeEventListener('pointerdown', pointerDownHandler);
+                };
+                // Register shortcuts once; current runtime state is read through statusRef.
+                // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, []);
+
+        useEffect(() => {
                 void fetchRuntimeStatus();
                 void fetchRuntimeVersion();
                 void fetchPipeline();
@@ -2348,6 +2479,8 @@ export default function App() {
                                 onToggleRuntime={() => void setPipelineStopped(runtimeRunning)}
                                 viewMode={viewMode}
                                 onSetViewMode={setViewMode}
+                                shortcutPanelOpen={shortcutPanelOpen}
+                                onSetShortcutPanelOpen={setShortcutPanelOpen}
                         />
 
                         <main
@@ -2464,6 +2597,8 @@ export default function App() {
                                         runtimeLogPanels={runtimeLogPanels}
                                         onToggleRuntimeLogPanel={onToggleRuntimeLogPanel}
                                         onClearRuntimeLogs={onClearRuntimeLogs}
+                                        runtimeLogFilterOpenRequest={runtimeLogFilterOpenRequest}
+                                        filterCloseRequest={filterCloseRequest}
                                         runtimeBaseUrl={runtimeBaseUrl}
                                         selectedMediaElement={selectedMediaElement}
                                         onSelectMediaElement={setSelectedMediaElement}
@@ -2583,6 +2718,8 @@ export default function App() {
                                         updateParameter={updateParameter}
                                         runtimeRunning={runtimeRunning}
                                         selectedMediaElement={selectedMediaElement}
+                                        filterOpenRequest={parameterFilterOpenRequest}
+                                        filterCloseRequest={filterCloseRequest}
                                 />
                         </main>
 

@@ -126,6 +126,7 @@ function RuntimeLogConsole({
         runtimeHeight = 0,
         initialConsoleHeight = DEFAULT_HEIGHT,
         filterOpen,
+        filterFocusRequest = 0,
         filterActive,
         visibleSources,
         kernelRegexText,
@@ -144,6 +145,7 @@ function RuntimeLogConsole({
 }) {
         const [consoleHeight, setConsoleHeight] = useState(() => Math.max(MIN_HEIGHT, Math.min(MAX_HEIGHT, Number(initialConsoleHeight) || DEFAULT_HEIGHT)));
         const scrollAreaRef = useRef(null);
+        const kernelRegexInputRef = useRef(null);
         const stickToBottomRef = useRef(true);
 
         const compiledKernelRegex = useMemo(() => {
@@ -201,6 +203,17 @@ function RuntimeLogConsole({
                 }
                 element.scrollTop = element.scrollHeight;
         }, [displayedEntries.length, open]);
+
+        useEffect(() => {
+                if (!open || !filterOpen || filterFocusRequest === 0) {
+                        return undefined;
+                }
+                const frameId = window.requestAnimationFrame(() => {
+                        kernelRegexInputRef.current?.focus();
+                        kernelRegexInputRef.current?.select();
+                });
+                return () => window.cancelAnimationFrame(frameId);
+        }, [filterFocusRequest, filterOpen, open]);
 
         if (!open) {
                 return null;
@@ -265,6 +278,7 @@ function RuntimeLogConsole({
                                                                                                 <>
                                                                                                         <div className="runtime-log-search-field inline-runtime-log-search-field">
                                                                                                                 <Input
+                                                                                                                        ref={kernelRegexInputRef}
                                                                                                                         type="text"
                                                                                                                         value={kernelRegexText}
                                                                                                                         placeholder="kernel regex"

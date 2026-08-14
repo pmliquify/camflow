@@ -143,8 +143,11 @@ Canonical behavior: `docs/ui_parameter_panel_spec.md`.
 - Active mode/status states are represented in text and classes, not color alone.
 - The layout splitter and log resize handle expose separator roles and labels.
 - Viewer and parameter overlays maintain high contrast over live imagery.
-- Standard keyboard focus remains available for header controls, form fields,
-  mode buttons and the complete-version tooltip.
+- Keyboard focus uses one high-contrast cyan ring across buttons, links,
+  editable controls and custom focusable elements.
+- Custom checkboxes and sliders expose the same ring on their visible control.
+  A focused slider highlights its complete track and handle so focus remains
+  apparent while stepping through parameter values with `Tab`.
 
 ## 10. Responsive and overflow rules
 

@@ -135,6 +135,11 @@ Canonical behavior: `docs/ui_parameter_panel_spec.md`.
 - Interactive controls stop drag initiation in draggable headers/surfaces.
 - Context menus open only on explicitly owned free-canvas surfaces; native menus
   are suppressed where right drag or application actions own the gesture.
+- Global `Alt`/`Option` shortcuts provide view, runtime, filter, log and help
+  actions. Canonical behavior: `docs/ui_header_spec.md`.
+- `Tab`, `Shift+Tab` and letter sequences provide direct navigation among
+  visible parameter controls. Canonical behavior:
+  `docs/ui_parameter_panel_spec.md`.
 
 ## 9. Accessibility
 

@@ -73,14 +73,18 @@ version receives hover or keyboard focus.
   value.
 - `Escape` closes the parameter filter and all runtime-log filter modes without
   clearing their configured filter values.
-- `Tab` remains reserved for normal focus navigation, including parameter
-  controls. Only visible, enabled controls within parameter rows participate in
-  the `Tab` and `Shift+Tab` sequence. `Space` retains its native behavior in
-  editable controls.
-- Shortcuts ignore key-repeat events and combinations with additional
+- `Tab` and `Shift+Tab` cycle forward and backward through visible, enabled
+  controls within parameter rows and wrap at either end. `Space` retains its
+  native behavior in editable controls.
+- Typing letters outside an actively edited text, number or option control
+  focuses the first visible parameter whose display or full name starts with
+  the typed sequence. The search is case-insensitive and letters typed within
+  700 ms of each other form one sequence.
+- Modifier shortcuts ignore key-repeat events and combinations with additional
   `Ctrl`, `Shift` or `Meta` modifiers.
-- Shortcuts are disabled while an application dialog is open.
-- The rightmost header button opens a small popover listing both shortcuts.
+- Modifier shortcuts are disabled while an application dialog is open.
+- The rightmost header button opens a small popover listing all modifier
+  shortcuts.
   It displays the modifier as `⌥` on Apple devices. Clicking outside or
   pressing `Escape` closes it.
 

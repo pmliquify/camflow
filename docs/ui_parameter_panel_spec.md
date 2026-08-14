@@ -90,7 +90,7 @@ No runtime request is sent if normalized next value equals normalized current co
 
 ### 6.1 Header row
 
-- Left: selected node display name (`name` or `id`).
+- Left: selected node display name (`name` or `id`) followed by its type in parentheses.
 - Fallback when no selected node metadata: selected runtime label.
 - Right: `filter` and `reload` buttons.
 - When a media entity, pad or link is selected, the left side shows its

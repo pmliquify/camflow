@@ -133,6 +133,9 @@ export default function ParameterPanel({
         }, [filterCloseRequest]);
 
         const selectedMediaDetail = mediaDetail(selectedMediaElement);
+        const selectedNodeTitle = selectedNodeMeta
+                ? `${selectedNodeMeta.name || selectedNodeMeta.id}${selectedNodeMeta.type ? ` (${selectedNodeMeta.type})` : ''}`
+                : '';
         const activeParams = selectedMediaDetail?.parameters || selectedNodeParams;
         const normalizedSearch = filterText.trim().toLowerCase();
         const hasHiddenParameters = !selectedMediaDetail && activeParams.some((item) => (visibleByName[item.name] ?? true) === false);
@@ -211,7 +214,7 @@ export default function ParameterPanel({
                 <section className="panel parameter-panel">
                         <div className="parameter-header">
                                 <div className="parameter-header-left">
-                                        {selectedMediaDetail ? <div className="selection compact-selection media-detail-title">{selectedMediaDetail.title}</div> : selectedNodeMeta ? <div className="selection compact-selection">{selectedNodeMeta.name || selectedNodeMeta.id}</div> : <div className="selection compact-selection">{selectedRuntimeName}</div>}
+                                        {selectedMediaDetail ? <div className="selection compact-selection media-detail-title">{selectedMediaDetail.title}</div> : selectedNodeMeta ? <div className="selection compact-selection">{selectedNodeTitle}</div> : <div className="selection compact-selection">{selectedRuntimeName}</div>}
                                 </div>
                                 <div className="parameter-header-right">
                                         <Button

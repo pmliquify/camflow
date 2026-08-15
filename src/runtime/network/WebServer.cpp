@@ -551,6 +551,9 @@ void WebServer::websocketClientLoop(int clientSocket)
             if (commandName == "subscribe") {
                 std::lock_guard<std::mutex> lock(m_websocketMutex);
                 if (m_frameClientSocket == clientSocket) {
+                    if (m_frameStreamNodeFilter != nodeId || m_frameStreamImageKey != imageKey) {
+                        ++m_frameClientGeneration;
+                    }
                     m_frameStreamNodeFilter = nodeId;
                     m_frameStreamImageKey = imageKey;
                 }

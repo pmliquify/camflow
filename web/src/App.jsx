@@ -2135,6 +2135,7 @@ export default function App() {
 
         useEffect(() => {
                 const socket = frameSocketRef.current;
+                latestFrameBinaryRef.current = null;
                 if (socket && socket.readyState === WebSocket.OPEN) {
                         const subscribeImageKey = selectedImageKey.includes('.') ? selectedImageKey : '';
                         socket.send(JSON.stringify({ cmd: 'subscribe', nodeId: selectedNodeId, imageKey: subscribeImageKey }));

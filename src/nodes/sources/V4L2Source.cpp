@@ -281,15 +281,23 @@ bool V4L2Source::onParameterChanged(const std::string& name, const ParameterValu
     }
 
     if (isDeviceSelectionParameter(name)) {
-        // Device path changes are stored and become effective with the next
-        // full device open sequence (init/shutdown cycle).
-        if (name == "subdevices") {
-            syncOpenSubDevicesLocked();
-        }
-        refreshDeviceOptions();
-        refreshFormatOptions();
-        refreshControlSchema();
         m_explicitParameters.insert(name);
+        if (name == "device") {
+            stopCapture();
+            closeDevice();
+            refreshDeviceOptions();
+            refreshFormatOptions();
+            if (openDevice()) {
+                applyRequestedFormat();
+                updateImageGeometry();
+            }
+        } else {
+            syncOpenSubDevicesLocked();
+            refreshDeviceOptions();
+            refreshFormatOptions();
+        }
+        refreshControlSchema();
+        applyConfiguredControls();
         return true;
     }
 

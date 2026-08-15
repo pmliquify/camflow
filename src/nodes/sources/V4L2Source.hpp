@@ -30,7 +30,7 @@
  * 2. **init**: Opens devices, sets format, allocates MMAP buffers, enumerates controls.
  * 3. **start**: Marks the capture path as active.
  * 4. **process**: Waits for the next buffer, wraps it zero-copy and returns it.
- * 5. **onParameterChanged**: Updates individual camera controls at runtime.
+ * 5. **onParameterChanged**: Reopens changed devices or updates camera controls.
  * 6. **stop**: Stops streaming before shutdown.
  * 7. **shutdown**: Deallocates buffers and closes devices.
  *
@@ -131,7 +131,7 @@ public:
 
 protected:
     /**
-     * @brief Applies changed writable controls directly to the active V4L2 device.
+     * @brief Reopens changed devices or applies writable controls directly.
      */
     bool onParameterChanged(const std::string& name, const ParameterValue& value, const ParameterValue* previousValue, std::string& errorMessage) override;
 

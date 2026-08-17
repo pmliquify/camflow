@@ -31,11 +31,20 @@ endif()
 
 find_package(Git QUIET)
 set(CAMFLOW_GIT_COMMIT "unknown")
+set(CAMFLOW_BUILD_TIMESTAMP "")
 if(GIT_FOUND AND EXISTS "${PROJECT_SOURCE_DIR}/.git")
     execute_process(
         COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
         OUTPUT_VARIABLE CAMFLOW_GIT_COMMIT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET
+    )
+
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E env TZ=UTC ${GIT_EXECUTABLE} show -s --format=%cd "--date=format-local:%Y-%m-%d %H:%M:%S UTC" HEAD
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+        OUTPUT_VARIABLE CAMFLOW_BUILD_TIMESTAMP
         OUTPUT_STRIP_TRAILING_WHITESPACE
         ERROR_QUIET
     )
@@ -55,16 +64,10 @@ elseif(DEFINED ENV{GITHUB_SHA})
 endif()
 message(STATUS "camflow git commit: ${CAMFLOW_GIT_COMMIT}")
 
-option(CAMFLOW_REFRESH_BUILD_TIMESTAMP "Refresh embedded build timestamp on every CMake configure" OFF)
-if(CAMFLOW_REFRESH_BUILD_TIMESTAMP)
+if(CAMFLOW_BUILD_TIMESTAMP STREQUAL "")
     string(TIMESTAMP CAMFLOW_BUILD_TIMESTAMP "%Y-%m-%d %H:%M:%S UTC" UTC)
-    set(CAMFLOW_BUILD_TIMESTAMP "${CAMFLOW_BUILD_TIMESTAMP}" CACHE STRING "Embedded build timestamp" FORCE)
-elseif(NOT DEFINED CAMFLOW_BUILD_TIMESTAMP)
-    string(TIMESTAMP CAMFLOW_BUILD_TIMESTAMP "%Y-%m-%d %H:%M:%S UTC" UTC)
-    set(CAMFLOW_BUILD_TIMESTAMP "${CAMFLOW_BUILD_TIMESTAMP}" CACHE STRING "Embedded build timestamp")
-else()
-    set(CAMFLOW_BUILD_TIMESTAMP "${CAMFLOW_BUILD_TIMESTAMP}")
 endif()
+message(STATUS "camflow version timestamp: ${CAMFLOW_BUILD_TIMESTAMP}")
 
 configure_file(
     "${PROJECT_SOURCE_DIR}/include/version.h.in"

@@ -334,7 +334,7 @@ Response fields:
 
 - `version`: app version string with leading `v`
 - `git`: build git revision string
-- `build`: build timestamp
+- `build`: Git commit timestamp in UTC (the field name is retained for compatibility)
 - `opencv`: OpenCV version
 
 Example response:

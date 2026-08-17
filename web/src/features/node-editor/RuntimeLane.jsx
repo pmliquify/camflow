@@ -24,6 +24,7 @@ const LOG_CONSOLE_DEFAULT_HEIGHT = 154;
 const RUNTIME_MIN_ZOOM = 0.01;
 const RUNTIME_MAX_ZOOM = 2.25;
 const RUNTIME_PAN_DRAG_THRESHOLD = 8;
+const DEFAULT_VISIBLE_LOG_SOURCES = { application: true, runtime: true, node: true, api: true, kernel: true };
 
 function clampLogFontSize(value) {
         const parsed = Number(value);
@@ -56,6 +57,7 @@ function loadRuntimeLogPrefs(runtimeId) {
                         filterOpen: Boolean(parsed?.filterOpen),
                         showDebugDetails: Boolean(parsed?.showDebugDetails),
                         visibleSources: {
+                                application: parsed?.visibleSources?.application !== false,
                                 runtime: parsed?.visibleSources?.runtime !== false,
                                 node: parsed?.visibleSources?.node !== false,
                                 api: parsed?.visibleSources?.api !== false,
@@ -130,7 +132,7 @@ export default function RuntimeLane({
         const initialLogPrefs = useMemo(() => loadRuntimeLogPrefs(runtime.id), [runtime.id]);
         const initialMediaPrefs = useMemo(() => loadRuntimeMediaPrefs(runtime.id), [runtime.id]);
         const [filterOpen, setFilterOpen] = useState(() => initialLogPrefs?.filterOpen || false);
-        const [visibleSources, setVisibleSources] = useState(() => initialLogPrefs?.visibleSources || { kernel: true, runtime: true, node: true, api: true });
+        const [visibleSources, setVisibleSources] = useState(() => initialLogPrefs?.visibleSources || DEFAULT_VISIBLE_LOG_SOURCES);
         const [kernelRegexText, setKernelRegexText] = useState(() => initialLogPrefs?.kernelRegexText || '');
         const [showDebugDetails, setShowDebugDetails] = useState(() => initialLogPrefs?.showDebugDetails || false);
         const [logFontSize, setLogFontSize] = useState(() => initialLogPrefs?.logFontSize || loadGlobalDefaultLogFontSize());
@@ -610,7 +612,7 @@ export default function RuntimeLane({
                                 kernelRegexText={kernelRegexText}
                                 onSetKernelRegexText={setKernelRegexText}
                                 onToggleSource={(sourceId) => {
-                                        setVisibleSources((current) => ({ ...current, [sourceId]: !current[sourceId] }));
+                                        setVisibleSources((current) => ({ ...current, [sourceId]: current[sourceId] === false }));
                                 }}
                                 onToggleFilterOpen={() => setFilterOpen((current) => !current)}
                                 showDebugDetails={showDebugDetails}

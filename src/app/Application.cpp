@@ -276,8 +276,8 @@ void Application::printHelp(const char* executableName, const GraphConfig& confi
     std::cout << "                                     except /api/runtime polling          \n";
     std::cout << "                             LEVEL=4 logs full API request/response bodies\n";
     std::cout << "      --debug                Show timestamp, log type and source file  \n";
-    std::cout << "  -L, --log-source LIST      Console sources: runtime,node,api,kernel \n";
-    std::cout << "                             Supports all, none and -source (default: node)\n";
+    std::cout << "  -L, --log-source LIST      Sources: application,runtime,node,api,kernel\n";
+    std::cout << "                             Supports all, none and -source (default: application,node)\n";
     std::cout << "      --rest-api             Enable REST API server in pipeline mode     \n";
     std::cout << "      --port PORT            UI/REST server port (default: 8000)         \n";
     std::cout << "      --device PATH          V4L2 device for auto UI mode (default: /dev/video3)\n";
@@ -404,7 +404,7 @@ int Application::runUiMode(int argc, char** argv)
         return 1;
     }
 
-    std::cout << "camflow UI mode active. Open http://127.0.0.1:" << serverPort << '\n';
+    LOG_INFO("camflow UI mode active. Open http://127.0.0.1:" + std::to_string(serverPort));
 
     const auto retryDelay = std::chrono::milliseconds(500);
     int totalFrames = 0;
@@ -493,10 +493,10 @@ bool Application::configureLogger(int argc, char** argv) const
 {
     logger().setVerbose(hasFlag(argc, argv, "", "--debug"));
 
-    uint32_t sourceMask = logSourceMask(LogSource::Node);
+    uint32_t sourceMask = logSourceMask(LogSource::Application) | logSourceMask(LogSource::Node);
     std::string errorMessage;
     if (!getLogSourceMask(argc, argv, sourceMask, errorMessage)) {
-        std::cerr << errorMessage << std::endl;
+        LOG_ERROR(errorMessage);
         return false;
     }
     logger().setConsoleSourceMask(sourceMask);
@@ -506,10 +506,14 @@ bool Application::configureLogger(int argc, char** argv) const
 bool Application::getLogSourceMask(int argc, char** argv, uint32_t& sourceMask, std::string& errorMessage) const
 {
     bool present = false;
-    sourceMask = logSourceMask(LogSource::Node);
+    sourceMask = logSourceMask(LogSource::Application) | logSourceMask(LogSource::Node);
     errorMessage.clear();
 
     auto maskForName = [](const std::string& name, uint32_t& mask) {
+        if (name == "application") {
+            mask = logSourceMask(LogSource::Application);
+            return true;
+        }
         if (name == "runtime") {
             mask = logSourceMask(LogSource::Runtime);
             return true;
@@ -535,7 +539,7 @@ bool Application::getLogSourceMask(int argc, char** argv, uint32_t& sourceMask, 
             continue;
         }
         if (i + 1 >= argc) {
-            errorMessage = "Missing value for " + option + ". Expected runtime, node, api, kernel, all, or none.";
+            errorMessage = "Missing value for " + option + ". Expected application, runtime, node, api, kernel, all, or none.";
             return false;
         }
         if (!present) {
@@ -549,7 +553,7 @@ bool Application::getLogSourceMask(int argc, char** argv, uint32_t& sourceMask, 
             token.erase(token.begin(), std::find_if(token.begin(), token.end(), [](unsigned char c) { return std::isspace(c) == 0; }));
             token.erase(std::find_if(token.rbegin(), token.rend(), [](unsigned char c) { return std::isspace(c) == 0; }).base(), token.end());
             if (token.empty()) {
-                errorMessage = "Empty log source in " + option + ". Expected runtime, node, api, kernel, all, or none.";
+                errorMessage = "Empty log source in " + option + ". Expected application, runtime, node, api, kernel, all, or none.";
                 return false;
             }
 
@@ -566,7 +570,7 @@ bool Application::getLogSourceMask(int argc, char** argv, uint32_t& sourceMask, 
 
             uint32_t tokenMask = 0;
             if (!maskForName(name, tokenMask)) {
-                errorMessage = "Unknown log source '" + name + "'. Expected runtime, node, api, kernel, all, or none.";
+                errorMessage = "Unknown log source '" + name + "'. Expected application, runtime, node, api, kernel, all, or none.";
                 return false;
             }
             if (remove) {

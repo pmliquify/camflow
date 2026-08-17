@@ -8,6 +8,7 @@ import Button from '../../components/Button.jsx';
 import Input from '../../components/Input.jsx';
 
 const SOURCE_OPTIONS = [
+        { id: 'application', label: 'application' },
         { id: 'runtime', label: 'runtime' },
         { id: 'node', label: 'node' },
         { id: 'api', label: 'api' },
@@ -77,11 +78,11 @@ function formatTimestamp(timestampMs) {
 function buildDebugLine(entry) {
         const message = String(entry?.message || entry?.rendered || '');
         const core = stripDebugPrefix(message);
-        const source = String(entry?.source || 'runtime').toLowerCase();
+        const source = String(entry?.source || 'application').toLowerCase();
         const type = String(entry?.type || 'info').toUpperCase();
         const ts = formatTimestamp(entry?.timestampMs);
 
-        if (source === 'runtime' || source === 'node' || source === 'api') {
+        if (source === 'application' || source === 'runtime' || source === 'node' || source === 'api') {
                 const location = formatSourceLocation(entry);
                 const prefix = [ts, `[${type}]`].filter(Boolean).join(' ');
                 if (!location) {
@@ -164,8 +165,8 @@ function RuntimeLogConsole({
 
         const displayedEntries = useMemo(() => {
                 return (entries || []).filter((entry) => {
-                        const source = entry?.source || 'runtime';
-                        if (!visibleSources[source]) {
+                        const source = entry?.source || 'application';
+                        if (visibleSources[source] === false) {
                                 return false;
                         }
                         if (source !== 'kernel') {
@@ -332,7 +333,7 @@ function RuntimeLogConsole({
                                                 }}
                                         >
                                                 {displayedEntries.length > 0 ? displayedEntries.map((entry, index) => {
-                                                        const source = entry?.source || 'runtime';
+                                                        const source = entry?.source || 'application';
                                                         const text = showDebugDetails
                                                                 ? buildDebugLine(entry)
                                                                 : stripDebugPrefix(String(entry?.message || entry?.rendered || ''));

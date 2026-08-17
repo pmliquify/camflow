@@ -1834,7 +1834,7 @@ export default function App() {
                         return;
                 }
 
-                const recordSource = String(record?.source || 'runtime');
+                const recordSource = String(record?.source || 'application');
                 const recordType = String(record?.type || 'info');
                 const recordMessage = String(record?.message || record?.rendered || '');
                 const recordTimestamp = Number(record?.timestampMs || 0);
@@ -1862,7 +1862,7 @@ export default function App() {
                 setRuntimeLogs((current) => {
                         const existing = Array.isArray(current[runtimeId]) ? current[runtimeId] : [];
                         const duplicate = existing.slice(-120).some((entry) => {
-                                const entrySource = String(entry?.source || 'runtime');
+                                const entrySource = String(entry?.source || 'application');
                                 const entryType = String(entry?.type || 'info');
                                 const entryMessage = String(entry?.message || entry?.rendered || '');
                                 const entryTimestamp = Number(entry?.timestampMs || 0);

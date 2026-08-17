@@ -30,7 +30,7 @@ class WebServer;
  * | `-s`, `--simple-pipeline` | Force linear @ref Pipeline execution.               |
  * | `-p`, `--profile`       | Enable node execution profiling report.                      |
  * | `-v`, `--verbose [N]`   | WebServer verbosity (`1`=requests, `2`=truncated bodies, `3`=full bodies except `/api/runtime`, `4`=full bodies incl. runtime polling). |
- * | `-L`, `--log-source LIST` | Console log sources (`runtime,node,api,kernel`, default `node`). |
+ * | `-L`, `--log-source LIST` | Console log sources (`application,runtime,node,api,kernel`, default `application,node`). |
  * | `--debug`               | Enable detailed logger output (timestamp, level, file/line). |
  * | `--rest-api`            | Enable REST API for pipeline mode (disabled by default).      |
  * | `--port PORT`           | Port used by UI/REST server (default: 8080).                  |

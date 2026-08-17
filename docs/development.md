@@ -133,11 +133,12 @@ Then rerun the two remote tasks. No task file edits are required.
 - `-G`, `--graph`: Load a graph from JSON.
 - `-n`: Process at most N frames (`0` = unlimited).
 - `-p`, `--profile`: Enable the node profiling report on shutdown. The report is
-	categorized as `node` console output.
+	categorized as `application` console output.
 - `-s`, `--simple-pipeline`: Use linear `PipelineSimple` execution.
 - `-v`, `--verbose`: Print all WebServer requests.
 - `-L`, `--log-source LIST`: Select console log sources. Available sources are
-	`runtime`, `node`, `api` and `kernel`; the default is `node`.
+	`application`, `runtime`, `node`, `api` and `kernel`; the default is
+	`application,node`.
 - `--debug`: Enable detailed logger output.
 - `--rest-api`: Start the REST API in pipeline mode.
 - `--port [PORT]`: Set the built-in web UI or REST API port, defaulting to `8000` when no port is given.
@@ -156,7 +157,7 @@ camflow -L none PIPELINE
 ```
 
 This filter applies only to process console output. Logger history and the
-`/ws/logs` stream always contain all `runtime`, `node`, `api` and `kernel`
+`/ws/logs` stream always contain all `application`, `runtime`, `node`, `api` and `kernel`
 records. Each web UI runtime console filters that complete stream locally.
 
 UI runtime details:

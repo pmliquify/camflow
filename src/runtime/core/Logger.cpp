@@ -28,6 +28,9 @@ const char* colorReset()
 
 const char* colorForSource(const std::string& source)
 {
+    if (source == "application") {
+        return "\033[36m"; // Cyan
+    }
     if (source == "kernel") {
         return "\033[37m"; // Light gray
     }
@@ -43,26 +46,40 @@ const char* colorForSource(const std::string& source)
     return "";
 }
 
-std::string sourceForFile(const std::string& file)
+bool pathEndsWith(std::string_view path, std::string_view suffix)
+{
+    return path.size() >= suffix.size() && path.compare(path.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+LogSource sourceForFile(const std::string& file)
 {
     if (file == "kernel") {
-        return "kernel";
-    }
-    if (file.find("/runtime/network/WebServer.cpp") != std::string::npos || file.find("/runtime/network/RestApiInterface.cpp") != std::string::npos ||
-        file.find("/runtime/network/WebInterface.cpp") != std::string::npos) {
-        return "api";
+        return LogSource::Kernel;
     }
     if (file.find("/nodes/") != std::string::npos) {
-        return "node";
+        return LogSource::Node;
     }
-    if (file.find("/runtime/") != std::string::npos || file.find("/app/") != std::string::npos || file.find("/convert/") != std::string::npos) {
-        return "runtime";
+    if (pathEndsWith(file, "runtime/pipeline/Node.cpp")) {
+        return LogSource::Node;
     }
-    return "runtime";
+    if (pathEndsWith(file, "runtime/network/RestApiInterface.cpp")) {
+        return LogSource::Api;
+    }
+    if (pathEndsWith(file, "runtime/pipeline/Pipeline.cpp") || pathEndsWith(file, "runtime/pipeline/PipelineSimple.cpp") || pathEndsWith(file, "runtime/pipeline/PipelineGraph.cpp") ||
+        pathEndsWith(file, "runtime/pipeline/EdgeBridge.cpp") || pathEndsWith(file, "runtime/core/RuntimeController.cpp")) {
+        return LogSource::Runtime;
+    }
+    return LogSource::Application;
 }
 
 uint32_t sourceMaskForName(const std::string& source)
 {
+    if (source == "application") {
+        return logSourceMask(LogSource::Application);
+    }
+    if (source == "runtime") {
+        return logSourceMask(LogSource::Runtime);
+    }
     if (source == "node") {
         return logSourceMask(LogSource::Node);
     }
@@ -72,12 +89,14 @@ uint32_t sourceMaskForName(const std::string& source)
     if (source == "kernel") {
         return logSourceMask(LogSource::Kernel);
     }
-    return logSourceMask(LogSource::Runtime);
+    return logSourceMask(LogSource::Application);
 }
 
 const char* sourceName(LogSource source)
 {
     switch (source) {
+    case LogSource::Application:
+        return "application";
     case LogSource::Runtime:
         return "runtime";
     case LogSource::Node:
@@ -87,7 +106,7 @@ const char* sourceName(LogSource source)
     case LogSource::Kernel:
         return "kernel";
     }
-    return "runtime";
+    return "application";
 }
 
 const char* logTypeName(LogType type)
@@ -287,7 +306,7 @@ void Logger::log(LogType type, const std::string& file, int line, const std::str
 {
     LogRecord record;
     record.type = type;
-    record.source = sourceForFile(file);
+    record.source = sourceName(sourceForFile(file));
     record.sourceTag.clear();
     record.file = file;
     record.line = line;

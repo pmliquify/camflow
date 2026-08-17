@@ -28,13 +28,20 @@ enum class LogType
     Error    ///< Fatal or serious errors that typically terminate processing.
 };
 
-/** @brief Origin categories used to filter console output independently of log listeners. */
+/**
+ * @brief Origin categories used to filter console output independently of log listeners.
+ *
+ * Node implementations map to Node, runtime lifecycle and transport code to Runtime,
+ * REST request/response handling to Api, and kernel records to Kernel. All remaining
+ * code maps to Application.
+ */
 enum class LogSource : uint32_t
 {
     Runtime = 1u << 0,
     Node = 1u << 1,
     Api = 1u << 2,
-    Kernel = 1u << 3
+    Kernel = 1u << 3,
+    Application = 1u << 4
 };
 
 constexpr uint32_t logSourceMask(LogSource source)
@@ -44,7 +51,7 @@ constexpr uint32_t logSourceMask(LogSource source)
 
 constexpr uint32_t allLogSourceMask()
 {
-    return logSourceMask(LogSource::Runtime) | logSourceMask(LogSource::Node) | logSourceMask(LogSource::Api) | logSourceMask(LogSource::Kernel);
+    return logSourceMask(LogSource::Runtime) | logSourceMask(LogSource::Node) | logSourceMask(LogSource::Api) | logSourceMask(LogSource::Kernel) | logSourceMask(LogSource::Application);
 }
 
 /**
@@ -85,7 +92,7 @@ public:
     struct LogRecord
     {
         LogType type = LogType::Info;
-        std::string source = "runtime";
+        std::string source = "application";
         std::string sourceTag;
         std::string file;
         int line = 0;
@@ -156,9 +163,9 @@ private:
     void stopKernelReader();
     void kernelReaderLoop();
 
-    mutable std::mutex m_mutex; ///< Serialises concurrent log calls.
-    bool m_verbose = false;     ///< Whether verbose prefix output is active.
-    uint32_t m_consoleSourceMask = logSourceMask(LogSource::Node); ///< Sources printed to stdout; listeners remain unfiltered.
+    mutable std::mutex m_mutex;                                                                            ///< Serialises concurrent log calls.
+    bool m_verbose = false;                                                                                ///< Whether verbose prefix output is active.
+    uint32_t m_consoleSourceMask = logSourceMask(LogSource::Application) | logSourceMask(LogSource::Node); ///< Sources printed to stdout; listeners remain unfiltered.
     std::deque<LogRecord> m_history;
     std::vector<ListenerEntry> m_listeners;
     size_t m_nextListenerId = 1;
@@ -185,5 +192,5 @@ Logger& logger();
 /** @brief Logs an ERROR-level message with source location. */
 #define LOG_ERROR(message) logger().log(LogType::Error, __FILE__, __LINE__, (message))
 
-/** @brief Logs an INFO-level message explicitly categorized as node output. */
-#define LOG_NODE_INFO(message) logger().log(LogType::Info, LogSource::Node, __FILE__, __LINE__, (message))
+/** @brief Logs an INFO-level REST API request or response message. */
+#define LOG_API_INFO(message) logger().log(LogType::Info, LogSource::Api, __FILE__, __LINE__, (message))

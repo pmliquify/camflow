@@ -66,7 +66,7 @@ The complete endpoint contract is maintained in `docs/rest_api.md`.
 ### 3.2 WebSockets
 
 - `/ws/frame` carries frame-context JSON and matching binary image packets.
-- `/ws/logs` carries unfiltered runtime, node, REST API and kernel records.
+- `/ws/logs` carries unfiltered application, runtime, node, REST API and kernel records.
 
 The frame client sends `subscribe` commands with selected node/image context and
 sequence-checks matching binary packets. The log stream is independent of CLI

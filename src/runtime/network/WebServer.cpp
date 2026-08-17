@@ -236,7 +236,7 @@ bool WebServer::start(uint16_t port, RuntimeController& controller, int requestV
 
     if (bind(m_serverSocket, reinterpret_cast<sockaddr*>(&address), sizeof(address)) < 0) {
         const int errorNumber = errno;
-        std::cerr << "Could not start REST server on port " << port << ": " << std::strerror(errorNumber) << '\n';
+        LOG_ERROR("Could not start REST server on port " + std::to_string(port) + ": " + std::strerror(errorNumber));
         close(m_serverSocket);
         m_serverSocket = -1;
         return false;
@@ -265,7 +265,7 @@ bool WebServer::start(uint16_t port, RuntimeController& controller, int requestV
     }
     m_framePushThread = std::thread(&WebServer::framePushLoop, this);
     m_thread = std::thread(&WebServer::run, this);
-    std::cout << "REST server listening on port " << port << '\n';
+    LOG_INFO("REST server listening on port " + std::to_string(port));
     return true;
 }
 
@@ -350,7 +350,7 @@ void WebServer::handleClient(int clientSocket)
     stream >> method >> path;
 
     if (m_requestVerbosity >= 1 && !suppressStatusPollingLog(method, path, m_requestVerbosity)) {
-        LOG_INFO("WebServer request: " + method + " " + path);
+        LOG_API_INFO("WebServer request: " + method + " " + path);
     }
 
     if (method == "OPTIONS") {
@@ -668,10 +668,10 @@ std::string WebServer::handleRequest(const std::string& method, const std::strin
     if (m_requestVerbosity >= 2 && !suppressStatusPollingLog(method, path, m_requestVerbosity) && (restHandled || webHandled) &&
         (method == "GET" || method == "POST" || method == "PUT" || method == "DELETE")) {
         if (!body.empty()) {
-            LOG_INFO("WebServer request body: " + formatVerboseBody(body, m_requestVerbosity));
+            LOG_API_INFO("WebServer request body: " + formatVerboseBody(body, m_requestVerbosity));
         }
         if (path.rfind("/api/", 0) == 0) {
-            LOG_INFO("WebServer response: " + std::to_string(statusCode) + " " + formatVerboseBody(responseBody, m_requestVerbosity));
+            LOG_API_INFO("WebServer response: " + std::to_string(statusCode) + " " + formatVerboseBody(responseBody, m_requestVerbosity));
         }
     }
 

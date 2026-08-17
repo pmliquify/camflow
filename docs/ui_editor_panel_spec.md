@@ -116,10 +116,10 @@ Media graph rendering is detailed in `docs/ui_media_graph_spec.md`.
 ## 8. Runtime log console
 
 - Each runtime has a collapsible log console below its graph canvas. It receives
-  runtime, node, REST API and kernel records from `/ws/logs`.
+  application, runtime, node, REST API and kernel records from `/ws/logs`.
 - The top resize handle constrains height to `112px` through `320px` and also to
   the available runtime-window height. Default height is `154px`.
-- Source toggles independently show/hide `runtime`, `node`, `api` and `kernel`.
+- Source toggles independently show/hide `application`, `runtime`, `node`, `api` and `kernel`.
 - Kernel records can additionally be filtered by a case-insensitive regular
   expression. Invalid syntax is reported inline and does not apply a regex.
 - `Alt+G` (`Option+G` on macOS) opens the selected runtime's console and filter,

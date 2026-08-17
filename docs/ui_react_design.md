@@ -84,7 +84,7 @@ remain canonical in `docs/rest_api.md`.
 - `/ws/frame` multiplexes frame-context JSON and matching binary image packets.
 - The client sends `subscribe` commands when the selected node or image key
   changes. Binary processing is serialized and sequence-checked.
-- `/ws/logs` streams unfiltered runtime/node/API/kernel records per runtime.
+- `/ws/logs` streams unfiltered application/runtime/node/API/kernel records per runtime.
 - Sockets are closed when their owning runtime/view state no longer requires
   them and reconnect through the application lifecycle.
 

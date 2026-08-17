@@ -52,10 +52,14 @@ The built-in UI mode creates a single `v4l2src` node and serves a browser UI for
 
 ## Logging
 
-Log records are categorized as `runtime`, `node`, `api` or `kernel`. The logger
+Log records are categorized as `application`, `runtime`, `node`, `api` or `kernel`. The logger
 always stores every record in its history and publishes every record to listeners,
 including the `/ws/logs` web UI transport.
 
+Messages emitted directly by node implementations are `node`; pipeline lifecycle
+and runtime transport messages are `runtime`; REST API request/response messages
+are `api`; kernel records are `kernel`. Every other message is `application`.
+
 Console output is a separate sink with its own source mask. The CLI option
-`-L`/`--log-source` configures only that sink and defaults to `node`; the web UI
+`-L`/`--log-source` configures only that sink and defaults to `application,node`; the web UI
 always receives the complete stream and applies its source filters locally.

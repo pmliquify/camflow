@@ -448,14 +448,14 @@ The JSON context message and its binary image are emitted in order on the same w
 
 ## GET /ws/logs
 
-WebSocket endpoint for live runtime, node, REST API and kernel log streaming.
+WebSocket endpoint for live application, runtime, node, REST API and kernel log streaming.
 
 Each connected client receives the current log history first and then live log records as JSON text messages.
 The stream is always unfiltered; `-L`/`--log-source` affects only process console output.
 
 Record fields:
 
-- `source`: `kernel`, `runtime`, `node` or `api`
+- `source`: `application`, `kernel`, `runtime`, `node` or `api`
 - `type`: `debug`, `info`, `warning` or `error`
 - `file`: source file or `kernel`
 - `line`: source line number, or `0` for kernel records

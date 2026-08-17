@@ -68,7 +68,7 @@ private:
         std::vector<uint8_t> binaryPayload;
     };
 
-    void run(uint16_t port);
+    void run();
     void handleClient(int clientSocket);
     std::string handleRequest(const std::string& method, const std::string& path, const std::string& body);
     std::string frameContextEventJson(const std::string& nodeId, const FrameContext& context) const;

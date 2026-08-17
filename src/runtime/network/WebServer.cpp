@@ -10,9 +10,11 @@
 #include <algorithm>
 #include <any>
 #include <array>
+#include <cerrno>
 #include <cctype>
 #include <cstdint>
 #include <cstring>
+#include <iostream>
 #include <netinet/in.h>
 #include <sstream>
 #include <sys/socket.h>
@@ -233,7 +235,8 @@ bool WebServer::start(uint16_t port, RuntimeController& controller, int requestV
     address.sin_port = htons(port);
 
     if (bind(m_serverSocket, reinterpret_cast<sockaddr*>(&address), sizeof(address)) < 0) {
-        LOG_ERROR("REST server bind failed");
+        const int errorNumber = errno;
+        std::cerr << "Could not start REST server on port " << port << ": " << std::strerror(errorNumber) << '\n';
         close(m_serverSocket);
         m_serverSocket = -1;
         return false;
@@ -261,7 +264,8 @@ bool WebServer::start(uint16_t port, RuntimeController& controller, int requestV
         m_framePushPending = false;
     }
     m_framePushThread = std::thread(&WebServer::framePushLoop, this);
-    m_thread = std::thread(&WebServer::run, this, port);
+    m_thread = std::thread(&WebServer::run, this);
+    std::cout << "REST server listening on port " << port << '\n';
     return true;
 }
 
@@ -314,13 +318,11 @@ void WebServer::stop()
     m_controller = nullptr;
 }
 
-void WebServer::run(uint16_t port)
+void WebServer::run()
 {
     if (m_serverSocket < 0) {
         return;
     }
-
-    LOG_INFO("REST server listening on port " + std::to_string(port));
 
     while (m_running) {
         int clientSocket = accept(m_serverSocket, nullptr, nullptr);

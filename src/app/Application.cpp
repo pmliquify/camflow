@@ -99,8 +99,7 @@ bool Application::getPositionalPipelineArgument(int argc, char** argv, std::stri
 {
     for (int i = 1; i < argc; ++i) {
         const std::string current = argv[i];
-        if (current == "-n" || current == "-G" || current == "--graph" || current == "--port" || current == "--device" || current == "--subdevices" || current == "-L" ||
-            current == "--log-source") {
+        if (current == "-n" || current == "-G" || current == "--graph" || current == "--port" || current == "--device" || current == "--subdevices" || current == "-L" || current == "--log-source") {
             ++i;
             continue;
         }
@@ -405,7 +404,7 @@ int Application::runUiMode(int argc, char** argv)
         return 1;
     }
 
-    LOG_INFO("camflow UI mode active. Open http://127.0.0.1:" + std::to_string(serverPort));
+    std::cout << "camflow UI mode active. Open http://127.0.0.1:" << serverPort << '\n';
 
     const auto retryDelay = std::chrono::milliseconds(500);
     int totalFrames = 0;

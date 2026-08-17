@@ -10,7 +10,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 PROJECT_DIR=$(cd -- "${SCRIPT_DIR}/.." && pwd)
 MAKE_CFG_PATH="${SCRIPT_DIR}/tasks.cfg"
 
-DEFAULT_BUILD_TYPE=Debug
+DEFAULT_BUILD_TYPE=Release
 DEFAULT_TARGET=imx8mp-var-dart
 DEFAULT_TARGET_DIR=/usr/bin
 DEFAULT_PORT=8000
@@ -52,7 +52,7 @@ Products:
   ui             React UI bundle.
 
 Options:
-  --release      Use Release builds instead of the configured default.
+    --release      Explicitly select the default Release build type.
   --ip HOST      Target host/IP for ARM64 deployment and remote UI.
   --dir DIR      Target directory on the ARM64 host.
   --port PORT    UI port for local and remote runtime runs.
@@ -77,7 +77,7 @@ Options:
 
 Examples:
     ./scripts/tasks.sh build
-    ./scripts/tasks.sh build deploy run arm64 runtime --release --ip 192.168.1.10
+    ./scripts/tasks.sh build deploy run arm64 runtime --ip 192.168.1.10
     ./scripts/tasks.sh build ui dev
     ./scripts/tasks.sh run dev ui --ui-port 8081 --api-port 8000
     ./scripts/tasks.sh run dev runtime ui --port 8000 --ui-port 8081 --api-port 8000
@@ -391,9 +391,7 @@ build_runtime_dev() {
         exit 1
     fi
 
-    if [[ ! -f "${opencv_dir}/lib/cmake/opencv4/OpenCVConfig.cmake" ]]; then
-        "${opencv_install_script}" "${opencv_dir}" "${opencv_build_dir}"
-    fi
+    CAMFLOW_SKIP_APT=1 "${opencv_install_script}" "${opencv_dir}" "${opencv_build_dir}"
 
     if [[ -f "${cache_file}" ]]; then
         active_generator="$(sed -n 's/^CMAKE_GENERATOR:INTERNAL=//p' "${cache_file}" | head -n 1)"

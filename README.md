@@ -37,7 +37,7 @@ Recommended workflow:
 Direct CMake build (advanced/manual path):
 
 ```bash
-cmake -B build-runtime -DBUILD_RUNTIME=ON
+cmake -B build-runtime -DCMAKE_BUILD_TYPE=Release -DBUILD_RUNTIME=ON
 cmake --build build-runtime --parallel
 ```
 
@@ -67,7 +67,7 @@ Typical examples:
 ./scripts/tasks.sh docs --clean --install-deps
 ./scripts/tasks.sh build dev ui
 ./scripts/tasks.sh build dev runtime
-./scripts/tasks.sh build arm64 runtime --release --opencv 4.12.0
+./scripts/tasks.sh build arm64 runtime --opencv 4.12.0
 ./scripts/tasks.sh build deploy run arm64 runtime --ip imx8mp-var-dart --dir /usr/bin --user root --port 8000
 ```
 
@@ -136,7 +136,7 @@ The UI header also uses the camflow icon to match CLI and documentation branding
 Build ARM64 runtime locally via Docker cross-compilation:
 
 ```bash
-./scripts/tasks.sh build arm64 runtime [--release] [--opencv OPENCV_VERSION]
+./scripts/tasks.sh build arm64 runtime [--opencv OPENCV_VERSION]
 ```
 
 Deploy binary to target:
@@ -154,7 +154,7 @@ Run UI mode on target:
 One-command workflow (build + deploy + start UI):
 
 ```bash
-./scripts/tasks.sh build deploy run arm64 runtime [--release] [--ip TARGET] [--dir TARGET_DIR] [--port PORT] [--user USER] [--opencv OPENCV_VERSION]
+./scripts/tasks.sh build deploy run arm64 runtime [--ip TARGET] [--dir TARGET_DIR] [--port PORT] [--user USER] [--opencv OPENCV_VERSION]
 ```
 
 Default deployment command:

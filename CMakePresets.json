@@ -2,19 +2,19 @@
     "version": 6,
     "configurePresets": [
         {
-            "name": "runtime-debug",
+            "name": "runtime-release",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/build-runtime",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_BUILD_TYPE": "Release",
                 "BUILD_RUNTIME": "ON"
             }
         }
     ],
     "buildPresets": [
         {
-            "name": "runtime-debug",
-            "configurePreset": "runtime-debug"
+            "name": "runtime-release",
+            "configurePreset": "runtime-release"
         }
     ]
 }

@@ -25,7 +25,6 @@ NvArgusSource::NvArgusSource() :
 NvArgusSource::~NvArgusSource()
 {
     shutdown();
-    gst_deinit();
 }
 
 std::string NvArgusSource::typeName() const

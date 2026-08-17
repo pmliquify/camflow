@@ -5,6 +5,18 @@ project(camflow VERSION 0.1.0 LANGUAGES CXX)
 option(BUILD_RUNTIME "Build the Linux camflow runtime application" ON)
 option(ENABLE_GSTREAMER "Enable GStreamer based nodes" ON)
 
+if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
+include(CheckIPOSupported)
+check_ipo_supported(RESULT CAMFLOW_IPO_SUPPORTED OUTPUT CAMFLOW_IPO_ERROR LANGUAGES CXX)
+if(CAMFLOW_IPO_SUPPORTED)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+else()
+    message(STATUS "Release IPO/LTO unavailable: ${CAMFLOW_IPO_ERROR}")
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)

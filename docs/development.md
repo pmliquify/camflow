@@ -55,6 +55,9 @@ Every node must provide a parameter schema. The REST API and help system derive 
 OpenCV 4.12 is required and linked statically.
 
 Build only needed modules (`core`, `imgproc`, `imgcodecs`) to keep size and build time low.
+The project build uses a speed-oriented Release profile with intrinsics, fast-math and
+link-time optimization. x86_64 enables IPP and runtime SIMD dispatch through AVX-512;
+ARM64 uses NEON as its baseline instruction set.
 
 OpenCV is built into the project-local tree:
 
@@ -63,6 +66,8 @@ OpenCV is built into the project-local tree:
 
 The `build-linux-*` directories are temporary build trees and can be deleted after a successful install.
 The `linux-*` directories contain the reusable installed OpenCV artifacts used by runtime builds.
+Each install stores its optimization profile in `.camflow-build-profile`; changing the
+profile in the installer causes the package to be rebuilt automatically.
 
 ## GStreamer policy
 
@@ -94,7 +99,7 @@ Common usage:
 ./scripts/tasks.sh docs --clean --install-deps
 ./scripts/tasks.sh build dev ui
 ./scripts/tasks.sh build dev runtime
-./scripts/tasks.sh build arm64 runtime --release
+./scripts/tasks.sh build arm64 runtime
 ./scripts/tasks.sh build deploy run arm64 runtime --ip imx8mp-var-dart --dir /usr/bin --user root --port 8000
 ```
 
@@ -113,6 +118,7 @@ All task values are sourced from `scripts/tasks.cfg`.
 
 Important keys:
 
+- `BUILD_TYPE`: CMake build type (default `Release`)
 - `TARGET`: remote runtime host (`pollux` or `imx8mp-var-dart`)
 - `PORT`: runtime UI/REST port (default `8000`)
 - `UI_DEV_PORT`: local Vite dev server port (default `8081`)

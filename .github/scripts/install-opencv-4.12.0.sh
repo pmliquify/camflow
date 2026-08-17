@@ -15,6 +15,29 @@ fi
 
 INSTALL_PREFIX="${1:-${PROJECT_DIR}/opencv/${OPENCV_VERSION}/linux-${HOST_ARCH}}"
 BUILD_ROOT="${2:-${PROJECT_DIR}/opencv/${OPENCV_VERSION}/build-linux-${HOST_ARCH}}"
+BUILD_PROFILE="release-fast-v1-${HOST_ARCH}"
+BUILD_PROFILE_STAMP="${INSTALL_PREFIX}/.camflow-build-profile"
+OPENCV_ARCH_ARGS=()
+
+case "${HOST_ARCH}" in
+    x86_64)
+        OPENCV_ARCH_ARGS+=(
+            -DWITH_IPP=ON
+            -DCPU_BASELINE=SSE3
+            -DCPU_DISPATCH=SSE4_1,SSE4_2,FP16,AVX,AVX2,AVX512_SKX
+        )
+        ;;
+    arm64)
+        OPENCV_ARCH_ARGS+=(
+            -DWITH_IPP=OFF
+            -DCPU_BASELINE=NEON
+            -DCPU_DISPATCH=
+        )
+        ;;
+    *)
+        OPENCV_ARCH_ARGS+=(-DWITH_IPP=OFF)
+        ;;
+esac
 
 normalize_opencv_exports() {
     local static_libdir="/usr/lib/$(uname -m)-linux-gnu"
@@ -37,9 +60,11 @@ normalize_opencv_exports() {
     done
 }
 
-if [ -f "${INSTALL_PREFIX}/lib/cmake/opencv4/OpenCVConfig.cmake" ]; then
+if [ -f "${INSTALL_PREFIX}/lib/cmake/opencv4/OpenCVConfig.cmake" ] &&
+    [ -f "${BUILD_PROFILE_STAMP}" ] &&
+    [ "$(cat "${BUILD_PROFILE_STAMP}")" = "${BUILD_PROFILE}" ]; then
     normalize_opencv_exports
-    echo "OpenCV ${OPENCV_VERSION} already installed in ${INSTALL_PREFIX}"
+    echo "OpenCV ${OPENCV_VERSION} (${BUILD_PROFILE}) already installed in ${INSTALL_PREFIX}"
     echo "OpenCV_DIR=${INSTALL_PREFIX}/lib/cmake/opencv4" >> "${GITHUB_ENV:-/dev/null}" || true
     return 0 2>/dev/null || exit 0
 fi
@@ -89,9 +114,11 @@ cmake -S opencv -B build -G Ninja \
     -DWITH_OPENEXR=OFF \
     -DWITH_TIFF=OFF \
     -DWITH_WEBP=OFF \
-    -DWITH_IPP=OFF \
     -DWITH_OPENCL=OFF \
-    -DCV_ENABLE_INTRINSICS=ON
+    -DCV_ENABLE_INTRINSICS=ON \
+    -DENABLE_FAST_MATH=ON \
+    -DENABLE_LTO=ON \
+    "${OPENCV_ARCH_ARGS[@]}"
 
 cmake --build build --parallel
 cmake --install build
@@ -114,5 +141,6 @@ if [ ! -f "${INSTALL_PREFIX}/lib/opencv4/3rdparty/liblibprotobuf.a" ]; then
 fi
 
 normalize_opencv_exports
+printf '%s\n' "${BUILD_PROFILE}" > "${BUILD_PROFILE_STAMP}"
 
 echo "OpenCV_DIR=${INSTALL_PREFIX}/lib/cmake/opencv4" >> "${GITHUB_ENV:-/dev/null}" || true

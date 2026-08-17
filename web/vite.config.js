@@ -67,7 +67,7 @@ export default defineConfig({
                 emptyOutDir: true,
                 sourcemap: false,
                 cssCodeSplit: false,
-                assetsInlineLimit: 0,
+                assetsInlineLimit: Number.MAX_SAFE_INTEGER,
                 rollupOptions: {
                         input: './index.html',
                         output: {

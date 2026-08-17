@@ -139,6 +139,9 @@ asset names:
 - `assets/app.js`,
 - `assets/app.css`.
 
+Imported graphics are inlined into these bundles so the runtime binary does not
+depend on separately served image files.
+
 `window.CAMFLOW_SOURCE_NODE_ID` in the generated page supplies the initial source
 node id used by the frame subscription, with `v4l2src0` as the runtime fallback.
 

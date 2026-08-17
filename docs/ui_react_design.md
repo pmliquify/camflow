@@ -167,7 +167,8 @@ session-only React state.
 The Vite dev server proxies `/api` and `/ws`, converts the API target to the
 matching WebSocket scheme, and returns JSON `503 runtime-unreachable` or
 `502 proxy-error` responses for proxy failures. Production output uses stable
-`assets/app.js` and `assets/app.css` names for embedding.
+`assets/app.js` and `assets/app.css` names for embedding. Imported graphics are
+inlined into those bundles so the built-in UI remains self-contained.
 
 ## 11. Canonical specifications
 

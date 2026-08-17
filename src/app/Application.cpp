@@ -442,10 +442,6 @@ int Application::run(int argc, char** argv)
         return 1;
     }
 
-    if (handleHelp(argc, argv, nullptr, nullptr)) {
-        return 0;
-    }
-
     std::string pipelineText;
     int maxFrames = 0;
     if (!parseCli(argc, argv, pipelineText, maxFrames)) {

@@ -317,9 +317,7 @@ void Logger::startKernelReader()
 
 void Logger::stopKernelReader()
 {
-    if (!m_kernelThreadRunning.exchange(false)) {
-        return;
-    }
+    m_kernelThreadRunning = false;
     if (m_kernelFd >= 0) {
         close(m_kernelFd);
         m_kernelFd = -1;

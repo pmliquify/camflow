@@ -224,31 +224,12 @@ bool V4L2Device::streamOff(uint32_t type) const
     return ::ioctl(m_fd, VIDIOC_STREAMOFF, &streamType) == 0;
 }
 
-bool V4L2Device::startCapture(uint32_t requestedFourcc, uint32_t requestedBufferCount)
+bool V4L2Device::startCapture(uint32_t requestedBufferCount)
 {
     stopCapture();
 
     if (!refreshFormat()) {
         return false;
-    }
-
-    if (requestedFourcc != 0) {
-        switch (m_format.type) {
-        case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-            m_format.fmt.pix.pixelformat = requestedFourcc;
-            break;
-        case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
-            m_format.fmt.pix_mp.pixelformat = requestedFourcc;
-            break;
-        default:
-            break;
-        }
-        if (!setFormat(m_format)) {
-            return false;
-        }
-        if (!refreshFormat()) {
-            return false;
-        }
     }
 
     const uint32_t planeCount = m_format.type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE ? m_format.fmt.pix_mp.num_planes : 1;

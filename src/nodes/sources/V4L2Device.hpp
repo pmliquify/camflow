@@ -150,7 +150,7 @@ public:
      * applies the requested FourCC, allocates/memory-maps buffers, queues them
      * and transitions the device to streaming mode.
      */
-    bool startCapture(uint32_t requestedFourcc, uint32_t requestedBufferCount);
+    bool startCapture(uint32_t requestedBufferCount);
 
     /** @brief Stops streaming capture and releases all mapped buffers. */
     void stopCapture();

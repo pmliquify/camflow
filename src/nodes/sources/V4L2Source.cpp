@@ -240,7 +240,6 @@ bool V4L2Source::start()
         LOG_WARNING("Could not start capture. Falling back to generated test frames.");
         return true;
     }
-    updateImageGeometry();
     refreshControlSchema();
     return true;
 }
@@ -476,7 +475,7 @@ void V4L2Source::closeDevice()
 bool V4L2Source::startCapture()
 {
     applyRequestedFormat();
-    if (!m_device.startCapture(selectedFourcc(), m_bufferCount)) {
+    if (!m_device.startCapture(m_bufferCount)) {
         LOG_ERROR("V4L2 capture start failed");
         return false;
     }

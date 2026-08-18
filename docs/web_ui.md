@@ -14,7 +14,8 @@ runtime API from the configured HTTP port.
 camflow --port 8080 --device /dev/video3 --subdevices /dev/v4l-subdev0,/dev/v4l-subdev3
 ```
 
-Open `http://<target-ip>:8080`.
+Open `http://<target-ip>:8080` (HTTP, not HTTPS). The embedded server does not
+terminate TLS; use a reverse proxy with a certificate if HTTPS is required.
 
 Relevant options:
 

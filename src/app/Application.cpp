@@ -404,7 +404,7 @@ int Application::runUiMode(int argc, char** argv)
         return 1;
     }
 
-    LOG_INFO("camflow UI mode active. Open http://127.0.0.1:" + std::to_string(serverPort));
+    LOG_INFO("camflow UI mode active");
 
     const auto retryDelay = std::chrono::milliseconds(500);
     int totalFrames = 0;

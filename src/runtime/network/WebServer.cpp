@@ -14,6 +14,7 @@
 #include <cctype>
 #include <cstdint>
 #include <cstring>
+#include <ifaddrs.h>
 #include <iostream>
 #include <netinet/in.h>
 #include <sstream>
@@ -61,6 +62,40 @@ std::string formatVerboseBody(const std::string& text, int verbosity)
         return text;
     }
     return text.substr(0, 80) + "...";
+}
+
+std::string localIpAddress()
+{
+    ifaddrs* interfaces = nullptr;
+    if (getifaddrs(&interfaces) != 0) {
+        return "127.0.0.1";
+    }
+
+    std::string address = "127.0.0.1";
+    for (ifaddrs* current = interfaces; current != nullptr; current = current->ifa_next) {
+        if (current->ifa_addr == nullptr || current->ifa_addr->sa_family != AF_INET) {
+            continue;
+        }
+
+        const auto* socketAddress = reinterpret_cast<const sockaddr_in*>(current->ifa_addr);
+        if ((ntohl(socketAddress->sin_addr.s_addr) >> 24) == 127) {
+            continue;
+        }
+
+        char buffer[INET_ADDRSTRLEN] = {};
+        if (inet_ntop(AF_INET, &socketAddress->sin_addr, buffer, sizeof(buffer)) != nullptr) {
+            address = buffer;
+            break;
+        }
+    }
+
+    freeifaddrs(interfaces);
+    return address;
+}
+
+std::string terminalHyperlink(const std::string& url)
+{
+    return "\033]8;;" + url + "\033\\" + url + "\033]8;;\033\\";
 }
 
 bool isRuntimeStatusPath(const std::string& path)
@@ -265,7 +300,8 @@ bool WebServer::start(uint16_t port, RuntimeController& controller, int requestV
     }
     m_framePushThread = std::thread(&WebServer::framePushLoop, this);
     m_thread = std::thread(&WebServer::run, this);
-    LOG_INFO("REST server listening on port " + std::to_string(port));
+    const std::string uiUrl = "http://" + localIpAddress() + ":" + std::to_string(port);
+    LOG_INFO("Web UI (HTTP) available at " + terminalHyperlink(uiUrl));
     return true;
 }
 

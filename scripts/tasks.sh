@@ -16,10 +16,10 @@ DEFAULT_TARGET_DIR=/usr/bin
 DEFAULT_PORT=8000
 DEFAULT_USER=root
 DEFAULT_OPENCV_VERSION=4.12.0
-DEFAULT_LOCAL_DEVICE=/dev/video0
-DEFAULT_LOCAL_SUBDEVICES=/dev/v4l-subdev0
-DEFAULT_REMOTE_DEVICE=/dev/video3
-DEFAULT_REMOTE_SUBDEVICES=/dev/v4l-subdev0,/dev/v4l-subdev3
+DEFAULT_LOCAL_DEVICE=
+DEFAULT_LOCAL_SUBDEVICES=
+DEFAULT_REMOTE_DEVICE=
+DEFAULT_REMOTE_SUBDEVICES=
 DEFAULT_TAIL_LOG=1
 DEFAULT_VERBOSE_LEVEL=3
 DEFAULT_LOG_PATH=/tmp/camflow-local-ui.log
@@ -536,6 +536,7 @@ deploy_runtime_arm64() {
 run_runtime_dev() {
     local tail_log="${1:-${TAIL_LOG}}"
     local binary_path="${PROJECT_DIR}/build-runtime/camflow"
+    local runtime_args=(--verbose "${VERBOSE_LEVEL}" --port "${PORT}")
 
     if [[ ! -f "${binary_path}" ]]; then
         echo "Binary not found: ${binary_path}" >&2
@@ -545,7 +546,13 @@ run_runtime_dev() {
 
     pkill -x camflow || true
     chmod +x "${binary_path}"
-    nohup "${binary_path}" --verbose "${VERBOSE_LEVEL}" --port "${PORT}" --device "${LOCAL_DEVICE}" --subdevices "${LOCAL_SUBDEVICES}" >"${LOG_PATH}" 2>&1 </dev/null &
+    if [[ -n "${LOCAL_DEVICE}" ]]; then
+        runtime_args+=(--device "${LOCAL_DEVICE}")
+    fi
+    if [[ -n "${LOCAL_SUBDEVICES}" ]]; then
+        runtime_args+=(--subdevices "${LOCAL_SUBDEVICES}")
+    fi
+    nohup "${binary_path}" "${runtime_args[@]}" >"${LOG_PATH}" 2>&1 </dev/null &
 
     echo "Local camflow started: http://127.0.0.1:${PORT}"
     echo "Local log: ${LOG_PATH}"
@@ -559,6 +566,7 @@ run_runtime_arm64() {
     local tail_log="${1:-${TAIL_LOG}}"
     local target_spec="${USER}@${TARGET}"
     local remote_log="/tmp/camflow-ui.log"
+    local runtime_args="--verbose '${VERBOSE_LEVEL}' --port '${PORT}'"
     local ssh_opts=(
         -o BatchMode=yes
         -o ConnectTimeout=8
@@ -571,8 +579,15 @@ run_runtime_arm64() {
     echo "Stopping running camflow on ${target_spec} (if active)"
     ssh "${ssh_opts[@]}" "${target_spec}" "if command -v pkill >/dev/null 2>&1; then pkill -x camflow || true; elif command -v pgrep >/dev/null 2>&1; then for pid in \$(pgrep -x camflow || true); do kill \"\$pid\" || true; done; fi"
 
+    if [[ -n "${REMOTE_DEVICE}" ]]; then
+        runtime_args+=" --device '${REMOTE_DEVICE}'"
+    fi
+    if [[ -n "${REMOTE_SUBDEVICES}" ]]; then
+        runtime_args+=" --subdevices '${REMOTE_SUBDEVICES}'"
+    fi
+
     echo "Starting camflow UI mode on ${target_spec}:${PORT}"
-    ssh "${ssh_opts[@]}" "${target_spec}" "chmod +x '${TARGET_DIR}/camflow' && : > '${remote_log}' && if command -v setsid >/dev/null 2>&1; then setsid '${TARGET_DIR}/camflow' --verbose '${VERBOSE_LEVEL}' --port '${PORT}' --device '${REMOTE_DEVICE}' --subdevices '${REMOTE_SUBDEVICES}' >'${remote_log}' 2>&1 < /dev/null & else nohup '${TARGET_DIR}/camflow' --verbose '${VERBOSE_LEVEL}' --port '${PORT}' --device '${REMOTE_DEVICE}' --subdevices '${REMOTE_SUBDEVICES}' >'${remote_log}' 2>&1 </dev/null & fi"
+    ssh "${ssh_opts[@]}" "${target_spec}" "chmod +x '${TARGET_DIR}/camflow' && : > '${remote_log}' && if command -v setsid >/dev/null 2>&1; then setsid '${TARGET_DIR}/camflow' ${runtime_args} >'${remote_log}' 2>&1 < /dev/null & else nohup '${TARGET_DIR}/camflow' ${runtime_args} >'${remote_log}' 2>&1 </dev/null & fi"
 
     echo "UI started: http://${TARGET}:${PORT}"
     if [[ "${tail_log}" == "1" ]]; then
@@ -967,10 +982,10 @@ TARGET_DIR=${TARGET_DIR:-${DEFAULT_TARGET_DIR}}
 PORT=${PORT:-${DEFAULT_PORT}}
 USER=${USER:-${DEFAULT_USER}}
 OPENCV_VERSION=${OPENCV_VERSION:-${DEFAULT_OPENCV_VERSION}}
-LOCAL_DEVICE=${LOCAL_DEVICE:-${DEFAULT_LOCAL_DEVICE}}
-LOCAL_SUBDEVICES=${LOCAL_SUBDEVICES:-${DEFAULT_LOCAL_SUBDEVICES}}
-REMOTE_DEVICE=${REMOTE_DEVICE:-${DEFAULT_REMOTE_DEVICE}}
-REMOTE_SUBDEVICES=${REMOTE_SUBDEVICES:-${DEFAULT_REMOTE_SUBDEVICES}}
+LOCAL_DEVICE=${LOCAL_DEVICE-${DEFAULT_LOCAL_DEVICE}}
+LOCAL_SUBDEVICES=${LOCAL_SUBDEVICES-${DEFAULT_LOCAL_SUBDEVICES}}
+REMOTE_DEVICE=${REMOTE_DEVICE-${DEFAULT_REMOTE_DEVICE}}
+REMOTE_SUBDEVICES=${REMOTE_SUBDEVICES-${DEFAULT_REMOTE_SUBDEVICES}}
 TAIL_LOG=${TAIL_LOG:-${DEFAULT_TAIL_LOG}}
 VERBOSE_LEVEL=${VERBOSE_LEVEL:-${DEFAULT_VERBOSE_LEVEL}}
 LOG_PATH=${LOG_PATH:-${DEFAULT_LOG_PATH}}

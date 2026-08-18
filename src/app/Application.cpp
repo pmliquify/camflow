@@ -26,6 +26,8 @@
 #endif
 
 #include <chrono>
+#include <cctype>
+#include <filesystem>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -36,6 +38,25 @@ Application::Application()
 {
     registerNodes();
     registerConverters();
+}
+
+static std::string firstVideoDevice()
+{
+    std::vector<std::pair<unsigned long, std::string>> devices;
+    std::error_code error;
+    const std::filesystem::path deviceDirectory("/dev");
+    for (const auto& entry : std::filesystem::directory_iterator(deviceDirectory, error)) {
+        if (error) {
+            break;
+        }
+        const std::string name = entry.path().filename().string();
+        if (name.rfind("video", 0) != 0 || name.size() == 5 || !std::all_of(name.begin() + 5, name.end(), [](unsigned char character) { return std::isdigit(character) != 0; })) {
+            continue;
+        }
+        devices.emplace_back(std::stoul(name.substr(5)), entry.path().string());
+    }
+    std::sort(devices.begin(), devices.end(), [](const auto& left, const auto& right) { return left.first < right.first; });
+    return devices.empty() ? "/dev/video0" : devices.front().second;
 }
 
 bool Application::hasFlag(int argc, char** argv, const std::string& shortOption, const std::string& longOption) const
@@ -331,9 +352,16 @@ int Application::runUiMode(int argc, char** argv)
         return 1;
     }
 
-    std::string device = "/dev/video3";
-    std::string subdevices = "/dev/v4l-subdev3";
-    getArgumentValue(argc, argv, "--device", device);
+    const std::string defaultDevice = firstVideoDevice();
+    std::string device = defaultDevice;
+    std::string subdevices;
+    if (getArgumentValue(argc, argv, "--device", device)) {
+        std::error_code error;
+        if (!std::filesystem::is_character_file(device, error)) {
+            LOG_WARNING("Ignoring unavailable V4L2 device '" + device + "'; using '" + defaultDevice + "'");
+            device = defaultDevice;
+        }
+    }
     getArgumentValue(argc, argv, "--subdevices", subdevices);
 
     GraphConfig config;

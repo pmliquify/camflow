@@ -156,7 +156,7 @@ private:
     /** @brief Applies one configured control while m_mutex is already held. */
     bool applyControlParameterLocked(const std::string& name, const ParameterValue& value, std::string* errorMessage = nullptr);
     void refreshDeviceOptions();
-    void refreshFormatOptions();
+    void refreshFormatOptions() const;
     bool isExplicitParameter(const std::string& name) const;
     bool applyRequestedFormat();
     void refreshCurrentParameterValues() const;
@@ -183,8 +183,8 @@ private:
     std::vector<std::string> m_deviceOptionLabels;
     std::vector<std::string> m_subDeviceOptions;
     std::vector<std::string> m_subDeviceOptionLabels;
-    std::vector<std::string> m_formatOptions;
-    std::vector<std::string> m_formatOptionLabels;
+    mutable std::vector<std::string> m_formatOptions;
+    mutable std::vector<std::string> m_formatOptionLabels;
     uint64_t m_sequence; ///< Monotonically increasing frame counter.
 
     // --- Device state ---

@@ -236,6 +236,7 @@ bool RuntimeController::replaceGraph(const GraphConfig& config)
 
         rebuilt->setNodeExecutionCallback([this](const std::string& nodeId, const FrameContext& context) { notifyFrameContextObservers(nodeId, context); });
         rebuilt->setStopped(true);
+        rebuilt->run(1);
 
         if (m_pipeline) {
             m_pipeline->stop();
@@ -451,6 +452,7 @@ bool RuntimeController::removeEdge(const EdgeConfig& edge)
 
         rebuilt->setNodeExecutionCallback([this](const std::string& nodeId, const FrameContext& context) { notifyFrameContextObservers(nodeId, context); });
         rebuilt->setStopped(true);
+        rebuilt->run(1);
 
         m_pipeline->stop();
         m_pipeline->shutdown();

@@ -162,6 +162,7 @@ NodeSchema V4L2Source::schema() const
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         refreshCurrentParameterValues();
+        refreshFormatOptions();
         result[0].hasSideEffects = true;
         result[1].hasSideEffects = true;
         result[0].options = m_deviceOptions;
@@ -301,10 +302,10 @@ bool V4L2Source::onParameterChanged(const std::string& name, const ParameterValu
     }
 
     if (isFormatParameter(name)) {
+        m_explicitParameters.insert(name);
         applyRequestedFormat();
         updateImageGeometry();
         refreshControlSchema();
-        m_explicitParameters.insert(name);
         return true;
     }
 
@@ -571,7 +572,7 @@ bool V4L2Source::refreshControlSchema()
     return true;
 }
 
-void V4L2Source::refreshFormatOptions()
+void V4L2Source::refreshFormatOptions() const
 {
     m_formatOptions.clear();
     m_formatOptionLabels.clear();
@@ -619,6 +620,10 @@ bool V4L2Source::applyRequestedFormat()
 {
     if (!m_device.isOpen()) {
         return false;
+    }
+
+    if (!isExplicitParameter("width") && !isExplicitParameter("height") && !isExplicitParameter("pixelformat")) {
+        return true;
     }
 
     v4l2_format format{};

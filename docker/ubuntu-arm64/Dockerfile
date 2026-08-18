@@ -1,7 +1,11 @@
-FROM arm64v8/ubuntu:24.04
+FROM arm64v8/ubuntu:20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Ubuntu 20.04 pins the runtime to glibc 2.31/libstdc++ 3.4.28, the oldest
+# baseline shared by JetPack 5.x (Xavier+) and Raspberry Pi OS bookworm.
+# Node.js is intentionally not installed here: web UI assets are pre-built on
+# the host (see build_runtime_arm64 in scripts/tasks.sh) before this image runs.
 RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
@@ -10,14 +14,11 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     curl \
     ca-certificates \
-    nodejs \
-    npm \
     libeigen3-dev \
     libjpeg-dev \
     libpng-dev \
     libtiff-dev \
     libwebp-dev \
-    clang-format-15 \
     python3 \
     python3-numpy \
     && rm -rf /var/lib/apt/lists/*

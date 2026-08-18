@@ -42,6 +42,8 @@ Commands:
     deps           Install host dependencies and project-local OpenCV package.
     format         Format C/C++ sources using clang-format.
     docs           Generate Doxygen API documentation.
+    ui-release     Rebuild web/dist-release from web/src (requires Node.js); commit the result so
+                   Node-free hosts can embed the UI without npm.
 
 Platforms:
   dev            Native Linux development build/run.
@@ -85,6 +87,7 @@ Examples:
     ./scripts/tasks.sh deps --opencv 4.12.0
     ./scripts/tasks.sh format --clang-format clang-format-15
     ./scripts/tasks.sh docs --clean --install-deps
+    ./scripts/tasks.sh ui-release
 EOF
 }
 
@@ -307,12 +310,60 @@ sync_ui_sources_to_workdir() {
     cp -R "${source_ui_dir}/src" "${work_ui_dir}/src"
 }
 
+compute_ui_source_hash() {
+    (
+        cd "${PROJECT_DIR}/web"
+        find index.html package.json package-lock.json vite.config.js src -type f \
+            | LC_ALL=C sort | xargs sha256sum | sha256sum | awk '{print $1}'
+    )
+}
+
+use_committed_ui_release() {
+    local output_dir="$1"
+    local release_dir="${PROJECT_DIR}/web/dist-release"
+    local current_hash
+    local stored_hash=""
+
+    if [[ ! -f "${release_dir}/index.html" ]]; then
+        echo "npm is required but not found, and no committed fallback exists at ${release_dir}." >&2
+        echo "Run ./scripts/tasks.sh build ui-release once on a host with Node.js to create it." >&2
+        exit 1
+    fi
+
+    current_hash="$(compute_ui_source_hash)"
+    if [[ -f "${release_dir}/.source-hash" ]]; then
+        stored_hash="$(cat "${release_dir}/.source-hash")"
+    fi
+    if [[ "${current_hash}" != "${stored_hash}" ]]; then
+        echo "WARNING: web/dist-release is out of date with web/src (no Node.js available to rebuild it)." >&2
+        echo "The embedded UI may not reflect the latest source changes." >&2
+    fi
+
+    rm -rf "${output_dir}"
+    mkdir -p "$(dirname -- "${output_dir}")"
+    cp -R "${release_dir}" "${output_dir}"
+    echo "npm not found; used committed UI assets from ${release_dir} (Node-free build)."
+}
+
 build_web_ui() {
     local source_ui_dir="${PROJECT_DIR}/web"
-    local output_dir="${UI_OUT_DIR}"
-    local work_ui_dir="${UI_WORK_DIR}"
+    local output_dir="${1:-${UI_OUT_DIR}}"
+    local work_ui_dir="${2:-${UI_WORK_DIR}}"
     local fallback_output_dir="/tmp/camflow-ui-dist"
     local fallback_work_ui_dir="/tmp/camflow-ui-work"
+    local current_hash
+
+    current_hash="$(compute_ui_source_hash)"
+    if [[ -f "${output_dir}/index.html" && -f "${output_dir}/assets/app.js" && -f "${output_dir}/assets/app.css" \
+          && -f "${output_dir}/.source-hash" && "$(cat "${output_dir}/.source-hash")" == "${current_hash}" ]]; then
+        echo "UI assets in ${output_dir} already match web/src (unchanged); skipping rebuild."
+        return
+    fi
+
+    if ! command -v npm >/dev/null 2>&1; then
+        use_committed_ui_release "${output_dir}"
+        return
+    fi
 
     if [[ "${work_ui_dir}" != "${source_ui_dir}" ]]; then
         sync_ui_sources_to_workdir "${source_ui_dir}" "${work_ui_dir}"
@@ -363,7 +414,27 @@ build_web_ui() {
         exit 1
     fi
 
+    echo "${current_hash}" > "${output_dir}/.source-hash"
     echo "Updated embedded UI assets in ${output_dir}"
+}
+
+freeze_ui_release_action() {
+    local release_dir="${PROJECT_DIR}/web/dist-release"
+    local tmp_out="/tmp/camflow-ui-release-build"
+    local tmp_work="/tmp/camflow-ui-release-work"
+
+    if ! command -v npm >/dev/null 2>&1; then
+        echo "npm is required to freeze UI release assets." >&2
+        exit 1
+    fi
+
+    build_web_ui "${tmp_out}" "${tmp_work}"
+
+    rm -rf "${release_dir}"
+    mkdir -p "${release_dir}"
+    cp -R "${tmp_out}/." "${release_dir}/"
+    compute_ui_source_hash > "${release_dir}/.source-hash"
+    echo "Updated committed UI assets in ${release_dir}"
 }
 
 build_runtime_dev() {
@@ -435,6 +506,8 @@ build_runtime_arm64() {
     local opencv_dir
     local opencv_build_dir
     local opencv_install_script
+    local arm64_ui_out_dir
+    local arm64_ui_work_dir
 
     image_name="${IMAGE_NAME:-${DEFAULT_ARM64_IMAGE}}"
     build_dir="${ARM64_BUILD_DIR:-${DEFAULT_ARM64_BUILD_DIR}}"
@@ -442,15 +515,30 @@ build_runtime_arm64() {
     opencv_dir="${OPENCV_DIR:-opencv/${OPENCV_VERSION}/linux-arm64}"
     opencv_build_dir="${OPENCV_BUILD_DIR:-opencv/${OPENCV_VERSION}/build-linux-arm64}"
     opencv_install_script="${PROJECT_DIR}/.github/scripts/install-opencv-${OPENCV_VERSION}.sh"
+    arm64_ui_out_dir="${PROJECT_DIR}/${build_dir}/web-dist"
+    arm64_ui_work_dir="${PROJECT_DIR}/${build_dir}/web-build"
 
     if [[ ! -x "${opencv_install_script}" ]]; then
         echo "Unsupported OpenCV version ${OPENCV_VERSION}: missing ${opencv_install_script}" >&2
         exit 1
     fi
 
-    if [[ "${rebuild_image}" == "1" ]] || ! docker image inspect "${image_name}" >/dev/null 2>&1; then
+    # Pre-build the web UI on the host (current Node) so the arm64 container,
+    # which only has the C++ toolchain, finds up-to-date assets and skips npm.
+    echo "Building web UI assets on host for arm64 embed: ${arm64_ui_out_dir}"
+    build_web_ui "${arm64_ui_out_dir}" "${arm64_ui_work_dir}"
+
+    local dockerfile_hash
+    local image_dockerfile_hash=""
+    dockerfile_hash="$(sha256sum "${PROJECT_DIR}/docker/ubuntu-arm64/Dockerfile" | awk '{print $1}')"
+    if docker image inspect "${image_name}" >/dev/null 2>&1; then
+        image_dockerfile_hash="$(docker image inspect "${image_name}" --format '{{index .Config.Labels "camflow.dockerfile-hash"}}' 2>/dev/null || true)"
+    fi
+
+    if [[ "${rebuild_image}" == "1" || -z "${image_dockerfile_hash}" || "${image_dockerfile_hash}" != "${dockerfile_hash}" ]]; then
         echo "Building ARM64 Docker image: ${image_name}"
         docker build --platform linux/arm64 \
+            --label "camflow.dockerfile-hash=${dockerfile_hash}" \
             -t "${image_name}" \
             "${PROJECT_DIR}/docker/ubuntu-arm64"
     else
@@ -458,6 +546,8 @@ build_runtime_arm64() {
     fi
 
     docker run --rm --platform linux/arm64 \
+        --user "$(id -u):$(id -g)" \
+        -e HOME=/tmp \
         -v "${PROJECT_DIR}:/workspace" \
         -w /workspace \
         "${image_name}" \
@@ -468,6 +558,7 @@ deploy_runtime_arm64() {
     local target_spec="${USER}@${TARGET}"
     local ssh_opts=(
         -o BatchMode=yes
+        -o StrictHostKeyChecking=accept-new
         -o ConnectTimeout=8
         -o ConnectionAttempts=1
         -o ServerAliveInterval=5
@@ -476,6 +567,7 @@ deploy_runtime_arm64() {
     )
     local scp_opts=(
         -o BatchMode=yes
+        -o StrictHostKeyChecking=accept-new
         -o ConnectTimeout=8
         -o ConnectionAttempts=1
         -o ServerAliveInterval=5
@@ -864,7 +956,7 @@ DOCS_INSTALL_DEPS=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        build|deploy|run|deps|format|docs)
+        build|deploy|run|deps|format|docs|ui-release)
             commands+=("$1")
             shift
             ;;
@@ -1045,6 +1137,9 @@ did_deploy_arm64=0
 
 for command in "${commands[@]}"; do
     case "${command}" in
+        ui-release)
+            freeze_ui_release_action
+            ;;
         build)
             if [[ ${want_ui} -eq 1 ]]; then
                 build_web_ui

@@ -2,8 +2,10 @@
 
 This image provides a native ARM64 Ubuntu build environment for CamFlow.
 It provides the dependencies required to build the runtime with OpenCV.
-It also installs Node.js and npm because the built-in React UI is bundled as
-part of the normal CMake runtime build.
+It does not include Node.js: the React UI is built on the host (current
+Node.js) before the container runs, and its output is embedded by the normal
+CMake runtime build by reusing the already up-to-date `web-dist`/`web-build`
+directories, so the container's C++-only toolchain never invokes npm.
 It is intended to be used with Docker/QEMU or on an ARM64 host. The source
 folder is mounted into `/workspace`, so build output is written back to the
 same project directory.

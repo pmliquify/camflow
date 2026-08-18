@@ -137,9 +137,7 @@ Build ARM64 runtime locally via Docker cross-compilation:
 
 ```bash
 ./scripts/tasks.sh build arm64 runtime [--opencv OPENCV_VERSION]
-```
-
-Deploy binary to target:
+```Deploy binary to target:
 
 ```bash
 ./scripts/tasks.sh deploy arm64 runtime [--ip TARGET] [--dir TARGET_DIR] [--user USER]
@@ -165,6 +163,33 @@ Default deployment command:
 ```
 
 Then open `http://<target-ip>:<PORT>` in your browser (including the VS Code browser) to immediately verify changes.
+
+### Supported ARM64 targets and OS requirements
+
+The `arm64` build produces a single binary built against `docker/ubuntu-arm64/Dockerfile`
+(Ubuntu 20.04, glibc 2.31, libstdc++ 3.4.28, statically linked into the runtime via
+`-static-libgcc -static-libstdc++`). Since glibc is backward- but not forward-compatible,
+that binary runs on any target with glibc >= 2.31 (64-bit OS required):
+
+| Target family | Minimum OS | glibc | Verified |
+| --- | --- | --- | --- |
+| NXP i.MX (8M Plus and similar arm64 i.MX SoMs) | Yocto/Debian-based 64-bit OS, glibc >= 2.31 | 2.39 (imx8mp-var-dart, current) | yes (imx8mp-var-dart) |
+| Raspberry Pi 3/4/5 | Raspberry Pi OS Bullseye (Debian 11) 64-bit or newer | 2.31 (Bullseye) / 2.36 (Bookworm, current) | yes (Pi 5, Bookworm) |
+| NVIDIA Jetson Xavier NX / AGX Xavier | JetPack 5.x (L4T 34/35, Ubuntu 20.04) — last JetPack line with Xavier support | 2.31 | no |
+| NVIDIA Jetson Orin / Thor | JetPack 6.x+ (L4T 36+, Ubuntu 22.04+) | 2.35+ | no |
+| NVIDIA Jetson Nano / TX1 / TX2 | JetPack 4.x (L4T 32.x, Ubuntu 18.04) | 2.27 | not supported (needs a separate legacy build) |
+| Raspberry Pi 3/4 on 32-bit OS, or Raspberry Pi OS Buster (Debian 10) | — | 2.28 (Buster) / n/a (32-bit) | not supported (needs a separate legacy or `armhf` build) |
+
+Check a target's compatibility before deploying:
+
+```bash
+uname -m       # must be aarch64/arm64, not armv7l/armv6l
+ldd --version  # glibc must be >= 2.31
+```
+
+If a target's glibc is older than 2.31 (or it runs a 32-bit OS), it needs a separate
+build with a correspondingly older/other cross-build image; a single arm64 binary
+cannot cover it.
 
 ## Runtime use case
 

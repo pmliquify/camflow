@@ -189,6 +189,13 @@ if(BUILD_RUNTIME)
             $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
         )
 
+        # Static libgcc/libstdc++ avoid GLIBCXX/CXXABI version mismatches across
+        # ARM64 targets with different distro ages; glibc itself stays dynamic
+        # and still requires the build toolchain's glibc <= the oldest target's.
+        target_link_options(camflow PRIVATE
+            $<$<CXX_COMPILER_ID:GNU,Clang>:-static-libgcc -static-libstdc++>
+        )
+
         find_package(Threads REQUIRED)
         target_link_libraries(camflow PRIVATE Threads::Threads)
 

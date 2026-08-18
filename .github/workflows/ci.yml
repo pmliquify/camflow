@@ -12,6 +12,19 @@ permissions:
   contents: read
 
 jobs:
+  ui-release-check:
+    name: Web UI release assets up to date
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Rebuild web/dist-release
+        run: ./scripts/tasks.sh ui-release
+      - name: Fail if committed assets are stale
+        run: git diff --exit-code -- web/dist-release
+
   runtime:
     name: Runtime ${{ matrix.target.name }}
     runs-on: ${{ matrix.target.runner }}

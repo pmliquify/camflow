@@ -1935,6 +1935,12 @@ export default function App() {
         useEffect(() => {
                 const keydownHandler = (event) => {
                         if (event.code === 'Escape' && !areKeyboardShortcutsBlocked()) {
+                                const target = event.target instanceof Element ? event.target : null;
+                                if (target?.closest('.parameter')) {
+                                        event.preventDefault();
+                                        target.blur();
+                                        return;
+                                }
                                 setFilterCloseRequest((request) => request + 1);
                                 return;
                         }

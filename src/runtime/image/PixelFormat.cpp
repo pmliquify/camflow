@@ -78,25 +78,25 @@ std::string pixelFormatToString(PixelFormat format)
     case PixelFormat::RG12P:
         return "pRCC";
     case PixelFormat::RG14P:
-        return "RG14";
+        return "pREE";
     case PixelFormat::GR10P:
         return "pgAA";
     case PixelFormat::GR12P:
         return "pgCC";
     case PixelFormat::GR14P:
-        return "GR14";
+        return "pgEE";
     case PixelFormat::BG10P:
         return "pBAA";
     case PixelFormat::BG12P:
         return "pBCC";
     case PixelFormat::BG14P:
-        return "BG14";
+        return "pBEE";
     case PixelFormat::GB10P:
         return "pGAA";
     case PixelFormat::GB12P:
         return "pGCC";
     case PixelFormat::GB14P:
-        return "GB14";
+        return "pGEE";
     case PixelFormat::RGB888:
         return "RGB3";
     case PixelFormat::BGR888:
@@ -121,6 +121,14 @@ std::string pixelFormatToString(PixelFormat format)
 
 PixelFormat pixelFormatFromString(const std::string& value)
 {
+    static const std::map<std::string, PixelFormat> packedBayerFormats = {
+        {"pRAA", PixelFormat::RG10P}, {"pRCC", PixelFormat::RG12P}, {"pREE", PixelFormat::RG14P}, {"pgAA", PixelFormat::GR10P}, {"pgCC", PixelFormat::GR12P}, {"pgEE", PixelFormat::GR14P},
+        {"pBAA", PixelFormat::BG10P}, {"pBCC", PixelFormat::BG12P}, {"pBEE", PixelFormat::BG14P}, {"pGAA", PixelFormat::GB10P}, {"pGCC", PixelFormat::GB12P}, {"pGEE", PixelFormat::GB14P}};
+    const auto packed = packedBayerFormats.find(value);
+    if (packed != packedBayerFormats.end()) {
+        return packed->second;
+    }
+
     std::string key = upper(value);
     auto it = formatMap().find(key);
     if (it == formatMap().end()) {

@@ -200,10 +200,13 @@ function bgr888ToRgba(meta, bytes) {
         return rgba;
 }
 
-function yuvToRgb(y, u, v) {
+function writeYuvPixel(rgba, offset, y, u, v) {
         const d = u - 128;
         const e = v - 128;
-        return [clampU8(y + 1.402 * e), clampU8(y - 0.344136 * d - 0.714136 * e), clampU8(y + 1.772 * d)];
+        rgba[offset] = clampU8(y + 1.402 * e);
+        rgba[offset + 1] = clampU8(y - 0.344136 * d - 0.714136 * e);
+        rgba[offset + 2] = clampU8(y + 1.772 * d);
+        rgba[offset + 3] = 255;
 }
 
 function yuyvToRgba(meta, bytes) {
@@ -212,12 +215,9 @@ function yuyvToRgba(meta, bytes) {
                 const rowStart = y * meta.stride;
                 for (let x = 0; x < meta.width; x += 2) {
                         const p = rowStart + x * 2;
-                        const rgb0 = yuvToRgb(bytes[p], bytes[p + 1], bytes[p + 3]);
-                        const rgb1 = yuvToRgb(bytes[p + 2], bytes[p + 1], bytes[p + 3]);
                         let out = (y * meta.width + x) * 4;
-                        rgba[out] = rgb0[0]; rgba[out + 1] = rgb0[1]; rgba[out + 2] = rgb0[2]; rgba[out + 3] = 255;
-                        out += 4;
-                        rgba[out] = rgb1[0]; rgba[out + 1] = rgb1[1]; rgba[out + 2] = rgb1[2]; rgba[out + 3] = 255;
+                        writeYuvPixel(rgba, out, bytes[p], bytes[p + 1], bytes[p + 3]);
+                        writeYuvPixel(rgba, out + 4, bytes[p + 2], bytes[p + 1], bytes[p + 3]);
                 }
         }
         return rgba;
@@ -244,20 +244,40 @@ function isPackedBayerFormat(formatId) {
         return id >= PixelFormatId.RG10P && id <= PixelFormatId.GB14P;
 }
 
-function readPackedBits(rowData, bitOffset, bits) {
-        let value = 0;
-        for (let i = 0; i < bits; i += 1) {
-                const absoluteBit = bitOffset + i;
-                const byteIndex = Math.floor(absoluteBit / 8);
-                const bitIndex = absoluteBit % 8;
-                if (byteIndex >= rowData.length) {
-                        break;
-                }
-                if (((rowData[byteIndex] >> bitIndex) & 1) !== 0) {
-                        value |= (1 << i);
+function packedGroupBytes(bitsPerPixel) {
+        switch (Number(bitsPerPixel)) {
+                case 10: return 5;
+                case 12: return 3;
+                case 14: return 7;
+                default: return 0;
+        }
+}
+
+function packedGroupPixels(bitsPerPixel) {
+        return Number(bitsPerPixel) === 12 ? 2 : 4;
+}
+
+function packedRaw8Sample(meta, bytes, x, y) {
+        const groupBytes = packedGroupBytes(meta.bitsPerPixel);
+        const groupPixels = packedGroupPixels(meta.bitsPerPixel);
+        const rowStart = y * meta.stride;
+        const groupStart = rowStart + Math.floor(x / groupPixels) * groupBytes;
+        return bytes[groupStart + (x % groupPixels)] & 0xff;
+}
+
+function unpackPackedRaw8(meta, bytes) {
+        const rgba = new Uint8ClampedArray(meta.width * meta.height * 4);
+        for (let y = 0; y < meta.height; y += 1) {
+                for (let x = 0; x < meta.width; x += 1) {
+                        const sample = packedRaw8Sample(meta, bytes, x, y);
+                        const out = (y * meta.width + x) * 4;
+                        rgba[out] = sample;
+                        rgba[out + 1] = sample;
+                        rgba[out + 2] = sample;
+                        rgba[out + 3] = 255;
                 }
         }
-        return value;
+        return rgba;
 }
 
 function sampleToDisplayByte(sample, shiftValue, bitsPerPixel) {
@@ -288,10 +308,7 @@ function rawSample8(meta, bytes, x, y, shiftValue) {
 
         if (meta.bitsPerPixel > 8) {
                 if (isPackedBayerFormat(meta.formatId)) {
-                        const rowEnd = rowStart + meta.stride;
-                        const rowData = bytes.subarray(rowStart, rowEnd);
-                        const packed = readPackedBits(rowData, clampedX * meta.bitsPerPixel, meta.bitsPerPixel);
-                        return sampleToDisplayByte(packed, shiftValue, meta.bitsPerPixel);
+                        return packedRaw8Sample(meta, bytes, clampedX, clampedY);
                 }
 
                 const p = rowStart + clampedX * 2;
@@ -300,14 +317,6 @@ function rawSample8(meta, bytes, x, y, shiftValue) {
         }
 
         return bytes[rowStart + clampedX] & 0xff;
-}
-
-function average(values) {
-        let sum = 0;
-        for (let i = 0; i < values.length; i += 1) {
-                sum += values[i];
-        }
-        return Math.round(sum / values.length);
 }
 
 function debayerToRgba(meta, bytes, shiftValue, pattern) {
@@ -328,33 +337,13 @@ function debayerToRgba(meta, bytes, shiftValue, pattern) {
                         if (site === 'R') {
                                 // R site
                                 r = rawSample8(meta, bytes, x, y, shiftValue);
-                                g = average([
-                                        rawSample8(meta, bytes, x - 1, y, shiftValue),
-                                        rawSample8(meta, bytes, x + 1, y, shiftValue),
-                                        rawSample8(meta, bytes, x, y - 1, shiftValue),
-                                        rawSample8(meta, bytes, x, y + 1, shiftValue)
-                                ]);
-                                b = average([
-                                        rawSample8(meta, bytes, x - 1, y - 1, shiftValue),
-                                        rawSample8(meta, bytes, x + 1, y - 1, shiftValue),
-                                        rawSample8(meta, bytes, x - 1, y + 1, shiftValue),
-                                        rawSample8(meta, bytes, x + 1, y + 1, shiftValue)
-                                ]);
+                                g = (rawSample8(meta, bytes, x - 1, y, shiftValue) + rawSample8(meta, bytes, x + 1, y, shiftValue) + rawSample8(meta, bytes, x, y - 1, shiftValue) + rawSample8(meta, bytes, x, y + 1, shiftValue) + 2) >> 2;
+                                b = (rawSample8(meta, bytes, x - 1, y - 1, shiftValue) + rawSample8(meta, bytes, x + 1, y - 1, shiftValue) + rawSample8(meta, bytes, x - 1, y + 1, shiftValue) + rawSample8(meta, bytes, x + 1, y + 1, shiftValue) + 2) >> 2;
                         } else if (site === 'B') {
                                 // B site
                                 b = rawSample8(meta, bytes, x, y, shiftValue);
-                                g = average([
-                                        rawSample8(meta, bytes, x - 1, y, shiftValue),
-                                        rawSample8(meta, bytes, x + 1, y, shiftValue),
-                                        rawSample8(meta, bytes, x, y - 1, shiftValue),
-                                        rawSample8(meta, bytes, x, y + 1, shiftValue)
-                                ]);
-                                r = average([
-                                        rawSample8(meta, bytes, x - 1, y - 1, shiftValue),
-                                        rawSample8(meta, bytes, x + 1, y - 1, shiftValue),
-                                        rawSample8(meta, bytes, x - 1, y + 1, shiftValue),
-                                        rawSample8(meta, bytes, x + 1, y + 1, shiftValue)
-                                ]);
+                                g = (rawSample8(meta, bytes, x - 1, y, shiftValue) + rawSample8(meta, bytes, x + 1, y, shiftValue) + rawSample8(meta, bytes, x, y - 1, shiftValue) + rawSample8(meta, bytes, x, y + 1, shiftValue) + 2) >> 2;
+                                r = (rawSample8(meta, bytes, x - 1, y - 1, shiftValue) + rawSample8(meta, bytes, x + 1, y - 1, shiftValue) + rawSample8(meta, bytes, x - 1, y + 1, shiftValue) + rawSample8(meta, bytes, x + 1, y + 1, shiftValue) + 2) >> 2;
                         } else {
                                 // G site. Interpolation direction depends on neighboring colors.
                                 g = rawSample8(meta, bytes, x, y, shiftValue);
@@ -363,23 +352,11 @@ function debayerToRgba(meta, bytes, shiftValue, pattern) {
                                 const horizontalIsRed = leftSite === 'R';
 
                                 if (horizontalIsRed) {
-                                        r = average([
-                                                rawSample8(meta, bytes, x - 1, y, shiftValue),
-                                                rawSample8(meta, bytes, x + 1, y, shiftValue)
-                                        ]);
-                                        b = average([
-                                                rawSample8(meta, bytes, x, y - 1, shiftValue),
-                                                rawSample8(meta, bytes, x, y + 1, shiftValue)
-                                        ]);
+                                        r = (rawSample8(meta, bytes, x - 1, y, shiftValue) + rawSample8(meta, bytes, x + 1, y, shiftValue) + 1) >> 1;
+                                        b = (rawSample8(meta, bytes, x, y - 1, shiftValue) + rawSample8(meta, bytes, x, y + 1, shiftValue) + 1) >> 1;
                                 } else {
-                                        r = average([
-                                                rawSample8(meta, bytes, x, y - 1, shiftValue),
-                                                rawSample8(meta, bytes, x, y + 1, shiftValue)
-                                        ]);
-                                        b = average([
-                                                rawSample8(meta, bytes, x - 1, y, shiftValue),
-                                                rawSample8(meta, bytes, x + 1, y, shiftValue)
-                                        ]);
+                                        r = (rawSample8(meta, bytes, x, y - 1, shiftValue) + rawSample8(meta, bytes, x, y + 1, shiftValue) + 1) >> 1;
+                                        b = (rawSample8(meta, bytes, x - 1, y, shiftValue) + rawSample8(meta, bytes, x + 1, y, shiftValue) + 1) >> 1;
                                 }
                         }
 
@@ -411,6 +388,7 @@ export function renderPacketToRgba(meta, bytes, debayerEnabled = false) {
         if (meta.formatId === PixelFormatId.RGB888) return rgb888ToRgba(meta, bytes);
         if (meta.formatId === PixelFormatId.BGR888) return bgr888ToRgba(meta, bytes);
         if (meta.formatId === PixelFormatId.YUYV) return yuyvToRgba(meta, bytes);
+        if (isPackedBayerFormat(meta.formatId)) return unpackPackedRaw8(meta, bytes);
 
         return makeMonoRgba(meta, bytes, shiftValue);
 }

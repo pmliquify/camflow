@@ -88,22 +88,22 @@ static int bayerCode(PixelFormat format)
     case PixelFormat::RG10:
     case PixelFormat::RG12:
     case PixelFormat::RG14:
-        return cv::COLOR_BayerRG2BGR;
+        return cv::COLOR_BayerBG2BGR;
     case PixelFormat::GR8:
     case PixelFormat::GR10:
     case PixelFormat::GR12:
     case PixelFormat::GR14:
-        return cv::COLOR_BayerGR2BGR;
+        return cv::COLOR_BayerGB2BGR;
     case PixelFormat::BG8:
     case PixelFormat::BG10:
     case PixelFormat::BG12:
     case PixelFormat::BG14:
-        return cv::COLOR_BayerBG2BGR;
+        return cv::COLOR_BayerRG2BGR;
     case PixelFormat::GB8:
     case PixelFormat::GB10:
     case PixelFormat::GB12:
     case PixelFormat::GB14:
-        return cv::COLOR_BayerGB2BGR;
+        return cv::COLOR_BayerGR2BGR;
     default:
         return -1;
     }
@@ -111,22 +111,62 @@ static int bayerCode(PixelFormat format)
 
 static uint16_t readUnpacked16(const uint8_t* data, size_t index)
 {
-    const uint16_t* pixels = reinterpret_cast<const uint16_t*>(data);
-    return pixels[index];
+    const size_t byteIndex = index * 2;
+    return static_cast<uint16_t>(data[byteIndex]) | (static_cast<uint16_t>(data[byteIndex + 1]) << 8);
 }
 
-static uint16_t readPackedBits(const uint8_t* data, size_t bitOffset, int bits)
+static uint32_t packedGroupPixels(int bits)
 {
-    uint32_t value = 0;
-    for (int i = 0; i < bits; ++i) {
-        size_t absoluteBit = bitOffset + static_cast<size_t>(i);
-        size_t byteIndex = absoluteBit / 8;
-        int bitIndex = static_cast<int>(absoluteBit % 8);
-        if ((data[byteIndex] >> bitIndex) & 1) {
-            value |= (1u << i);
+    return bits == 12 ? 2 : 4;
+}
+
+static size_t packedGroupBytes(int bits)
+{
+    return static_cast<size_t>(packedGroupPixels(bits) * bits) / 8;
+}
+
+static void unpackPackedRow(const uint8_t* packed, uint32_t width, int bits, uint16_t* output)
+{
+    const uint32_t pixelsPerGroup = packedGroupPixels(bits);
+    const size_t groupBytes = packedGroupBytes(bits);
+    const uint32_t fullGroups = width / pixelsPerGroup;
+
+    for (uint32_t group = 0; group < fullGroups; ++group) {
+        const uint8_t* input = packed + static_cast<size_t>(group) * groupBytes;
+        const uint32_t outputIndex = group * pixelsPerGroup;
+        switch (bits) {
+        case 10:
+            for (uint32_t pixel = 0; pixel < pixelsPerGroup; ++pixel) {
+                output[outputIndex + pixel] = static_cast<uint16_t>((static_cast<uint16_t>(input[pixel]) << 2) | ((input[4] >> (pixel * 2)) & 0x03u));
+            }
+            break;
+        case 12:
+            output[outputIndex] = static_cast<uint16_t>((static_cast<uint16_t>(input[0]) << 4) | (input[2] & 0x0fu));
+            output[outputIndex + 1] = static_cast<uint16_t>((static_cast<uint16_t>(input[1]) << 4) | (input[2] >> 4));
+            break;
+        case 14:
+            output[outputIndex] = static_cast<uint16_t>((static_cast<uint16_t>(input[0]) << 6) | (input[4] & 0x3fu));
+            output[outputIndex + 1] = static_cast<uint16_t>((static_cast<uint16_t>(input[1]) << 6) | ((input[4] >> 6) & 0x03u) | ((input[5] & 0x0fu) << 2));
+            output[outputIndex + 2] = static_cast<uint16_t>((static_cast<uint16_t>(input[2]) << 6) | ((input[5] >> 4) & 0x0fu) | ((input[6] & 0x03u) << 4));
+            output[outputIndex + 3] = static_cast<uint16_t>((static_cast<uint16_t>(input[3]) << 6) | (input[6] >> 2));
+            break;
+        default:
+            return;
         }
     }
-    return static_cast<uint16_t>(value);
+
+    const uint32_t remainingPixels = width % pixelsPerGroup;
+    if (remainingPixels != 0) {
+        const uint8_t* input = packed + static_cast<size_t>(fullGroups) * groupBytes;
+        const uint32_t outputIndex = fullGroups * pixelsPerGroup;
+        if (bits == 12) {
+            output[outputIndex] = static_cast<uint16_t>((static_cast<uint16_t>(input[0]) << 4) | (input[1] & 0x0fu));
+        } else {
+            for (uint32_t pixel = 0; pixel < remainingPixels; ++pixel) {
+                output[outputIndex + pixel] = static_cast<uint16_t>(input[pixel]) << (bits - 8);
+            }
+        }
+    }
 }
 
 static bool makeMono16(const ImageBuffer& source, ImageBuffer& mono16)
@@ -135,21 +175,27 @@ static bool makeMono16(const ImageBuffer& source, ImageBuffer& mono16)
     if (bits <= 0) {
         return false;
     }
+    const size_t minimumStride = isPackedFormat(source.format()) ? (static_cast<size_t>(source.width()) * bits + 7) / 8 : static_cast<size_t>(source.width()) * (bits > 8 ? 2 : 1);
+    if (source.stride() < minimumStride || source.size() < static_cast<size_t>(source.stride()) * source.height()) {
+        LOG_ERROR("Invalid image buffer geometry for " + pixelFormatToString(source.format()));
+        return false;
+    }
     mono16.allocate(source.width(), source.height(), source.width() * 2, unpackedFormat(source.format()));
     uint16_t* out = reinterpret_cast<uint16_t*>(mono16.data());
 
     for (uint32_t y = 0; y < source.height(); ++y) {
         const uint8_t* srcLine = source.data() + static_cast<size_t>(y) * source.stride();
+        uint16_t* outLine = out + static_cast<size_t>(y) * source.width();
+        if (isPackedFormat(source.format())) {
+            unpackPackedRow(srcLine, source.width(), bits, outLine);
+            continue;
+        }
         for (uint32_t x = 0; x < source.width(); ++x) {
-            uint16_t value = 0;
-            if (isPackedFormat(source.format())) {
-                value = readPackedBits(srcLine, static_cast<size_t>(x) * bits, bits);
-            } else if (bits <= 8) {
-                value = srcLine[x];
+            if (bits <= 8) {
+                outLine[x] = srcLine[x];
             } else {
-                value = readUnpacked16(srcLine, x);
+                outLine[x] = readUnpacked16(srcLine, x);
             }
-            out[static_cast<size_t>(y) * source.width() + x] = value;
         }
     }
 

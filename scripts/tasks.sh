@@ -28,8 +28,91 @@ DEFAULT_UI_WORK_DIR="${PROJECT_DIR}/web"
 DEFAULT_UI_DEV_PORT=8081
 DEFAULT_UI_API_PORT=8000
 DEFAULT_ARM64_BUILD_DIR=build-runtime-arm64
+DEFAULT_FAST_DEV_BUILD_DIR=build-runtime-fastdev
+DEFAULT_FAST_DEV_ARM64_BUILD_DIR=build-runtime-arm64-fastdev
 DEFAULT_ARM64_IMAGE=camflow-arm64
 DEFAULT_ARM64_REBUILD_IMAGE=0
+DEFAULT_FAST_DEV=0
+
+TASKS_TIMER_START=${SECONDS}
+TASKS_TIMER_LAST_START=0
+declare -a TASKS_TIMER_STEPS=()
+
+format_duration() {
+    local total_seconds="$1"
+    local hours=$((total_seconds / 3600))
+    local minutes=$(((total_seconds % 3600) / 60))
+    local seconds=$((total_seconds % 60))
+
+    if [[ ${hours} -gt 0 ]]; then
+        printf '%02d:%02d:%02d' "${hours}" "${minutes}" "${seconds}"
+    else
+        printf '%02d:%02d' "${minutes}" "${seconds}"
+    fi
+}
+
+timer_step_begin() {
+    local label="$1"
+    TASKS_TIMER_LAST_START=${SECONDS}
+    echo "[timer] START ${label}"
+}
+
+timer_step_end() {
+    local label="$1"
+    local started_at="$2"
+    local elapsed=$((SECONDS - started_at))
+    local formatted
+
+    formatted="$(format_duration "${elapsed}")"
+    TASKS_TIMER_STEPS+=("${label}|${elapsed}")
+    echo "[timer] DONE  ${label}: ${formatted} (${elapsed}s)"
+}
+
+run_timed_step() {
+    local label="$1"
+    shift
+
+    local started_at
+    timer_step_begin "${label}"
+    started_at=${TASKS_TIMER_LAST_START}
+    "$@"
+    timer_step_end "${label}" "${started_at}"
+}
+
+print_timer_summary() {
+    local exit_code="$1"
+    local total_elapsed=$((SECONDS - TASKS_TIMER_START))
+    local formatted_total
+    local entry
+    local label
+    local step_seconds
+
+    if [[ ${#TASKS_TIMER_STEPS[@]} -eq 0 ]]; then
+        return
+    fi
+
+    formatted_total="$(format_duration "${total_elapsed}")"
+
+    echo
+    echo "[timer] Summary"
+    for entry in "${TASKS_TIMER_STEPS[@]}"; do
+        label="${entry%%|*}"
+        step_seconds="${entry##*|}"
+        echo "[timer] - ${label}: $(format_duration "${step_seconds}") (${step_seconds}s)"
+    done
+    echo "[timer] Total: ${formatted_total} (${total_elapsed}s)"
+
+    if [[ "${exit_code}" -ne 0 ]]; then
+        echo "[timer] Exit status: ${exit_code}"
+    fi
+}
+
+on_script_exit() {
+    local exit_code=$?
+    print_timer_summary "${exit_code}"
+}
+
+trap on_script_exit EXIT
 
 print_help() {
     cat <<EOF
@@ -54,6 +137,7 @@ Products:
   ui             React UI bundle.
 
 Options:
+    --fast-dev     Use fast iteration mode for runtime builds/runs (separate local/arm64 build dirs).
   --ip HOST      Target host/IP for ARM64 deployment and remote UI.
   --dir DIR      Target directory on the ARM64 host.
   --port PORT    UI port for local and remote runtime runs.
@@ -78,6 +162,8 @@ Options:
 
 Examples:
     ./scripts/tasks.sh build
+    ./scripts/tasks.sh build dev runtime --fast-dev
+    ./scripts/tasks.sh build deploy run arm64 runtime --fast-dev --ip 192.168.1.10
     ./scripts/tasks.sh build deploy run arm64 runtime --ip 192.168.1.10
     ./scripts/tasks.sh build ui dev
     ./scripts/tasks.sh run dev ui --ui-port 8081 --api-port 8000
@@ -152,6 +238,7 @@ write_make_cfg() {
         cfg_assign LOG_PATH "${LOG_PATH}"
         cfg_assign UI_DEV_PORT "${UI_DEV_PORT}"
         cfg_assign UI_API_PORT "${UI_API_PORT}"
+        cfg_assign FAST_DEV "${FAST_DEV}"
     } > "${MAKE_CFG_PATH}"
 }
 
@@ -172,6 +259,7 @@ create_make_cfg_interactive() {
     LOG_PATH=$(prompt_value "Local log path" "${DEFAULT_LOG_PATH}")
     UI_DEV_PORT=$(prompt_value "UI dev server port" "${DEFAULT_UI_DEV_PORT}")
     UI_API_PORT=$(prompt_value "UI proxy API port" "${DEFAULT_UI_API_PORT}")
+    FAST_DEV=$(prompt_value "Fast dev mode (1/0)" "${DEFAULT_FAST_DEV}")
     write_make_cfg
     echo "Created ${MAKE_CFG_PATH}"
 }
@@ -192,6 +280,7 @@ create_make_cfg_defaults() {
     LOG_PATH=${DEFAULT_LOG_PATH}
     UI_DEV_PORT=${DEFAULT_UI_DEV_PORT}
     UI_API_PORT=${DEFAULT_UI_API_PORT}
+    FAST_DEV=${DEFAULT_FAST_DEV}
     write_make_cfg
     echo "Created ${MAKE_CFG_PATH} from defaults"
 }
@@ -222,6 +311,22 @@ has_command() {
         fi
     done
     return 1
+}
+
+default_dev_build_dir() {
+    if [[ "${FAST_DEV}" == "1" ]]; then
+        echo "${PROJECT_DIR}/${DEFAULT_FAST_DEV_BUILD_DIR}"
+    else
+        echo "${PROJECT_DIR}/build-runtime"
+    fi
+}
+
+default_arm64_build_dir() {
+    if [[ "${FAST_DEV}" == "1" ]]; then
+        echo "${DEFAULT_FAST_DEV_ARM64_BUILD_DIR}"
+    else
+        echo "${DEFAULT_ARM64_BUILD_DIR}"
+    fi
 }
 
 install_ui_dependencies() {
@@ -448,7 +553,7 @@ build_runtime_dev() {
     local opencv_install_script
 
     arch="$(host_arch)"
-    build_dir="${PROJECT_DIR}/build-runtime"
+    build_dir="$(default_dev_build_dir)"
     cache_file="${build_dir}/CMakeCache.txt"
     generator="Ninja"
     active_generator=""
@@ -461,7 +566,12 @@ build_runtime_dev() {
         exit 1
     fi
 
+    local timed_step_start
+
+    timer_step_begin "OpenCV bootstrap (dev)"
+    timed_step_start=${TASKS_TIMER_LAST_START}
     CAMFLOW_SKIP_APT=1 "${opencv_install_script}" "${opencv_dir}" "${opencv_build_dir}"
+    timer_step_end "OpenCV bootstrap (dev)" "${timed_step_start}"
 
     if [[ -f "${cache_file}" ]]; then
         active_generator="$(sed -n 's/^CMAKE_GENERATOR:INTERNAL=//p' "${cache_file}" | head -n 1)"
@@ -486,6 +596,15 @@ build_runtime_dev() {
         -DOpenCV_DIR="${opencv_dir}/lib/cmake/opencv4"
     )
 
+    if [[ "${FAST_DEV}" == "1" ]]; then
+        echo "Fast-dev mode active (local runtime): ${build_dir}"
+        configure_args+=(
+            -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF
+            -DCMAKE_EXE_LINKER_FLAGS=
+            -DCMAKE_CXX_FLAGS_DEBUG=-O0
+        )
+    fi
+
     if command -v ccache >/dev/null 2>&1; then
         configure_args+=(
             -DCMAKE_C_COMPILER_LAUNCHER=ccache
@@ -494,8 +613,15 @@ build_runtime_dev() {
         echo "Enabled compiler cache: ccache"
     fi
 
+    timer_step_begin "CMake configure (dev runtime)"
+    timed_step_start=${TASKS_TIMER_LAST_START}
     cmake "${configure_args[@]}"
+    timer_step_end "CMake configure (dev runtime)" "${timed_step_start}"
+
+    timer_step_begin "CMake build (dev runtime)"
+    timed_step_start=${TASKS_TIMER_LAST_START}
     cmake --build "${build_dir}" --parallel
+    timer_step_end "CMake build (dev runtime)" "${timed_step_start}"
 }
 
 build_runtime_arm64() {
@@ -510,7 +636,7 @@ build_runtime_arm64() {
     local arm64_ccache_dir
 
     image_name="${IMAGE_NAME:-${DEFAULT_ARM64_IMAGE}}"
-    build_dir="${ARM64_BUILD_DIR:-${DEFAULT_ARM64_BUILD_DIR}}"
+    build_dir="${ARM64_BUILD_DIR:-$(default_arm64_build_dir)}"
     rebuild_image="${ARM64_REBUILD_IMAGE:-${DEFAULT_ARM64_REBUILD_IMAGE}}"
     opencv_dir="${OPENCV_DIR:-opencv/${OPENCV_VERSION}/linux-arm64}"
     opencv_build_dir="${OPENCV_BUILD_DIR:-opencv/${OPENCV_VERSION}/build-linux-arm64}"
@@ -524,10 +650,21 @@ build_runtime_arm64() {
         exit 1
     fi
 
+    local arm64_cmake_fast_flags=""
+    if [[ "${FAST_DEV}" == "1" ]]; then
+        echo "Fast-dev mode active (arm64 runtime): ${build_dir}"
+        arm64_cmake_fast_flags="-DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF -DCMAKE_EXE_LINKER_FLAGS= -DCMAKE_CXX_FLAGS_DEBUG=-O0"
+    fi
+
     # Pre-build the web UI on the host (current Node) so the arm64 container,
     # which only has the C++ toolchain, finds up-to-date assets and skips npm.
+    local timed_step_start
+
     echo "Building web UI assets on host for arm64 embed: ${arm64_ui_out_dir}"
+    timer_step_begin "Build UI assets for arm64 embed"
+    timed_step_start=${TASKS_TIMER_LAST_START}
     build_web_ui "${arm64_ui_out_dir}" "${arm64_ui_work_dir}"
+    timer_step_end "Build UI assets for arm64 embed" "${timed_step_start}"
     mkdir -p "${arm64_ccache_dir}"
 
     local dockerfile_hash
@@ -539,14 +676,19 @@ build_runtime_arm64() {
 
     if [[ "${rebuild_image}" == "1" || -z "${image_dockerfile_hash}" || "${image_dockerfile_hash}" != "${dockerfile_hash}" ]]; then
         echo "Building ARM64 Docker image: ${image_name}"
+        timer_step_begin "Docker image build (arm64)"
+        timed_step_start=${TASKS_TIMER_LAST_START}
         docker build --platform linux/arm64 \
             --label "camflow.dockerfile-hash=${dockerfile_hash}" \
             -t "${image_name}" \
             "${PROJECT_DIR}/docker/ubuntu-arm64"
+        timer_step_end "Docker image build (arm64)" "${timed_step_start}"
     else
         echo "Reusing ARM64 Docker image: ${image_name}"
     fi
 
+    timer_step_begin "Dockerized CMake build (arm64 runtime)"
+    timed_step_start=${TASKS_TIMER_LAST_START}
     docker run --rm --platform linux/arm64 \
         --user "$(id -u):$(id -g)" \
         -e HOME=/tmp \
@@ -555,7 +697,8 @@ build_runtime_arm64() {
         -v "${arm64_ccache_dir}:/ccache" \
         -w /workspace \
         "${image_name}" \
-        bash -lc "git config --global --add safe.directory /workspace && ccache --set-config=max_size=5G && CAMFLOW_SKIP_APT=1 ./.github/scripts/install-opencv-${OPENCV_VERSION}.sh /workspace/${opencv_dir} /workspace/${opencv_build_dir} && ccache_flags='-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache' && echo 'Enabled persistent ccache: \${CCACHE_DIR} (size limit: 5G)' && cmake -B ${build_dir} -G Ninja -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DBUILD_RUNTIME=ON -DOpenCV_DIR=/workspace/${opencv_dir}/lib/cmake/opencv4 \${ccache_flags} && cmake --build ${build_dir} --parallel"
+        bash -lc "git config --global --add safe.directory /workspace && ccache --set-config=max_size=5G && CAMFLOW_SKIP_APT=1 ./.github/scripts/install-opencv-${OPENCV_VERSION}.sh /workspace/${opencv_dir} /workspace/${opencv_build_dir} && ccache_flags='-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache' && fast_flags=\"${arm64_cmake_fast_flags}\" && echo 'Enabled persistent ccache: \${CCACHE_DIR} (size limit: 5G)' && cmake -B ${build_dir} -G Ninja -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DBUILD_RUNTIME=ON -DOpenCV_DIR=/workspace/${opencv_dir}/lib/cmake/opencv4 \${ccache_flags} \${fast_flags} && cmake --build ${build_dir} --parallel"
+    timer_step_end "Dockerized CMake build (arm64 runtime)" "${timed_step_start}"
 }
 
 deploy_runtime_arm64() {
@@ -577,7 +720,7 @@ deploy_runtime_arm64() {
         -o ServerAliveInterval=5
         -o ServerAliveCountMax=2
     )
-    local build_dir="${ARM64_BUILD_DIR:-${DEFAULT_ARM64_BUILD_DIR}}"
+    local build_dir="${ARM64_BUILD_DIR:-$(default_arm64_build_dir)}"
     local binary_path="${PROJECT_DIR}/${build_dir}/camflow"
     local legacy_binary_path="${PROJECT_DIR}/${build_dir}/src/runtime/camflow"
     local resolved_binary_path="${binary_path}"
@@ -631,7 +774,7 @@ deploy_runtime_arm64() {
 
 run_runtime_dev() {
     local tail_log="${1:-${TAIL_LOG}}"
-    local binary_path="${PROJECT_DIR}/build-runtime/camflow"
+    local binary_path="$(default_dev_build_dir)/camflow"
     local runtime_args=(--verbose "${VERBOSE_LEVEL}" --port "${PORT}")
 
     if [[ ! -f "${binary_path}" ]]; then
@@ -959,6 +1102,7 @@ CLI_UI_API_PORT=
 CLI_ARM64_REBUILD_IMAGE=
 CLI_CLANG_FORMAT_BIN=
 CLI_DOCS_OUTPUT_DIR=
+CLI_FAST_DEV=
 DOCS_CLEAN_FIRST=0
 DOCS_INSTALL_DEPS=0
 
@@ -979,6 +1123,10 @@ while [[ $# -gt 0 ]]; do
         --ip)
             CLI_TARGET="${2:?--ip requires a host or IP}"
             shift 2
+            ;;
+        --fast-dev)
+            CLI_FAST_DEV=1
+            shift
             ;;
         --dir)
             CLI_TARGET_DIR="${2:?--dir requires a path}"
@@ -1092,6 +1240,9 @@ UI_API_PORT=${UI_API_PORT:-${DEFAULT_UI_API_PORT}}
 ARM64_REBUILD_IMAGE=${ARM64_REBUILD_IMAGE:-${DEFAULT_ARM64_REBUILD_IMAGE}}
 CLANG_FORMAT_BIN=${CLANG_FORMAT_BIN:-clang-format-15}
 DOCS_OUTPUT_DIR=${DOCS_OUTPUT_DIR:-${PROJECT_DIR}/docs/api}
+FAST_DEV=${FAST_DEV:-${DEFAULT_FAST_DEV}}
+
+if [[ -n "${CLI_FAST_DEV}" ]]; then FAST_DEV=1; fi
 
 if [[ -n "${CLI_TARGET}" ]]; then TARGET="${CLI_TARGET}"; fi
 if [[ -n "${CLI_TARGET_DIR}" ]]; then TARGET_DIR="${CLI_TARGET_DIR}"; fi
@@ -1107,6 +1258,11 @@ if [[ -n "${CLI_UI_API_PORT}" ]]; then UI_API_PORT="${CLI_UI_API_PORT}"; fi
 if [[ -n "${CLI_ARM64_REBUILD_IMAGE}" ]]; then ARM64_REBUILD_IMAGE="${CLI_ARM64_REBUILD_IMAGE}"; fi
 if [[ -n "${CLI_CLANG_FORMAT_BIN}" ]]; then CLANG_FORMAT_BIN="${CLI_CLANG_FORMAT_BIN}"; fi
 if [[ -n "${CLI_DOCS_OUTPUT_DIR}" ]]; then DOCS_OUTPUT_DIR="${CLI_DOCS_OUTPUT_DIR}"; fi
+
+if [[ "${FAST_DEV}" != "0" && "${FAST_DEV}" != "1" ]]; then
+    echo "Invalid FAST_DEV value: ${FAST_DEV} (expected 0 or 1)" >&2
+    exit 1
+fi
 
 if [[ "${TAIL_LOG}" != "0" && "${TAIL_LOG}" != "1" ]]; then
     echo "Invalid --tail-log value: ${TAIL_LOG} (expected 0 or 1)" >&2
@@ -1141,24 +1297,24 @@ did_deploy_arm64=0
 for command in "${commands[@]}"; do
     case "${command}" in
         ui-release)
-            freeze_ui_release_action
+            run_timed_step "ui-release" freeze_ui_release_action
             ;;
         build)
             if [[ ${want_ui} -eq 1 ]]; then
-                build_web_ui
+                run_timed_step "build ui" build_web_ui
             fi
             if [[ ${want_runtime} -eq 1 ]]; then
                 if [[ ${want_dev} -eq 1 ]]; then
-                    build_runtime_dev
+                    run_timed_step "build dev runtime" build_runtime_dev
                 fi
                 if [[ ${want_arm64} -eq 1 ]]; then
-                    build_runtime_arm64
+                    run_timed_step "build arm64 runtime" build_runtime_arm64
                 fi
             fi
             ;;
         deploy)
             if [[ ${want_runtime} -eq 1 && ${want_arm64} -eq 1 ]]; then
-                deploy_runtime_arm64
+                run_timed_step "deploy arm64 runtime" deploy_runtime_arm64
                 did_deploy_arm64=1
             else
                 echo "Skipping deploy: only runtime/arm64 can be deployed." >&2
@@ -1175,7 +1331,7 @@ for command in "${commands[@]}"; do
             fi
 
             if [[ ${want_ui} -eq 1 && ${want_dev} -eq 1 && ${want_runtime} -eq 0 ]]; then
-                run_ui_dev
+                run_timed_step "run dev ui" run_ui_dev
                 continue
             fi
 
@@ -1185,27 +1341,27 @@ for command in "${commands[@]}"; do
             fi
 
             if [[ ${want_runtime} -eq 1 && ${want_dev} -eq 1 && ${want_ui} -eq 1 ]]; then
-                start_ui_dev_background
+                run_timed_step "start dev ui background" start_ui_dev_background
             fi
 
             if [[ ${want_dev} -eq 1 ]]; then
-                run_runtime_dev "${run_tail_log}"
+                run_timed_step "run dev runtime" run_runtime_dev "${run_tail_log}"
             fi
             if [[ ${want_arm64} -eq 1 ]]; then
                 if [[ ${did_deploy_arm64} -eq 0 ]]; then
-                    deploy_runtime_arm64
+                    run_timed_step "deploy arm64 runtime" deploy_runtime_arm64
                 fi
-                run_runtime_arm64 "${run_tail_log}" "$((1 - did_deploy_arm64))"
+                run_timed_step "run arm64 runtime" run_runtime_arm64 "${run_tail_log}" "$((1 - did_deploy_arm64))"
             fi
             ;;
         deps)
-            install_dependencies_action
+            run_timed_step "deps" install_dependencies_action
             ;;
         format)
-            format_sources_action
+            run_timed_step "format" format_sources_action
             ;;
         docs)
-            generate_docs_action
+            run_timed_step "docs" generate_docs_action
             ;;
         *)
             echo "Unknown command: ${command}" >&2

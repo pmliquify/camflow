@@ -118,11 +118,15 @@ All task values are sourced from `scripts/tasks.cfg`.
 
 Important keys:
 
-- `BUILD_TYPE`: CMake build type (default `Release`)
+- `BUILD_TYPE`: CMake build type (default `Debug`)
 - `TARGET`: remote runtime host (`pollux` or `imx8mp-var-dart`)
 - `PORT`: runtime UI/REST port (default `8000`)
 - `UI_DEV_PORT`: local Vite dev server port (default `8081`)
 - `UI_API_PORT`: local UI proxy target port (default `8000`)
+
+ARM64 Docker builds use a persistent ccache at `.ccache-arm64/`. The directory is
+mounted into the container and survives container and image rebuilds; it is limited
+to 5 GiB and is ignored by Git.
 
 To switch remote targets during development, edit only this field:
 

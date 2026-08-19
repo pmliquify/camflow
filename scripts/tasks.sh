@@ -10,7 +10,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 PROJECT_DIR=$(cd -- "${SCRIPT_DIR}/.." && pwd)
 MAKE_CFG_PATH="${SCRIPT_DIR}/tasks.cfg"
 
-DEFAULT_BUILD_TYPE=Release
+DEFAULT_BUILD_TYPE=Debug
 DEFAULT_TARGET=imx8mp-var-dart
 DEFAULT_TARGET_DIR=/usr/bin
 DEFAULT_PORT=8000
@@ -54,7 +54,6 @@ Products:
   ui             React UI bundle.
 
 Options:
-    --release      Explicitly select the default Release build type.
   --ip HOST      Target host/IP for ARM64 deployment and remote UI.
   --dir DIR      Target directory on the ARM64 host.
   --port PORT    UI port for local and remote runtime runs.
@@ -508,6 +507,7 @@ build_runtime_arm64() {
     local opencv_install_script
     local arm64_ui_out_dir
     local arm64_ui_work_dir
+    local arm64_ccache_dir
 
     image_name="${IMAGE_NAME:-${DEFAULT_ARM64_IMAGE}}"
     build_dir="${ARM64_BUILD_DIR:-${DEFAULT_ARM64_BUILD_DIR}}"
@@ -517,6 +517,7 @@ build_runtime_arm64() {
     opencv_install_script="${PROJECT_DIR}/.github/scripts/install-opencv-${OPENCV_VERSION}.sh"
     arm64_ui_out_dir="${PROJECT_DIR}/${build_dir}/web-dist"
     arm64_ui_work_dir="${PROJECT_DIR}/${build_dir}/web-build"
+    arm64_ccache_dir="${PROJECT_DIR}/.ccache-arm64"
 
     if [[ ! -x "${opencv_install_script}" ]]; then
         echo "Unsupported OpenCV version ${OPENCV_VERSION}: missing ${opencv_install_script}" >&2
@@ -527,6 +528,7 @@ build_runtime_arm64() {
     # which only has the C++ toolchain, finds up-to-date assets and skips npm.
     echo "Building web UI assets on host for arm64 embed: ${arm64_ui_out_dir}"
     build_web_ui "${arm64_ui_out_dir}" "${arm64_ui_work_dir}"
+    mkdir -p "${arm64_ccache_dir}"
 
     local dockerfile_hash
     local image_dockerfile_hash=""
@@ -548,10 +550,12 @@ build_runtime_arm64() {
     docker run --rm --platform linux/arm64 \
         --user "$(id -u):$(id -g)" \
         -e HOME=/tmp \
+        -e CCACHE_DIR=/ccache \
         -v "${PROJECT_DIR}:/workspace" \
+        -v "${arm64_ccache_dir}:/ccache" \
         -w /workspace \
         "${image_name}" \
-        bash -lc "git config --global --add safe.directory /workspace && CAMFLOW_SKIP_APT=1 ./.github/scripts/install-opencv-${OPENCV_VERSION}.sh /workspace/${opencv_dir} /workspace/${opencv_build_dir} && ccache_flags='' && if command -v ccache >/dev/null 2>&1; then ccache_flags='-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache'; echo 'Enabled compiler cache in container: ccache'; fi && cmake -B ${build_dir} -G Ninja -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DBUILD_RUNTIME=ON -DOpenCV_DIR=/workspace/${opencv_dir}/lib/cmake/opencv4 \${ccache_flags} && cmake --build ${build_dir} --parallel"
+        bash -lc "git config --global --add safe.directory /workspace && ccache --set-config=max_size=5G && CAMFLOW_SKIP_APT=1 ./.github/scripts/install-opencv-${OPENCV_VERSION}.sh /workspace/${opencv_dir} /workspace/${opencv_build_dir} && ccache_flags='-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache' && echo 'Enabled persistent ccache: \${CCACHE_DIR} (size limit: 5G)' && cmake -B ${build_dir} -G Ninja -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DBUILD_RUNTIME=ON -DOpenCV_DIR=/workspace/${opencv_dir}/lib/cmake/opencv4 \${ccache_flags} && cmake --build ${build_dir} --parallel"
 }
 
 deploy_runtime_arm64() {
@@ -656,6 +660,7 @@ run_runtime_dev() {
 
 run_runtime_arm64() {
     local tail_log="${1:-${TAIL_LOG}}"
+    local stop_existing="${2:-1}"
     local target_spec="${USER}@${TARGET}"
     local remote_log="/tmp/camflow-ui.log"
     local runtime_args="--verbose '${VERBOSE_LEVEL}' --port '${PORT}'"
@@ -668,8 +673,12 @@ run_runtime_arm64() {
         -n
     )
 
-    echo "Stopping running camflow on ${target_spec} (if active)"
-    ssh "${ssh_opts[@]}" "${target_spec}" "if command -v pkill >/dev/null 2>&1; then pkill -x camflow || true; elif command -v pgrep >/dev/null 2>&1; then for pid in \$(pgrep -x camflow || true); do kill \"\$pid\" || true; done; fi"
+    if [[ "${stop_existing}" == "1" ]]; then
+        echo "Stopping running camflow on ${target_spec} (if active)"
+        ssh "${ssh_opts[@]}" "${target_spec}" "if command -v pkill >/dev/null 2>&1; then pkill -x camflow || true; elif command -v pgrep >/dev/null 2>&1; then for pid in \$(pgrep -x camflow || true); do kill \"\$pid\" || true; done; fi"
+    else
+        echo "Skipping runtime stop: deploy already stopped camflow on ${target_spec}"
+    fi
 
     if [[ -n "${REMOTE_DEVICE}" ]]; then
         runtime_args+=" --device '${REMOTE_DEVICE}'"
@@ -947,7 +956,6 @@ CLI_UI_OUT_DIR=
 CLI_UI_WORK_DIR=
 CLI_UI_DEV_PORT=
 CLI_UI_API_PORT=
-CLI_BUILD_TYPE=
 CLI_ARM64_REBUILD_IMAGE=
 CLI_CLANG_FORMAT_BIN=
 CLI_DOCS_OUTPUT_DIR=
@@ -966,10 +974,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         runtime|ui)
             products+=("$1")
-            shift
-            ;;
-        --release)
-            CLI_BUILD_TYPE=Release
             shift
             ;;
         --ip)
@@ -1089,7 +1093,6 @@ ARM64_REBUILD_IMAGE=${ARM64_REBUILD_IMAGE:-${DEFAULT_ARM64_REBUILD_IMAGE}}
 CLANG_FORMAT_BIN=${CLANG_FORMAT_BIN:-clang-format-15}
 DOCS_OUTPUT_DIR=${DOCS_OUTPUT_DIR:-${PROJECT_DIR}/docs/api}
 
-if [[ -n "${CLI_BUILD_TYPE}" ]]; then BUILD_TYPE="${CLI_BUILD_TYPE}"; fi
 if [[ -n "${CLI_TARGET}" ]]; then TARGET="${CLI_TARGET}"; fi
 if [[ -n "${CLI_TARGET_DIR}" ]]; then TARGET_DIR="${CLI_TARGET_DIR}"; fi
 if [[ -n "${CLI_PORT}" ]]; then PORT="${CLI_PORT}"; fi
@@ -1192,7 +1195,7 @@ for command in "${commands[@]}"; do
                 if [[ ${did_deploy_arm64} -eq 0 ]]; then
                     deploy_runtime_arm64
                 fi
-                run_runtime_arm64 "${run_tail_log}"
+                run_runtime_arm64 "${run_tail_log}" "$((1 - did_deploy_arm64))"
             fi
             ;;
         deps)

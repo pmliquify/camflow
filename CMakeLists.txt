@@ -6,7 +6,7 @@ option(BUILD_RUNTIME "Build the Linux camflow runtime application" ON)
 option(ENABLE_GSTREAMER "Enable GStreamer based nodes" ON)
 
 if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+    set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 endif()
 
 include(CheckIPOSupported)

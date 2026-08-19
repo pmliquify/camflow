@@ -12,3 +12,4 @@ opencv/*/
 web/node_modules/
 web/dist/
 scripts/tasks.cfg
+.ccache-arm64/

@@ -8,8 +8,12 @@
 #include "parser/CLIPipelineParser.hpp"
 #include "parser/JsonPipelineParser.hpp"
 #include "pipeline/PipelineBuilder.hpp"
+#ifdef CAMFLOW_ENABLE_PROCESSOR_CCM
 #include "processors/CCMProcessor.hpp"
+#endif
+#ifdef CAMFLOW_ENABLE_PROCESSOR_COMPOSITOR
 #include "processors/CompositorProcessor.hpp"
+#endif
 #include "processors/DebayerProcessor.hpp"
 #include "sinks/FileSink.hpp"
 #include "sinks/LogSink.hpp"
@@ -73,9 +77,13 @@ bool Application::hasFlag(int argc, char** argv, const std::string& shortOption,
 void Application::registerNodes()
 {
     m_factory.registerType("filesrc", NodeKind::Source, []() { return std::make_unique<FileSource>(); });
+#ifdef CAMFLOW_ENABLE_PROCESSOR_COMPOSITOR
     m_factory.registerType("compositor", NodeKind::Processor, []() { return std::make_unique<CompositorProcessor>(); });
+#endif
     m_factory.registerType("debayer", NodeKind::Processor, []() { return std::make_unique<DebayerProcessor>(); });
+#ifdef CAMFLOW_ENABLE_PROCESSOR_CCM
     m_factory.registerType("ccm", NodeKind::Processor, []() { return std::make_unique<CCMProcessor>(); });
+#endif
     m_factory.registerType("filesink", NodeKind::Sink, []() { return std::make_unique<FileSink>(); });
     m_factory.registerType("logsink", NodeKind::Sink, []() { return std::make_unique<LogSink>(); });
     m_factory.registerType("v4l2src", NodeKind::Source, []() { return std::make_unique<V4L2Source>(); });

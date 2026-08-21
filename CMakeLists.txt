@@ -4,6 +4,8 @@ project(camflow VERSION 0.1.0 LANGUAGES CXX)
 
 option(BUILD_RUNTIME "Build the Linux camflow runtime application" ON)
 option(ENABLE_GSTREAMER "Enable GStreamer based nodes" ON)
+option(ENABLE_PROCESSOR_CCM "Build and register CCM processor node" OFF)
+option(ENABLE_PROCESSOR_COMPOSITOR "Build and register Compositor processor node" OFF)
 
 if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
@@ -163,8 +165,6 @@ if(BUILD_RUNTIME)
             src/runtime/network/WebInterface.cpp
             src/runtime/network/WebServer.cpp
             src/convert/ImageConverter.cpp
-            src/nodes/processors/CCMProcessor.cpp
-            src/nodes/processors/CompositorProcessor.cpp
             src/nodes/processors/DebayerProcessor.cpp
             src/nodes/sinks/FileSink.cpp
             src/nodes/sinks/LogSink.cpp
@@ -188,6 +188,20 @@ if(BUILD_RUNTIME)
         target_compile_options(camflow PRIVATE
             $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
         )
+
+        if(ENABLE_PROCESSOR_CCM)
+            target_sources(camflow PRIVATE src/nodes/processors/CCMProcessor.cpp)
+            target_compile_definitions(camflow PRIVATE CAMFLOW_ENABLE_PROCESSOR_CCM=1)
+        else()
+            message(STATUS "CCM processor disabled.")
+        endif()
+
+        if(ENABLE_PROCESSOR_COMPOSITOR)
+            target_sources(camflow PRIVATE src/nodes/processors/CompositorProcessor.cpp)
+            target_compile_definitions(camflow PRIVATE CAMFLOW_ENABLE_PROCESSOR_COMPOSITOR=1)
+        else()
+            message(STATUS "Compositor processor disabled.")
+        endif()
 
         # Static libgcc/libstdc++ avoid GLIBCXX/CXXABI version mismatches across
         # ARM64 targets with different distro ages; glibc itself stays dynamic

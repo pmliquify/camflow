@@ -74,6 +74,14 @@ public:
     static bool read(const V4L2Control& control, int64_t& value);
 
     /**
+     * @brief Reads the current string value of a V4L2 control.
+     * @param control Control descriptor (must have a valid fd and id).
+     * @param value   Output parameter; receives the current string value.
+     * @return @c true on success; @c false if the ioctl failed.
+     */
+    static bool read(const V4L2Control& control, std::string& value);
+
+    /**
      * @brief Writes a new value to a V4L2 control.
      * @param control Control descriptor (must have a valid fd and id).
      * @param value   New value to write, clamped to [minimum, maximum].
@@ -81,6 +89,15 @@ public:
      * @return @c true on success; @c false if the ioctl failed or the control is read-only.
      */
     static bool write(const V4L2Control& control, int64_t value, std::string* errorMessage = nullptr);
+
+    /**
+     * @brief Writes a new string value to a V4L2 control.
+     * @param control Control descriptor (must have a valid fd and id).
+     * @param value   New string value to write.
+     * @param errorMessage Optional output for a driver or control-state error.
+     * @return @c true on success; @c false if the ioctl failed or the control is read-only.
+     */
+    static bool write(const V4L2Control& control, const std::string& value, std::string* errorMessage = nullptr);
 
     /**
      * @brief Converts a @ref V4L2Control to a @ref ParameterInfo descriptor.

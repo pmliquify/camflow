@@ -99,6 +99,7 @@ std::string schemaToJson(const NodeSchema& schema, const ParameterSet& configure
         json << "\"min\":" << valueToJsonRest(parameter.minimumValue) << ",";
         json << "\"max\":" << valueToJsonRest(parameter.maximumValue) << ",";
         json << "\"runtimeWritable\":" << (parameter.runtimeWritable ? "true" : "false") << ",";
+        json << "\"readOnly\":" << (parameter.readOnly ? "true" : "false") << ",";
         json << "\"hasSideEffects\":" << (parameter.hasSideEffects ? "true" : "false") << ",";
         json << "\"multiSelect\":" << (parameter.multiSelect ? "true" : "false") << ",";
         json << "\"configured\":" << (configured.contains(parameter.name) ? "true" : "false") << ",";
@@ -669,6 +670,14 @@ bool RestApiInterface::tryHandle(const std::string& method, const std::string& p
             contentType = "application/json";
             responseBody = "{\"ok\":false,\"error\":\"parameter not found\"}";
             LOG_WARNING("REST parameter response: 404 " + target + " (parameter not found)");
+            return true;
+        }
+
+        if (parameterIt->readOnly) {
+            statusCode = 409;
+            contentType = "application/json";
+            responseBody = "{\"ok\":false,\"error\":\"parameter is read-only\"}";
+            LOG_WARNING("REST parameter response: 409 " + target + " (read-only)");
             return true;
         }
 

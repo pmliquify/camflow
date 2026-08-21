@@ -281,7 +281,7 @@ export default function ParameterPanel({
                                                 }
 
                                                 const item = entry.item;
-                                                const canEdit = !selectedMediaDetail && (!runtimeRunning || item.runtimeWritable !== false);
+                                                const canEdit = !selectedMediaDetail && item.readOnly !== true && (!runtimeRunning || item.runtimeWritable !== false);
                                                 return (
                                                         <ParameterRow
                                                                 key={entry.id}

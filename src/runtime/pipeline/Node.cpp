@@ -150,6 +150,12 @@ bool Node::setParameter(const std::string& name, const ParameterValue& value, bo
 
     const ParameterInfo* info = parameterInfo(name);
     if (info != nullptr) {
+        if (info->readOnly && !allowLocked) {
+            if (errorMessage != nullptr) {
+                *errorMessage = "parameter is read-only";
+            }
+            return false;
+        }
         if (!info->runtimeWritable && !allowLocked) {
             if (errorMessage != nullptr) {
                 *errorMessage = "parameter is not writable while runtime is running";

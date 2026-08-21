@@ -134,6 +134,39 @@ bool V4L2ControlAccess::read(const V4L2Control& control, int64_t& value)
     return false;
 }
 
+bool V4L2ControlAccess::read(const V4L2Control& control, std::string& value)
+{
+    if (control.fd < 0) {
+        return false;
+    }
+
+    const size_t bufferSize = std::max<size_t>(64u, static_cast<size_t>(std::max<int64_t>(control.maximum + 1, 1)));
+    std::vector<char> buffer(bufferSize, '\0');
+
+    v4l2_ext_control extControl;
+    std::memset(&extControl, 0, sizeof(extControl));
+    extControl.id = control.id;
+    extControl.size = static_cast<unsigned int>(buffer.size());
+    extControl.string = buffer.data();
+
+    v4l2_ext_controls extControls;
+    std::memset(&extControls, 0, sizeof(extControls));
+    extControls.count = 1;
+    extControls.controls = &extControl;
+    if (::ioctl(control.fd, VIDIOC_G_EXT_CTRLS, &extControls) != 0) {
+        value.clear();
+        return false;
+    }
+
+    const size_t length = std::min<size_t>(buffer.size(), static_cast<size_t>(extControl.size));
+    size_t end = 0;
+    while (end < length && buffer[end] != '\0') {
+        ++end;
+    }
+    value.assign(buffer.data(), end);
+    return true;
+}
+
 bool V4L2ControlAccess::write(const V4L2Control& control, int64_t value, std::string* errorMessage)
 {
     const auto reject = [&control, errorMessage](const std::string& reason) {
@@ -194,6 +227,56 @@ bool V4L2ControlAccess::write(const V4L2Control& control, int64_t value, std::st
     return reject("write failed: " + std::string(std::strerror(controlError)) + " (errno " + std::to_string(controlError) + ")");
 }
 
+bool V4L2ControlAccess::write(const V4L2Control& control, const std::string& value, std::string* errorMessage)
+{
+    const auto reject = [&control, errorMessage](const std::string& reason) {
+        if (errorMessage != nullptr) {
+            *errorMessage = "V4L2 control '" + control.controlName + "' " + reason;
+        }
+        return false;
+    };
+
+    if (control.fd < 0) {
+        return reject("has no open device");
+    }
+    if ((control.flags & V4L2_CTRL_FLAG_READ_ONLY) != 0) {
+        return reject("is read-only");
+    }
+    if ((control.flags & V4L2_CTRL_FLAG_GRABBED) != 0) {
+        return reject("is currently grabbed by the driver");
+    }
+    if ((control.flags & V4L2_CTRL_FLAG_INACTIVE) != 0) {
+        return reject("is currently inactive");
+    }
+    if (!control.writable) {
+        return reject("is currently not writable");
+    }
+
+    if (errorMessage != nullptr) {
+        errorMessage->clear();
+    }
+
+    const size_t bufferSize = std::max<size_t>(64u, value.size() + 1u);
+    std::vector<char> buffer(bufferSize, '\0');
+    std::memcpy(buffer.data(), value.c_str(), value.size());
+
+    v4l2_ext_control extControl;
+    std::memset(&extControl, 0, sizeof(extControl));
+    extControl.id = control.id;
+    extControl.size = static_cast<unsigned int>(buffer.size());
+    extControl.string = buffer.data();
+
+    v4l2_ext_controls extControls;
+    std::memset(&extControls, 0, sizeof(extControls));
+    extControls.count = 1;
+    extControls.controls = &extControl;
+    if (::ioctl(control.fd, VIDIOC_S_EXT_CTRLS, &extControls) == 0) {
+        return true;
+    }
+
+    return reject("write failed: " + std::string(std::strerror(errno)) + " (errno " + std::to_string(errno) + ")");
+}
+
 ParameterInfo V4L2ControlAccess::toParameterInfo(const V4L2Control& control)
 {
     ParameterType type = ParameterType::Int;
@@ -205,6 +288,9 @@ ParameterInfo V4L2ControlAccess::toParameterInfo(const V4L2Control& control)
     }
     if (control.type == V4L2_CTRL_TYPE_MENU || control.type == V4L2_CTRL_TYPE_INTEGER_MENU) {
         type = ParameterType::Option;
+    }
+    if (control.type == V4L2_CTRL_TYPE_STRING) {
+        type = ParameterType::String;
     }
 
     ParameterValue defaultValue = control.defaultValue;
@@ -225,8 +311,14 @@ ParameterInfo V4L2ControlAccess::toParameterInfo(const V4L2Control& control)
         minimumValue = int64_t(0);
         maximumValue = int64_t(1);
     }
+    if (type == ParameterType::String) {
+        defaultValue = std::string();
+        minimumValue = std::string();
+        maximumValue = std::string();
+    }
 
-    return {
-        control.parameterName, type, "V4L2 control: " + control.controlName, defaultValue, minimumValue, maximumValue, control.options, control.runtimeWritable, control.options, std::string("v4l2"),
-        control.sourceDevice};
+    ParameterInfo info{control.parameterName, type, "V4L2 control: " + control.controlName, defaultValue, minimumValue, maximumValue, control.options, control.runtimeWritable, control.options,
+                       std::string("v4l2"), control.sourceDevice};
+    info.readOnly = !control.writable;
+    return info;
 }

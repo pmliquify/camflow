@@ -79,7 +79,8 @@ struct ParameterInfo
     ParameterValue minimumValue;           ///< Minimum acceptable value (for Int and Double types).
     ParameterValue maximumValue;           ///< Maximum acceptable value (for Int and Double types).
     std::vector<std::string> options;      ///< Valid options for @ref ParameterType::Option parameters.
-    bool runtimeWritable = true;           ///< @c true if the parameter may be updated via @ref Node::setParameter.
+    bool runtimeWritable = true;           ///< @c true if the parameter may be updated while the runtime is running.
+    bool readOnly = false;                 ///< @c true if the parameter can never be changed.
     std::vector<std::string> optionLabels; ///< Human-readable labels for @ref options.
     std::string origin;                    ///< Optional origin tag such as "v4l2".
     std::string source;                    ///< Optional source description such as a device path.

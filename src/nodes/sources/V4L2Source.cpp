@@ -326,6 +326,20 @@ bool V4L2Source::applyControlParameterLocked(const std::string& name, const Para
         return false;
     }
 
+    if (it->second.type == V4L2_CTRL_TYPE_STRING) {
+        if (!std::holds_alternative<std::string>(value)) {
+            if (errorMessage != nullptr) {
+                *errorMessage = "invalid value for V4L2 control '" + name + "'";
+            }
+            return false;
+        }
+        if (!V4L2ControlAccess::write(it->second, std::get<std::string>(value), errorMessage)) {
+            LOG_WARNING("Could not apply V4L2 control '" + name + "' while " + (m_device.isStreaming() ? "streaming" : "stopped"));
+            return false;
+        }
+        return true;
+    }
+
     int64_t controlValue = 0;
     if (std::holds_alternative<int64_t>(value)) {
         controlValue = std::get<int64_t>(value);
@@ -382,22 +396,30 @@ ParameterSet V4L2Source::currentParameters() const
     parameters.set("pixelformat", pixelFormatToString(m_pixelFormat));
 
     for (const auto& item : m_controlByParameter) {
-        int64_t currentValue = 0;
-        if (!V4L2ControlAccess::read(item.second, currentValue)) {
-            continue;
-        }
-
         ParameterValue value;
-        if (item.second.type == V4L2_CTRL_TYPE_BOOLEAN) {
-            value = currentValue != 0;
-        } else if (item.second.type == V4L2_CTRL_TYPE_MENU || item.second.type == V4L2_CTRL_TYPE_INTEGER_MENU) {
-            if (!item.second.options.empty() && currentValue >= 0 && currentValue < static_cast<int64_t>(item.second.options.size())) {
-                value = item.second.options[static_cast<size_t>(currentValue)];
+        if (item.second.type == V4L2_CTRL_TYPE_STRING) {
+            std::string currentString;
+            if (!V4L2ControlAccess::read(item.second, currentString)) {
+                continue;
+            }
+            value = currentString;
+        } else {
+            int64_t currentValue = 0;
+            if (!V4L2ControlAccess::read(item.second, currentValue)) {
+                continue;
+            }
+
+            if (item.second.type == V4L2_CTRL_TYPE_BOOLEAN) {
+                value = currentValue != 0;
+            } else if (item.second.type == V4L2_CTRL_TYPE_MENU || item.second.type == V4L2_CTRL_TYPE_INTEGER_MENU) {
+                if (!item.second.options.empty() && currentValue >= 0 && currentValue < static_cast<int64_t>(item.second.options.size())) {
+                    value = item.second.options[static_cast<size_t>(currentValue)];
+                } else {
+                    value = currentValue;
+                }
             } else {
                 value = currentValue;
             }
-        } else {
-            value = currentValue;
         }
         parameters.set(item.first, value);
     }
@@ -541,13 +563,20 @@ bool V4L2Source::refreshControlSchema()
     m_controlByParameter.clear();
 
     for (auto& control : m_controls) {
-        int64_t currentValue = 0;
         ParameterInfo info = V4L2ControlAccess::toParameterInfo(control);
-        if (V4L2ControlAccess::read(control, currentValue)) {
-            if (info.type == ParameterType::Bool) {
-                info.defaultValue = currentValue != 0;
-            } else if (info.type != ParameterType::Option) {
-                info.defaultValue = currentValue;
+        if (info.type == ParameterType::String) {
+            std::string currentString;
+            if (V4L2ControlAccess::read(control, currentString)) {
+                info.defaultValue = currentString;
+            }
+        } else {
+            int64_t currentValue = 0;
+            if (V4L2ControlAccess::read(control, currentValue)) {
+                if (info.type == ParameterType::Bool) {
+                    info.defaultValue = currentValue != 0;
+                } else if (info.type != ParameterType::Option) {
+                    info.defaultValue = currentValue;
+                }
             }
         }
         if (!control.sourceDevice.empty() && selectedSubdeviceSet.find(control.sourceDevice) != selectedSubdeviceSet.end()) {
@@ -740,6 +769,15 @@ void V4L2Source::refreshCurrentParameterValues() const
     for (auto& control : m_controlSchema) {
         auto it = m_controlByParameter.find(control.name);
         if (it == m_controlByParameter.end()) {
+            continue;
+        }
+
+        if (control.type == ParameterType::String) {
+            std::string currentString;
+            if (!V4L2ControlAccess::read(it->second, currentString)) {
+                continue;
+            }
+            control.defaultValue = currentString;
             continue;
         }
 

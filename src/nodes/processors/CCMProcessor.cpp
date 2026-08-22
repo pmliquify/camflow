@@ -15,7 +15,7 @@ std::string CCMProcessor::typeName() const
 
 std::string CCMProcessor::description() const
 {
-    return "Applies a 3x3 color correction matrix to BGR output; auto-debayers RAW Bayer input.";
+    return "Applies a 3x3 color correction matrix to BGR output; converts RAW input to greyscale (use debayer for Bayer color input).";
 }
 
 NodeSchema CCMProcessor::schema() const

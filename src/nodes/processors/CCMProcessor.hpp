@@ -8,10 +8,11 @@
 /**
  * @brief Processor node that applies a 3x3 Color Correction Matrix (CCM).
  *
- * CCMProcessor transforms each BGR pixel by a configurable 3x3 matrix. If the
- * input image is Bayer RAW, the processor performs the project's standard
- * debayer step automatically before applying the CCM. For non-BGR formats it
- * requests a conversion to BGR888 through the injected image converter.
+ * CCMProcessor transforms each BGR pixel by a configurable 3x3 matrix. For
+ * non-BGR formats it requests a conversion to BGR888 through the injected
+ * image converter. Bayer RAW input is not automatically demosaiced; it is
+ * converted to greyscale like any other RAW format. Use a `debayer` node
+ * upstream if color output from Bayer RAW input is required.
  *
  * ### Parameters
  * | Name | Type   | Default | Description |
@@ -35,7 +36,7 @@ public:
     NodeSchema schema() const override;
 
     /**
-     * @brief Applies debayer+conversion (if needed) and then CCM in BGR space.
+     * @brief Converts to BGR888 if needed (RAW input becomes greyscale, not demosaiced) and then applies the CCM.
      * @param context Frame context containing key `image` with @ref ImageBuffer.
      * @return @c true on success, @c false if conversion or processing fails.
      */

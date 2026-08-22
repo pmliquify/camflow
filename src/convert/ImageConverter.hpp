@@ -31,12 +31,15 @@
  *      bitwise to 16-bit samples.
  *    - Unpacked >8-bit formats are read as 16-bit samples.
  *    - If ImageBuffer::bitShift is set, values are divided by 2^bitShift
- *      using OpenCV arithmetic before debayer/8-bit reduction.
+ *      using OpenCV arithmetic before greyscale/8-bit reduction.
  * 4. Precision reduction:
- *    - For Mono8 output (and Bayer pre-processing), the intermediate 16-bit
- *      data is right-shifted to 8-bit according to source bit depth.
+ *    - For Mono8 output, the intermediate 16-bit data is right-shifted to
+ *      8-bit according to source bit depth.
  * 5. Color conversion:
- *    - Bayer to BGR uses OpenCV Bayer codes selected from the Bayer pattern.
+ *    - Bayer RAW is treated like any other RAW input for @ref convert: it is
+ *      reduced to greyscale (Mono8), then expanded to BGR/RGB with identical
+ *      channels. Actual demosaicing only happens via @ref debayer, which is
+ *      used explicitly by `DebayerProcessor`.
  *    - RGB/BGR/GRAY/YUYV/NV12 conversions use OpenCV color conversion APIs.
  * 6. YUV packing:
  *    - BGR to YUYV and BGR to NV12 are generated explicitly using BT.601
@@ -46,7 +49,7 @@
  *
  * ## Conversion flow (ASCII)
  *
- * RAW and Bayer path:
+ * RAW and Bayer path (@ref convert):
  *
  *   RAW/Bayer input
  *   (Mono10/12/14/16,
@@ -60,19 +63,24 @@
  *            v
  *   apply bitShift: value / 2^bitShift
  *            |
- *            +------------------------------+
- *            |                              |
- *            v                              v
- *   [to Mono8 by bit-depth shift]     [Bayer demosaic]
- *            |                         (OpenCV Bayer code)
- *            |                              |
- *            v                              v
- *        Mono8 output                    BGR888
- *                                           |
- *                          +----------------+----------------+
- *                          |                                 |
- *                          v                                 v
- *                       RGB888                          YUYV / NV12
+ *            v
+ *   [to Mono8 by bit-depth shift]
+ *            |
+ *            v
+ *        Mono8 output
+ *            |
+ *            v
+ *        BGR888 (grey, no demosaic)
+ *            |
+ *   +--------+--------+
+ *   |                 |
+ *   v                 v
+ * RGB888        YUYV / NV12
+ *
+ * Bayer demosaic path (@ref debayer, used explicitly by `DebayerProcessor`):
+ *
+ *   Bayer RAW input -> [makeMono16] -> apply bitShift -> Mono8 -> [Bayer demosaic] -> BGR888
+ *                                                                  (OpenCV Bayer code)
  *
  * Special color format path:
  *
@@ -90,7 +98,9 @@
  *
  * - RGB output is produced via BGR (BGR first, then channel swap).
  * - YUYV/NV12 inputs are first expanded to BGR for conversions to RGB/Mono.
- * - RAWx and high-bit mono paths are routed through Mono8/BGR helper paths.
+ * - Bayer RAW inputs are routed through the same Mono8/BGR helper paths as
+ *   other RAW formats (no automatic demosaicing); use @ref debayer explicitly
+ *   for real color output.
  * - YUYV requires even width, NV12 requires even width and height.
  *
  * The application owns and injects this converter through
@@ -116,12 +126,25 @@ public:
 
     /**
      * @brief Converts @p source to @p destinationFormat using OpenCV.
+     *
+     * Bayer RAW input is treated like any other RAW input: it is reduced to
+     * greyscale rather than demosaiced. Use @ref debayer for actual Bayer
+     * demosaicing.
+     *
      * @param source             Read-only input image buffer.
      * @param destination        Output image buffer; filled with converted data.
      * @param destinationFormat  Target pixel format.
      * @return @c true on success; @c false if the conversion failed.
      */
     bool convert(const ImageBuffer& source, ImageBuffer& destination, PixelFormat destinationFormat) override;
+
+    /**
+     * @brief Demosaics a Bayer RAW @p source directly to @ref PixelFormat::BGR888.
+     * @param source      Read-only input image buffer in a Bayer RAW format.
+     * @param destination Output image buffer; filled with the debayered BGR888 image.
+     * @return @c true on success; @c false if @p source is not a Bayer format or the conversion failed.
+     */
+    bool debayer(const ImageBuffer& source, ImageBuffer& destination) override;
 
 private:
     /**

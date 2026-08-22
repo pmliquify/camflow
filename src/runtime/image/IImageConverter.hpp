@@ -67,6 +67,20 @@ public:
      * @return @c true on success; @c false if the conversion failed.
      */
     virtual bool convert(const ImageBuffer& source, ImageBuffer& destination, PixelFormat destinationFormat) = 0;
+
+    /**
+     * @brief Demosaics a Bayer RAW @p source directly to @ref PixelFormat::BGR888.
+     *
+     * This is the only path that performs actual Bayer demosaicing; @ref convert
+     * treats Bayer RAW input like any other RAW input and produces a greyscale
+     * image instead. Nodes that need real color output from Bayer RAW input
+     * (for example @c DebayerProcessor) must call this method explicitly.
+     *
+     * @param source      Input image buffer in a Bayer RAW format (read-only).
+     * @param destination Output image buffer (written on success).
+     * @return @c true on success; @c false if @p source is not a Bayer format or the conversion failed.
+     */
+    virtual bool debayer(const ImageBuffer& source, ImageBuffer& destination) = 0;
 };
 
 /// Owning smart-pointer type for @ref IImageConverter instances.

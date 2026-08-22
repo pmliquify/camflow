@@ -46,7 +46,7 @@ bool DebayerProcessor::process(FrameContext& context)
         return false;
     }
     ImageBuffer converted;
-    if (!imageConverter->convert(*image, converted, PixelFormat::BGR888)) {
+    if (!imageConverter->debayer(*image, converted)) {
         LOG_ERROR("DebayerProcessor failed to convert image to BGR888");
         return false;
     }

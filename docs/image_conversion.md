@@ -28,9 +28,9 @@ CamFlow now applies format conversion as late as possible:
 
 - `FileSource` keeps RAW payloads unchanged in `FrameContext`.
 - `FileSink` converts only when output format requires it (for example RAW -> JPG).
-- `CCMProcessor` and `FileSink` automatically use the standard debayer path when Bayer RAW input must be converted to color.
+- `CCMProcessor` and `FileSink` reduce Bayer RAW input to greyscale rather than demosaicing it; use a `DebayerProcessor` node upstream for real color output from Bayer RAW.
 - `ImageConverter` supports YUYV and NV12 both as input formats and as raw output targets.
-- For RAW Bayer/mono inputs, `ImageBuffer::bitShift` is applied before automatic debayer/RAW conversion by dividing all pixel values by `2^bitShift` in OpenCV.
+- For RAW Bayer/mono inputs, `ImageBuffer::bitShift` is applied before the RAW/greyscale conversion by dividing all pixel values by `2^bitShift` in OpenCV.
 - RAW14 is supported for mono (`Y14`) and Bayer (`RG14/GB14/GR14/BG14` plus packed `*14P`) in FileSource/FileSink and converter paths.
 
 Supported YUV roundtrips:

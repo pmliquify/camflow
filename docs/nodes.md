@@ -61,7 +61,7 @@ If no subdevices are selected, no dynamic subdevice controls are exposed.
 Options for devices and subdevices are shown as `/dev/... (<name>, <version>)` and `pixelformat` is populated from the device-supported format list.
 
 `bitShift` is stored as metadata in every produced `ImageBuffer`. Runtime and UI
-converters apply it before RAW conversion or debayering.
+converters apply it before RAW/greyscale conversion or debayering.
 
 ### TCPSink
 
@@ -130,7 +130,7 @@ Behavior details:
 - RAW requires width and height unless filename contains a token like `...1920x1080...`.
 - Explicit `width`/`height` parameters override filename dimensions.
 - Stride is auto-derived from format unless `stride` is explicitly set.
-- `bitShift` stores right-shift metadata in `ImageBuffer` and is applied in RAW conversion paths before automatic debayering.
+- `bitShift` stores right-shift metadata in `ImageBuffer` and is applied in RAW conversion paths before greyscale reduction or debayering.
 - For `YUYV` the default stride is `width * 2`.
 - For `NV12` the default stride is `width`; file size is interpreted as Y plane plus interleaved UV plane.
 - In directory mode, `wildcard` filters file names (for example `frame_*_left*.raw`).
@@ -159,20 +159,20 @@ omitting any component whose `append*` parameter is disabled.
 Behavior details:
 
 - RAW output writes the buffer bytes directly, so e.g. an `RG10` `1920x1080` frame always produces a 4147200 byte file.
-- RAW input to PNG/JPG triggers automatic debayer/conversion using the standard project conversion path.
+- RAW input to PNG/JPG is converted to greyscale (Mono8) then expanded to `BGR888`; Bayer RAW is **not** automatically demosaiced. Use a `debayer` node upstream to get real color output from Bayer RAW input.
 - Non-RAW input is converted to `BGR888` for PNG/JPG output when needed.
 
 ### DebayerProcessor
 
 Factory name: `debayer`
 
-Converts Bayer RAW input formats to `BGR888` using OpenCV. The processor rejects non-Bayer input.
+Converts Bayer RAW input formats to `BGR888` using OpenCV demosaicing. The processor rejects non-Bayer input. This is the only node that performs actual Bayer demosaicing; automatic RAW-to-color conversion elsewhere (`filesink`, `ccm`) reduces Bayer RAW to greyscale instead.
 
 ### CCMProcessor
 
 Factory name: `ccm`
 
-Applies a 3x3 Color Correction Matrix in BGR space. If input is RAW Bayer, debayering is applied automatically before the matrix operation.
+Applies a 3x3 Color Correction Matrix in BGR space. RAW input (including Bayer) is converted to greyscale, not demosaiced; use a `debayer` node upstream for color CCM output from Bayer RAW input.
 
 ### CompositorProcessor
 

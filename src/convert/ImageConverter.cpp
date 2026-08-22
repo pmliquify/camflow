@@ -332,23 +332,6 @@ bool ImageConverter::convertToBgr888(const ImageBuffer& source, ImageBuffer& des
         }
         return convertToBgr888(mono8, destination);
     }
-    if (isBayerFormat(source.format())) {
-        ImageBuffer mono8;
-        if (!convertToMono8(source, mono8)) {
-            return false;
-        }
-        destination.allocate(source.width(), source.height(), source.width() * 3, PixelFormat::BGR888);
-        cv::Mat src(mono8.height(), mono8.width(), CV_8UC1, mono8.data(), mono8.stride());
-        cv::Mat dst(destination.height(), destination.width(), CV_8UC3, destination.data(), destination.stride());
-        int code = bayerCode(source.format());
-        if (code < 0) {
-            return false;
-        }
-        cv::cvtColor(src, dst, code);
-        destination.setSequence(source.sequence());
-        destination.setTimestampNs(source.timestampNs());
-        return true;
-    }
     if (source.format() == PixelFormat::YUYV) {
         destination.allocate(source.width(), source.height(), source.width() * 3, PixelFormat::BGR888);
         cv::Mat src(source.height(), source.width(), CV_8UC2, const_cast<uint8_t*>(source.data()), source.stride());
@@ -372,7 +355,9 @@ bool ImageConverter::convertToBgr888(const ImageBuffer& source, ImageBuffer& des
         destination.setTimestampNs(source.timestampNs());
         return true;
     }
-    if (source.format() == PixelFormat::Raw8 || source.format() == PixelFormat::Raw10 || source.format() == PixelFormat::Raw12 || source.format() == PixelFormat::Raw16) {
+    if (source.format() == PixelFormat::Raw8 || source.format() == PixelFormat::Raw10 || source.format() == PixelFormat::Raw12 || source.format() == PixelFormat::Raw16
+        || isBayerFormat(source.format())) {
+        // Bayer RAW is treated like any other RAW format here: reduced to greyscale, not demosaiced. Use debayer() for color output.
         ImageBuffer mono8;
         if (!convertToMono8(source, mono8)) {
             return false;
@@ -380,6 +365,29 @@ bool ImageConverter::convertToBgr888(const ImageBuffer& source, ImageBuffer& des
         return convertToBgr888(mono8, destination);
     }
     return false;
+}
+
+bool ImageConverter::debayer(const ImageBuffer& source, ImageBuffer& destination)
+{
+    if (!isBayerFormat(source.format())) {
+        LOG_ERROR("ImageConverter::debayer requires a Bayer RAW source format");
+        return false;
+    }
+    ImageBuffer mono8;
+    if (!convertToMono8(source, mono8)) {
+        return false;
+    }
+    const int code = bayerCode(source.format());
+    if (code < 0) {
+        return false;
+    }
+    destination.allocate(source.width(), source.height(), source.width() * 3, PixelFormat::BGR888);
+    cv::Mat src(mono8.height(), mono8.width(), CV_8UC1, mono8.data(), mono8.stride());
+    cv::Mat dst(destination.height(), destination.width(), CV_8UC3, destination.data(), destination.stride());
+    cv::cvtColor(src, dst, code);
+    destination.setSequence(source.sequence());
+    destination.setTimestampNs(source.timestampNs());
+    return true;
 }
 
 bool ImageConverter::convertToYuyv(const ImageBuffer& source, ImageBuffer& destination)

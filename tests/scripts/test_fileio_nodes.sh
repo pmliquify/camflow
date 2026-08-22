@@ -62,12 +62,24 @@ run_pipeline "filesrc(file=tests/images/generated/mono_8x6_GREY.raw,format=GREY,
 run_pipeline "filesrc(file=tests/images/generated/mono_8x6_GREY.raw,format=GREY,width=8,height=6)->filesink(format=raw,filename=tests/output/timestamped,appendDatetime=true,appendSequence=false,appendPixelFormat=false,appendImageSize=false)" 1
 [[ $(find "${ROOT_DIR}/tests/output" -maxdepth 1 -name 'timestamped_????????_??????.raw' | wc -l) -eq 1 ]]
 
-# 6) RAW Bayer to PNG/JPG through FileSink auto-debayer.
+# 6) RAW Bayer to PNG/JPG through FileSink is converted to greyscale (no automatic demosaicing).
 run_pipeline "filesrc(file=tests/images/generated/bayer_8x6_RGGB.raw,format=RGGB,width=8,height=6)->filesink(format=png,filename=tests/output/debayer,appendDatetime=false,appendSequence=false,appendPixelFormat=false,appendImageSize=false)" 1
 [[ -s "${ROOT_DIR}/tests/output/debayer.png" ]]
 
 run_pipeline "filesrc(file=tests/images/generated/bayer_8x6_RGGB.raw,format=RGGB,width=8,height=6)->filesink(format=jpg,filename=tests/output/debayer,appendDatetime=false,appendSequence=false,appendPixelFormat=false,appendImageSize=false)" 1
 [[ -s "${ROOT_DIR}/tests/output/debayer.jpg" ]]
+
+# 6b) Implicit RAW->BGR conversion of Bayer input yields R=G=B (greyscale), unlike the debayer node.
+run_pipeline "filesrc(file=tests/images/generated/bayer_8x6_RGGB_red.raw,format=RGGB,width=8,height=6)->filesink(format=png,filename=tests/output/no_auto_debayer_src,appendDatetime=false,appendSequence=false,appendPixelFormat=false,appendImageSize=false)" 1
+run_pipeline "filesrc(file=tests/output/no_auto_debayer_src.png)->filesink(format=raw,filename=tests/output/no_auto_debayer,appendDatetime=false,appendSequence=false,appendPixelFormat=false,appendImageSize=false)" 1
+python3 - "${ROOT_DIR}/tests/output/no_auto_debayer.raw" <<'PY'
+import pathlib
+import sys
+
+pixel = pathlib.Path(sys.argv[1]).read_bytes()[(2 * 8 + 2) * 3:(2 * 8 + 3) * 3]
+if pixel[0] != pixel[1] or pixel[1] != pixel[2]:
+    raise SystemExit(f"expected greyscale (R=G=B) without an explicit debayer node, got {list(pixel)}")
+PY
 
 # 7) PNG/JPG source without width/height/stride, written back as a RAW 1:1 dump.
 run_pipeline "filesrc(file=tests/output/debayer.png)->filesink(format=raw,filename=tests/output/from_png,appendDatetime=false,appendSequence=false,appendPixelFormat=false,appendImageSize=false)" 1
@@ -98,7 +110,7 @@ assert_red_debayer "${ROOT_DIR}/tests/output/debayer_rggb_red.raw"
 run_pipeline "filesrc(file=tests/images/generated/bayer_8x6_pRAA_red.raw,format=pRAA,width=8,height=6)->debayer->filesink(format=raw,filename=tests/output/debayer_rg10p_red,appendDatetime=false,appendSequence=false,appendPixelFormat=false,appendImageSize=false)" 1
 assert_red_debayer "${ROOT_DIR}/tests/output/debayer_rg10p_red.raw"
 
-# 9) CCM processor (auto debayer when RAW input).
+# 9) CCM processor (RAW input is converted to greyscale, not demosaiced).
 if node_available ccm; then
     run_pipeline "filesrc(file=tests/images/generated/bayer_8x6_RGGB.raw,format=RGGB,width=8,height=6)->ccm(m00=1.05,m11=1.0,m22=0.95)->filesink(format=png,filename=tests/output/ccm,appendDatetime=false,appendSequence=false,appendPixelFormat=false,appendImageSize=false)" 1
     [[ -s "${ROOT_DIR}/tests/output/ccm.png" ]]

@@ -36,7 +36,7 @@ Graphs can be loaded through `--graph` (short form `-G`) or through the REST API
 {
   "nodes": [
     { "id": "cam", "type": "v4l2src" },
-    { "id": "store", "type": "filesink", "parameters": { "directory": "out", "appendSequence": true, "appendTimestamp": true } },
+    { "id": "store", "type": "filesink", "parameters": { "format": "raw", "filename": "out/frame", "appendSequence": true, "appendDatetime": true } },
     { "id": "stream", "type": "tcpsink", "parameters": { "ip": "192.168.1.100", "port": 9000 } }
   ],
   "edges": [
@@ -54,7 +54,7 @@ Graphs can be loaded through `--graph` (short form `-G`) or through the REST API
     { "id": "left", "type": "filesrc", "parameters": { "file": "left.png" } },
     { "id": "right", "type": "filesrc", "parameters": { "file": "right.png" } },
     { "id": "join", "type": "compositor" },
-    { "id": "out", "type": "filesink", "parameters": { "file": "joined.png" } }
+    { "id": "out", "type": "filesink", "parameters": { "format": "png", "filename": "joined" } }
   ],
   "edges": [
     { "from": "left", "to": "join" },

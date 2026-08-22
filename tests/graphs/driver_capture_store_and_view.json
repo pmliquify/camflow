@@ -14,9 +14,10 @@
       "id": "store",
       "type": "filesink",
       "parameters": {
-        "directory": "out",
+        "format": "raw",
+        "filename": "out/frame",
         "appendSequence": true,
-        "appendTimestamp": true
+        "appendDatetime": true
       }
     },
     {

@@ -31,7 +31,8 @@
       "id": "output",
       "type": "filesink",
       "parameters": {
-        "file": "tests/output/compositor.png"
+        "format": "png",
+        "filename": "tests/output/compositor"
       }
     }
   ],

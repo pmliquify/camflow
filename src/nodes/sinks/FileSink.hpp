@@ -5,8 +5,6 @@
 
 #include "pipeline/Node.hpp"
 
-#include "image/PixelFormat.hpp"
-
 /**
  * @brief Sink node that writes frames to image files on disk.
  *
@@ -18,16 +16,24 @@
  * capture timestamp to produce unique per-frame file names.
  *
  * ### Parameters
- * | Name              | Type   | Description                                                  |
- * |-------------------|--------|--------------------------------------------------------------|
- * | `file`            | string | Base output file path (e.g. `/tmp/frame.raw`).               |
- * | `format`          | string | Optional target RAW format for non-encoded outputs.          |
- * | `appendSequence`  | bool   | If @c true, appends the sequence number to the file name.    |
- * | `appendTimestamp` | bool   | If @c true, appends the timestamp (ns) to the file name.     |
+ * | Name               | Type   | Description                                                       |
+ * |--------------------|--------|--------------------------------------------------------------------|
+ * | `filename`         | string | Base output file path without file extension.                     |
+ * | `appendDatetime`   | bool   | If @c true, appends the write date/time (`YYYYMMDD_hhmmss`).       |
+ * | `appendSequence`   | bool   | If @c true, appends the frame sequence number.                     |
+ * | `appendPixelFormat`| bool   | If @c true, appends the written image's pixel format (fourcc-like).|
+ * | `appendImageSize`  | bool   | If @c true, appends the image size as `<width>x<height>`.          |
+ * | `format`           | option | Output file format (`jpg`, `png`, `raw`), used as file extension.  |
+ *
+ * The resulting file name is assembled as
+ * `<filename>_<datetime>_<sequence>_<pixelFormat>_<width>x<height>.<format>`,
+ * omitting any component whose `append*` parameter is disabled. RAW output
+ * writes the in-memory image buffer byte-for-byte (no pixel format
+ * conversion), so file size always matches `width * height * bytesPerPixel`.
  *
  * During processing these values are read from scoped context keys
- * `<thisNodeId>.file`, `<thisNodeId>.format`, `<thisNodeId>.appendSequence`
- * and `<thisNodeId>.appendTimestamp`.
+ * `<thisNodeId>.filename`, `<thisNodeId>.appendDatetime`, `<thisNodeId>.appendSequence`,
+ * `<thisNodeId>.appendPixelFormat`, `<thisNodeId>.appendImageSize` and `<thisNodeId>.format`.
  *
  * @see Node
  * @see ImageBuffer
@@ -43,7 +49,7 @@ public:
     /** @brief Returns a human-readable description of this sink. */
     std::string description() const override;
 
-    /** @brief Returns the parameter schema with `file`, `appendSequence` and `appendTimestamp`. */
+    /** @brief Returns the parameter schema with `filename`, the `append*` toggles and `format`. */
     NodeSchema schema() const override;
 
     /**
@@ -59,17 +65,20 @@ public:
     bool process(FrameContext& context) override;
 
 private:
-    /** @brief Returns @c true for encoded image targets (`.png`, `.jpg`, `.jpeg`). */
-    bool isEncodedTarget(const std::string& fileName) const;
-
-    /** @brief Converts configured target format strings (including V4L2 names). */
-    PixelFormat parseFormatString(const std::string& value) const;
-
     /**
      * @brief Constructs the output file name for the given frame.
-     * @param sequence    Frame sequence number.
-     * @param timestampNs Frame capture timestamp in nanoseconds.
+     * @param baseFileName     Configured `filename` value (without extension).
+     * @param extension        File extension including the leading dot.
+     * @param appendDatetime   Whether to append the write date/time.
+     * @param appendSequence   Whether to append the frame sequence number.
+     * @param appendPixelFormat Whether to append the written pixel format.
+     * @param appendImageSize  Whether to append `<width>x<height>`.
+     * @param sequence         Frame sequence number.
+     * @param pixelFormatName  Written image's pixel format name.
+     * @param width            Written image width in pixels.
+     * @param height           Written image height in pixels.
      * @return Full output file path string.
      */
-    std::string outputFileName(const std::string& baseFileName, bool appendSequence, bool appendTimestamp, uint64_t sequence, uint64_t timestampNs) const;
+    std::string outputFileName(const std::string& baseFileName, const std::string& extension, bool appendDatetime, bool appendSequence, bool appendPixelFormat, bool appendImageSize, uint64_t sequence,
+                               const std::string& pixelFormatName, uint32_t width, uint32_t height) const;
 };

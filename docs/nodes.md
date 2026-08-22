@@ -141,17 +141,26 @@ Behavior details:
 
 Factory name: `filesink`
 
-Writes RAW, PNG or JPG. Conversion is deferred until output, so data is converted only when required by the selected output format.
+Writes RAW, PNG or JPG. RAW output is a byte-for-byte dump of the in-memory image buffer (no pixel format conversion); PNG/JPG output converts to `BGR888` (debayering automatically if needed).
+
+Parameters, in the order they appear in the generated file name:
+
+- `filename` - base output path without file extension.
+- `appendDatetime` - appends the write date/time as `YYYYMMDD_hhmmss` (default `true`).
+- `appendSequence` - appends the frame sequence number (default `true`).
+- `appendPixelFormat` - appends the written image's pixel format, e.g. `RG10` (default `true`).
+- `appendImageSize` - appends `<width>x<height>` (default `true`).
+- `format` - output file format/extension: `jpg` (default), `png` or `raw`.
+
+The resulting file name is
+`<filename>_<datetime>_<sequence>_<pixelFormat>_<width>x<height>.<format>`,
+omitting any component whose `append*` parameter is disabled.
 
 Behavior details:
 
-- RAW output writes bytes directly when input format already matches.
+- RAW output writes the buffer bytes directly, so e.g. an `RG10` `1920x1080` frame always produces a 4147200 byte file.
 - RAW input to PNG/JPG triggers automatic debayer/conversion using the standard project conversion path.
-- Non-RAW input is converted to the target output format when needed.
-- Optional `format` parameter defines RAW target format for non-encoded outputs.
-- `format=YUYV` and `format=NV12` are supported for raw output files.
-- `YUYV` and `NV12` input can be written directly as raw files or converted to PNG/JPG.
-- Width and height can be part of the output filename (for example `capture_1920x1080_rg10.raw`) to stay compatible with `filesrc` filename parsing.
+- Non-RAW input is converted to `BGR888` for PNG/JPG output when needed.
 
 ### DebayerProcessor
 

@@ -38,9 +38,10 @@
       "id": "output",
       "type": "filesink",
       "parameters": {
-        "file": "build/rest-debug.raw",
+        "format": "raw",
+        "filename": "build/rest-debug",
         "appendSequence": true,
-        "appendTimestamp": true
+        "appendDatetime": true
       }
     }
   ],

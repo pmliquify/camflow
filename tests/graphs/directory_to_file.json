@@ -15,7 +15,8 @@
       "id": "output",
       "type": "filesink",
       "parameters": {
-        "file": "build/directory-output.raw",
+        "format": "raw",
+        "filename": "build/directory-output",
         "appendSequence": true
       }
     }

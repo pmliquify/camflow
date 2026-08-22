@@ -44,7 +44,7 @@ Rules:
 Parameters are declared inside parentheses.
 
 ```text
-filesink(path=images,format=PNG)
+filesink(format=png,filename=images/frame)
 ```
 
 Parameter values support:

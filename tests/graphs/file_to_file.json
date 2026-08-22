@@ -14,9 +14,10 @@
       "id": "output",
       "type": "filesink",
       "parameters": {
-        "file": "build/test-output.raw",
+        "format": "raw",
+        "filename": "build/test-output",
         "appendSequence": true,
-        "appendTimestamp": true
+        "appendDatetime": true
       }
     }
   ],

@@ -13,7 +13,9 @@
 #include <filesystem>
 #include <fnmatch.h>
 #include <fstream>
+#include <iterator>
 #include <regex>
+#include <sstream>
 #include <vector>
 
 namespace
@@ -47,6 +49,37 @@ bool isRawFileExtension(const std::string& fileName)
         }
     }
     return false;
+}
+
+bool hasWildcardPattern(const std::string& value)
+{
+    return value.find_first_of("*?[") != std::string::npos;
+}
+
+std::optional<uint64_t> parseSequenceFromFileName(const std::string& fileName)
+{
+    const std::string stem = std::filesystem::path(fileName).stem().string();
+    std::stringstream stream(stem);
+    std::string token;
+    while (std::getline(stream, token, '_')) {
+        if (token.empty()) {
+            continue;
+        }
+        const bool allDigits = std::all_of(token.begin(), token.end(), [](unsigned char c) { return std::isdigit(c) != 0; });
+        if (!allDigits) {
+            continue;
+        }
+        // Skip likely datetime tokens created by FileSink (YYYYMMDD / HHMMSS).
+        if (token.size() == 8 || token.size() == 6) {
+            continue;
+        }
+        try {
+            return static_cast<uint64_t>(std::stoull(token));
+        } catch (...) {
+            continue;
+        }
+    }
+    return std::nullopt;
 }
 
 bool isRawPixelFormat(PixelFormat format)
@@ -117,6 +150,13 @@ bool isPackedMonoToken(const std::string& value)
     return normalized == "Y10P" || normalized == "Y12P";
 }
 
+bool fileNameContainsPackedMonoToken(const std::string& fileName)
+{
+    std::string normalized = fileName;
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+    return normalized.find("Y10P") != std::string::npos || normalized.find("Y12P") != std::string::npos;
+}
+
 size_t expectedRawSize(PixelFormat format, uint32_t width, uint32_t height, uint32_t stride)
 {
     (void)width;
@@ -130,7 +170,6 @@ size_t expectedRawSize(PixelFormat format, uint32_t width, uint32_t height, uint
 
 FileSource::FileSource() :
     m_fileIndex(0),
-    m_done(false),
     m_sequence(0)
 {
 }
@@ -148,15 +187,23 @@ std::string FileSource::description() const
 NodeSchema FileSource::schema() const
 {
     NodeSchema schema;
-    schema.parameters = {{"file", ParameterType::String, "Raw image input file", std::string(), std::string(), std::string(), {}, false},
-                         {"directory", ParameterType::String, "Directory with image files. Files are loaded in lexical order", std::string(), std::string(), std::string(), {}, false},
-                         {"wildcard", ParameterType::String, "Wildcard for directory files, e.g. *.raw or *_left_*", std::string("*"), std::string(), std::string(), {}, false},
-                         {"width", ParameterType::Int, "Raw image width", int64_t(0), int64_t(0), int64_t(1000000), {}, false},
-                         {"height", ParameterType::Int, "Raw image height", int64_t(0), int64_t(0), int64_t(1000000), {}, false},
-                         {"stride", ParameterType::Int, "Raw line stride in bytes; 0 calculates a default", int64_t(0), int64_t(0), int64_t(1000000000), {}, false},
-                         {"bitShift", ParameterType::Int, "Bit shift metadata carried with the ImageBuffer for RAW conversion", int64_t(0), int64_t(0), int64_t(255), {}, false},
-                         {"format", ParameterType::String, "Raw input format, e.g. RG14P, RG14, GREY, Y14, YUYV or NV12", std::string(), std::string(), std::string(), {}, false},
-                         {"repeat", ParameterType::Bool, "Repeat file or directory sequence", false, false, true, {}, true}};
+    schema.parameters = {
+        {"filename", ParameterType::String, "Input path. May contain directory, wildcard and extension (e.g. images/frame_*.raw)", std::string("images/*"), std::string(), std::string(), {}, true},
+        {"width", ParameterType::Int, "Raw image width", int64_t(0), int64_t(0), int64_t(8192), {}, true},
+        {"height", ParameterType::Int, "Raw image height", int64_t(0), int64_t(0), int64_t(8192), {}, true},
+        {"stride", ParameterType::Int, "Raw line stride in bytes; 0 calculates a default", int64_t(0), int64_t(0), int64_t(8192), {}, true},
+        {"bitshift", ParameterType::Int, "Bit shift metadata carried with the ImageBuffer for RAW conversion", int64_t(0), int64_t(0), int64_t(8), {}, true},
+        {"format",
+         ParameterType::Option,
+         "Raw input format override when filename has no raw format metadata",
+         std::string("auto"),
+         std::string(),
+         std::string(),
+         {"auto",  "GREY", "RGGB", "GBRG", "GRBG", "BGGR",  "Y10",   "Y10P",  "RG10",  "GB10", "GR10", "BG10", "RG10P", "GB10P", "GR10P", "BG10P", "Y12",
+          "Y12P",  "RG12", "GB12", "GR12", "BG12", "RG12P", "GB12P", "GR12P", "BG12P", "Y14",  "RG14", "GB14", "GR14",  "BG14",  "RG14P", "GB14P", "GR14P",
+          "BG14P", "YUYV", "NV12", "pRAA", "pRCC", "pREE",  "pgAA",  "pgCC",  "pgEE",  "pBAA", "pBCC", "pBEE", "pGAA",  "pGCC",  "pGEE"},
+         true},
+        {"repeat", ParameterType::Bool, "Repeat file sequence", false, false, true, {}, true}};
     schema.outputs = {NodeOutputInfo{"image", "image", "Decoded frame"}};
     return schema;
 }
@@ -166,12 +213,31 @@ bool FileSource::init()
     return collectInputFiles();
 }
 
+bool FileSource::start()
+{
+    // Re-scan on every (re)start since files on disk may have changed while stopped.
+    return collectInputFiles();
+}
+
+bool FileSource::onParameterChanged(const std::string& name, const ParameterValue&, const ParameterValue*, std::string& errorMessage)
+{
+    static const std::vector<std::string> collectionParameters = {"filename", "width", "height", "stride", "bitshift", "format"};
+    if (std::find(collectionParameters.begin(), collectionParameters.end(), name) == collectionParameters.end()) {
+        return true;
+    }
+    if (!collectInputFiles()) {
+        errorMessage = "could not resolve any input file for the given filename";
+        return false;
+    }
+    return true;
+}
+
 bool FileSource::process(FrameContext& context)
 {
     const bool repeat = parameterBool("repeat", false);
 
     if (m_inputFiles.empty()) {
-        LOG_ERROR("FileSource requires file or directory");
+        LOG_ERROR("FileSource requires filename");
         return false;
     }
 
@@ -184,7 +250,6 @@ bool FileSource::process(FrameContext& context)
 
     const std::string fileName = m_inputFiles[m_fileIndex++];
     bool ok = loadFile(fileName, context);
-    m_done = !ok;
     return ok;
 }
 
@@ -193,42 +258,53 @@ bool FileSource::collectInputFiles()
     m_inputFiles.clear();
     m_fileIndex = 0;
 
-    const std::string fileName = parameterString("file", std::string());
-    const std::string directory = parameterString("directory", std::string());
-    const std::string wildcard = parameterString("wildcard", std::string("*"));
+    const std::string configuredFileName = parameterString("filename", std::string("images/*"));
 
-    if (!fileName.empty()) {
-        m_inputFiles.push_back(fileName);
+    auto addFromDirectory = [this](const std::string& directory, const std::string& wildcard) -> bool {
+        std::error_code errorCode;
+        if (!std::filesystem::is_directory(directory, errorCode)) {
+            LOG_ERROR("FileSource directory does not exist: " + directory);
+            return false;
+        }
+
+        for (const auto& entry : std::filesystem::directory_iterator(directory)) {
+            if (!entry.is_regular_file()) {
+                continue;
+            }
+            const std::string fileName = entry.path().filename().string();
+            const char* wildcardPattern = wildcard.empty() ? "*" : wildcard.c_str();
+            if (fnmatch(wildcardPattern, fileName.c_str(), 0) != 0) {
+                continue;
+            }
+            const std::string path = entry.path().string();
+            if (isSupportedImageFile(path)) {
+                m_inputFiles.push_back(path);
+            }
+        }
+
+        std::sort(m_inputFiles.begin(), m_inputFiles.end());
+        LOG_INFO("FileSource found " + std::to_string(m_inputFiles.size()) + " image files in " + directory);
         return true;
-    }
+    };
 
-    if (directory.empty()) {
-        return true;
-    }
-
-    std::error_code errorCode;
-    if (!std::filesystem::is_directory(directory, errorCode)) {
-        LOG_ERROR("FileSource directory does not exist: " + directory);
+    if (configuredFileName.empty()) {
+        LOG_ERROR("FileSource parameter filename is empty");
         return false;
     }
 
-    for (const auto& entry : std::filesystem::directory_iterator(directory)) {
-        if (!entry.is_regular_file()) {
-            continue;
-        }
-        const std::string fileName = entry.path().filename().string();
-        const char* wildcardPattern = wildcard.empty() ? "*" : wildcard.c_str();
-        if (fnmatch(wildcardPattern, fileName.c_str(), 0) != 0) {
-            continue;
-        }
-        const std::string path = entry.path().string();
-        if (isSupportedImageFile(path)) {
-            m_inputFiles.push_back(path);
-        }
+    if (hasWildcardPattern(configuredFileName)) {
+        const std::filesystem::path wildcardPath(configuredFileName);
+        const std::filesystem::path parent = wildcardPath.parent_path();
+        const std::string directory = parent.empty() ? std::string(".") : parent.string();
+        return addFromDirectory(directory, wildcardPath.filename().string());
     }
 
-    std::sort(m_inputFiles.begin(), m_inputFiles.end());
-    LOG_INFO("FileSource found " + std::to_string(m_inputFiles.size()) + " image files in " + directory);
+    std::error_code errorCode;
+    if (std::filesystem::is_directory(configuredFileName, errorCode)) {
+        return addFromDirectory(configuredFileName, "*");
+    }
+
+    m_inputFiles.push_back(configuredFileName);
     return true;
 }
 
@@ -252,31 +328,36 @@ bool FileSource::loadEncodedImage(const std::string& fileName, FrameContext& con
     output.assign(image.data, image.total() * image.elemSize(), static_cast<uint32_t>(image.cols), static_cast<uint32_t>(image.rows), static_cast<uint32_t>(image.step), PixelFormat::BGR888);
     output.setSequence(++m_sequence);
     context.set("image", std::move(output));
+    LOG_INFO("Loaded image file " + fileName);
     return true;
 }
 
 bool FileSource::loadRawImage(const std::string& fileName, FrameContext& context)
 {
-    const std::string configuredFormatText = parameterString("format", std::string());
+    const std::string configuredFormatText = parameterString("format", std::string("auto"));
     PixelFormat format = parseFormatString(configuredFormatText);
     bool packedMono = isPackedMonoToken(configuredFormatText);
-    if (format == PixelFormat::Unknown) {
-        format = inferRawFormatFromFileName(fileName);
-        packedMono = isPackedMonoToken(fileName);
+    const PixelFormat parsedFormat = inferRawFormatFromFileName(fileName);
+    if (parsedFormat != PixelFormat::Unknown) {
+        // If raw metadata in the filename contains a format, it overrides the configured format.
+        format = parsedFormat;
+        packedMono = fileNameContainsPackedMonoToken(fileName);
     }
     if (!isRawPixelFormat(format)) {
         LOG_ERROR("Raw FileSource requires a supported RAW format: " + fileName);
         return false;
     }
 
-    uint32_t width = static_cast<uint32_t>(parameterInt("width", 0));
-    uint32_t height = static_cast<uint32_t>(parameterInt("height", 0));
-    if (width == 0 || height == 0) {
-        auto parsed = parseDimensionsFromFileName(fileName);
-        if (parsed.has_value()) {
-            width = parsed->first;
-            height = parsed->second;
-        }
+    uint32_t width = 0;
+    uint32_t height = 0;
+    auto parsedDimensions = parseDimensionsFromFileName(fileName);
+    if (parsedDimensions.has_value()) {
+        // If dimensions are encoded in filename metadata they override explicit parameters.
+        width = parsedDimensions->first;
+        height = parsedDimensions->second;
+    } else {
+        width = static_cast<uint32_t>(parameterInt("width", 0));
+        height = static_cast<uint32_t>(parameterInt("height", 0));
     }
     if (width == 0 || height == 0) {
         LOG_ERROR("Raw FileSource requires width and height (or filename token like ...1920x1080...): " + fileName);
@@ -305,15 +386,28 @@ bool FileSource::loadRawImage(const std::string& fileName, FrameContext& context
     }
 
     const size_t neededSize = expectedRawSize(format, width, height, stride);
-    if (data.size() < neededSize) {
-        LOG_ERROR("Input file too small for configured geometry/format: " + fileName);
+    if (neededSize == 0) {
+        LOG_ERROR("Raw FileSource computed invalid target size for: " + fileName);
         return false;
     }
 
+    std::vector<uint8_t> normalizedData(neededSize, 0);
+    const size_t copySize = std::min(data.size(), neededSize);
+    std::copy_n(data.data(), copySize, normalizedData.data());
+    if (copySize != neededSize) {
+        LOG_WARNING("Raw FileSource size mismatch for " + fileName + ": file bytes=" + std::to_string(data.size()) + ", expected=" + std::to_string(neededSize) + ". Data was safely clipped/padded.");
+    }
+
     ImageBuffer image;
-    image.assign(data.data(), neededSize, width, height, stride, format);
-    image.setBitShift(static_cast<uint8_t>(parameterInt("bitShift", 0)));
-    image.setSequence(++m_sequence);
+    image.assign(normalizedData.data(), normalizedData.size(), width, height, stride, format);
+    const int64_t configuredBitShift = parameterInt("bitshift", 0);
+    image.setBitShift(static_cast<uint8_t>(std::clamp<int64_t>(configuredBitShift, 0, 8)));
+
+    const std::optional<uint64_t> parsedSequence = parseSequenceFromFileName(fileName);
+    const uint64_t sequence = parsedSequence.has_value() ? *parsedSequence : (m_sequence + 1);
+    m_sequence = std::max(m_sequence, sequence);
+    image.setSequence(sequence);
+
     context.set("image", std::move(image));
     LOG_INFO("Loaded raw image file " + fileName + " as " + pixelFormatToString(format));
     return true;
@@ -353,8 +447,19 @@ PixelFormat FileSource::parseFormatString(const std::string& value) const
     if (value.empty()) {
         return PixelFormat::Unknown;
     }
+
+    // Packed Bayer tokens are case-sensitive in this codebase (e.g. pRAA/pGAA/pgAA).
+    const PixelFormat exact = pixelFormatFromString(value);
+    if (exact != PixelFormat::Unknown) {
+        return exact;
+    }
+
     std::string normalized = value;
     std::transform(normalized.begin(), normalized.end(), normalized.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+
+    if (normalized == "AUTO") {
+        return PixelFormat::Unknown;
+    }
 
     if (normalized == "RGGB") {
         return PixelFormat::RG8;
@@ -455,6 +560,44 @@ PixelFormat FileSource::parseFormatString(const std::string& value) const
 
 PixelFormat FileSource::inferRawFormatFromFileName(const std::string& fileName) const
 {
+    auto containsCaseSensitive = [&fileName](const std::string& token) { return fileName.find(token) != std::string::npos; };
+    if (containsCaseSensitive("pRAA")) {
+        return PixelFormat::RG10P;
+    }
+    if (containsCaseSensitive("pRCC")) {
+        return PixelFormat::RG12P;
+    }
+    if (containsCaseSensitive("pREE")) {
+        return PixelFormat::RG14P;
+    }
+    if (containsCaseSensitive("pgAA")) {
+        return PixelFormat::GR10P;
+    }
+    if (containsCaseSensitive("pgCC")) {
+        return PixelFormat::GR12P;
+    }
+    if (containsCaseSensitive("pgEE")) {
+        return PixelFormat::GR14P;
+    }
+    if (containsCaseSensitive("pBAA")) {
+        return PixelFormat::BG10P;
+    }
+    if (containsCaseSensitive("pBCC")) {
+        return PixelFormat::BG12P;
+    }
+    if (containsCaseSensitive("pBEE")) {
+        return PixelFormat::BG14P;
+    }
+    if (containsCaseSensitive("pGAA")) {
+        return PixelFormat::GB10P;
+    }
+    if (containsCaseSensitive("pGCC")) {
+        return PixelFormat::GB12P;
+    }
+    if (containsCaseSensitive("pGEE")) {
+        return PixelFormat::GB14P;
+    }
+
     const std::string upperPath = [&fileName]() {
         std::string value = fileName;
         std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });

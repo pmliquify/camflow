@@ -69,7 +69,7 @@ std::string FileSink::description() const
 NodeSchema FileSink::schema() const
 {
     NodeSchema schema;
-    schema.parameters = {{"filename", ParameterType::String, "Output file name without file extension", std::string("out"), std::string(), std::string(), {}, true},
+    schema.parameters = {{"filename", ParameterType::String, "Output file name without file extension", std::string("images/image"), std::string(), std::string(), {}, true},
                          {"appendDatetime", ParameterType::Bool, "Append write date/time (YYYYMMDD_hhmmss)", true, false, true, {}, true},
                          {"appendSequence", ParameterType::Bool, "Append frame sequence number", true, false, true, {}, true},
                          {"appendPixelFormat", ParameterType::Bool, "Append the written image's pixel format", true, false, true, {}, true},
@@ -115,7 +115,7 @@ bool FileSink::process(FrameContext& context)
     }
 
     const std::string formatValue = parameterString("format", "jpg");
-    const std::string baseFileName = parameterString("filename", "out");
+    const std::string baseFileName = parameterString("filename", "images/image");
     const bool encodedTarget = formatValue == "png" || formatValue == "jpg";
     const std::string fileExtension = extensionForFileFormat(formatValue);
     const bool appendDatetime = parameterBool("appendDatetime", true);

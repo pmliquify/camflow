@@ -127,15 +127,25 @@ Supported RAW formats:
 
 Behavior details:
 
-- RAW requires width and height unless filename contains a token like `...1920x1080...`.
-- Explicit `width`/`height` parameters override filename dimensions.
+- Primary input parameter is `filename` (default `images/*`), which may contain directory, wildcard and extension (for example `tests/images/frame_*.raw`).
+- If `filename` points to PNG/JPG, `width`, `height`, `stride` and `format` are optional and not required.
+- For RAW input, FileSource first tries to read sequence number, pixel format and image size from filename metadata (matching the naming written by `filesink`).
+- If RAW metadata values are present in filename, `width`, `height` and `format` parameters are ignored.
+- If one or more RAW metadata values are missing in filename, missing values are taken from node parameters.
+- `format` is an option parameter for RAW fallback parsing (`auto`, `GREY`, Bayer/packed Bayer, `YUYV`, `NV12`, including fourcc-like packed Bayer tokens).
+- `width`, `height`, `stride` value range is `0..8192`.
+- `bitshift` value range is `0..8`.
 - Stride is auto-derived from format unless `stride` is explicitly set.
-- `bitShift` stores right-shift metadata in `ImageBuffer` and is applied in RAW conversion paths before greyscale reduction or debayering.
+- `bitshift` stores right-shift metadata in `ImageBuffer` and is applied in RAW conversion paths before greyscale reduction or debayering.
 - For `YUYV` the default stride is `width * 2`.
 - For `NV12` the default stride is `width`; file size is interpreted as Y plane plus interleaved UV plane.
-- In directory mode, `wildcard` filters file names (for example `frame_*_left*.raw`).
+- RAW size mismatches are handled safely: larger files are clipped to expected image size, smaller files are copied into a zero-filled target buffer (remaining area stays black).
+- If `filename` contains a wildcard, matching files are loaded automatically in lexical order and pushed frame-by-frame as fast as the pipeline consumes them.
 - With `repeat=true`, source loops and can generate an unbounded stream.
 - For PNG/JPG width/height/stride parameters are optional because geometry is read from file metadata.
+- `filename`, `width`, `height`, `stride`, `bitshift` and `format` are runtime-writable; changing any of them while the pipeline is running re-collects the matching input files immediately.
+- Stopping and restarting the pipeline resets playback to the first matching file.
+- Loaded file paths are included in the log message for every frame.
 
 ### FileSink
 
@@ -145,7 +155,7 @@ Writes RAW, PNG or JPG. RAW output is a byte-for-byte dump of the in-memory imag
 
 Parameters, in the order they appear in the generated file name:
 
-- `filename` - base output path without file extension.
+- `filename` - base output path without file extension (default `images/image`).
 - `appendDatetime` - appends the write date/time as `YYYYMMDD_hhmmss` (default `true`).
 - `appendSequence` - appends the frame sequence number (default `true`).
 - `appendPixelFormat` - appends the written image's pixel format, e.g. `RG10` (default `true`).

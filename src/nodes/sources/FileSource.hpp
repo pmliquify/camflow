@@ -12,27 +12,23 @@
 /**
  * @brief Source node that reads image files from disk and injects them into the pipeline.
  *
- * FileSource reads one image file per frame from a configured file path or
- * directory. It supports encoded image files (JPEG, PNG, etc. via the system's
- * image library) as well as raw binary pixel data files.
+ * FileSource reads one image file per frame from a configured input pattern.
+ * It supports encoded image files (JPEG, PNG, etc. via the system's image
+ * library) as well as raw binary pixel data files.
  *
- * When a directory is configured all matching image files in that directory are
- * loaded in alphabetical order. When the last file is reached the source either
- * signals end-of-stream or loops back to the beginning depending on the `repeat`
- * parameter.
+ * The `filename` parameter can point to a file, a directory, or include
+ * wildcard tokens. Matching files are loaded in lexical order.
  *
  * ### Parameters
- * | Name        | Type   | Default | Description                                              |
- * |-------------|--------|---------|----------------------------------------------------------|
- * | `file`      | string | `""`    | Path to a single image file.                             |
- * | `directory` | string | `""`    | Path to a directory containing image files.              |
- * | `wildcard`  | string | `"*"`   | Optional filename wildcard for directory mode.            |
- * | `width`     | int    | `0`     | Width for raw files (pixels); ignored for encoded files. |
- * | `height`    | int    | `0`     | Height for raw files (pixels).                           |
- * | `stride`    | int    | `0`     | Row stride for raw files (bytes).                        |
- * | `bitShift`  | int    | `0`     | Right-shift metadata applied during RAW conversion/debayer. |
- * | `format`    | string | `""`    | Pixel format string for raw files (e.g. `"rg10"`).      |
- * | `repeat`    | bool   | `false` | Loop back to the first file after the last one.          |
+ * | Name       | Type   | Default     | Description                                              |
+ * |------------|--------|-------------|----------------------------------------------------------|
+ * | `filename` | string | `images/&#42;` | Input path/pattern with optional wildcard.               |
+ * | `width`    | int    | `0`         | Raw width fallback (used when not present in filename).  |
+ * | `height`   | int    | `0`         | Raw height fallback (used when not present in filename). |
+ * | `stride`   | int    | `0`         | Raw line stride fallback in bytes.                       |
+ * | `bitshift` | int    | `0`         | Right-shift metadata for RAW conversion.                 |
+ * | `format`   | option | `auto`      | Raw format fallback when filename has no format token.   |
+ * | `repeat`   | bool   | `false`     | Loop back to the first matching file after the last one. |
  *
  * The `repeat` behavior is evaluated at runtime from scoped context key
  * `<thisNodeId>.repeat` for each processed frame.
@@ -63,6 +59,9 @@ public:
      */
     bool init() override;
 
+    /** @brief Re-collects input files and restarts playback from the first match whenever the pipeline (re)starts. */
+    bool start() override;
+
     /**
      * @brief Loads the next file and writes the image to @p context.
      *
@@ -73,6 +72,10 @@ public:
      * @return @c true while more frames are available; @c false at end-of-stream.
      */
     bool process(FrameContext& context) override;
+
+protected:
+    /** @brief Re-collects input files whenever `filename` or related parameters change at runtime. */
+    bool onParameterChanged(const std::string& name, const ParameterValue& value, const ParameterValue* previousValue, std::string& errorMessage) override;
 
 private:
     /** @brief Scans the configured directory and collects matching file paths. */
@@ -104,6 +107,5 @@ private:
 
     std::vector<std::string> m_inputFiles; ///< Sorted list of discovered input files.
     size_t m_fileIndex;                    ///< Index of the next file to load.
-    bool m_done;                           ///< @c true after end-of-stream has been signalled.
     uint64_t m_sequence;                   ///< Monotonically increasing output frame counter.
 };

@@ -19,9 +19,7 @@ static const std::map<std::string, PixelFormat>& formatMap()
         {"GREY", PixelFormat::Mono8},    {"Y10 ", PixelFormat::Mono10},   {"Y12 ", PixelFormat::Mono12},   {"Y14 ", PixelFormat::Mono14}, {"Y16 ", PixelFormat::Mono16}, {"RGGB", PixelFormat::RG8},
         {"RG10", PixelFormat::RG10},     {"RG12", PixelFormat::RG12},     {"RG14", PixelFormat::RG14},     {"GRBG", PixelFormat::GR8},    {"BA10", PixelFormat::GR10},   {"BA12", PixelFormat::GR12},
         {"BA14", PixelFormat::GR14},     {"BGGR", PixelFormat::BG8},      {"BG10", PixelFormat::BG10},     {"BG12", PixelFormat::BG12},   {"BG14", PixelFormat::BG14},   {"GBRG", PixelFormat::GB8},
-        {"GB10", PixelFormat::GB10},     {"GB12", PixelFormat::GB12},     {"GB14", PixelFormat::GB14},     {"PRAA", PixelFormat::RG10P},  {"PRCC", PixelFormat::RG12P},  {"RG14", PixelFormat::RG14P},
-        {"PGAA", PixelFormat::GR10P},    {"PGCC", PixelFormat::GR12P},    {"GR14", PixelFormat::GR14P},    {"PBAA", PixelFormat::BG10P},  {"PBCC", PixelFormat::BG12P},  {"BG14", PixelFormat::BG14P},
-        {"PGAA", PixelFormat::GB10P},    {"PGCC", PixelFormat::GB12P},    {"GB14", PixelFormat::GB14P},    {"RGB3", PixelFormat::RGB888}, {"BGR3", PixelFormat::BGR888}, {"YUYV", PixelFormat::YUYV},
+        {"GB10", PixelFormat::GB10},     {"GB12", PixelFormat::GB12},     {"GB14", PixelFormat::GB14},     {"RGB3", PixelFormat::RGB888}, {"BGR3", PixelFormat::BGR888}, {"YUYV", PixelFormat::YUYV},
         {"NV12", PixelFormat::NV12},     {"GREY", PixelFormat::Raw8},     {"Y10 ", PixelFormat::Raw10},    {"Y12 ", PixelFormat::Raw12},  {"Y16 ", PixelFormat::Raw16},  {"MONO8", PixelFormat::Mono8},
         {"MONO16", PixelFormat::Mono16}, {"RGB888", PixelFormat::RGB888}, {"BGR888", PixelFormat::BGR888}, {"RAW8", PixelFormat::Raw8},   {"RAW10", PixelFormat::Raw10}, {"RAW12", PixelFormat::Raw12},
         {"RAW16", PixelFormat::Raw16}};

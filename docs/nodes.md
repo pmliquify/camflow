@@ -110,19 +110,19 @@ Factory name: `filesrc`
 
 Loads RAW, PNG and JPG files. For RAW files no pixel conversion is performed in the source node; bytes are forwarded as-is in an `ImageBuffer`.
 
-Supported RAW formats:
+Supported RAW formats (fourcc notation):
 
 - `GREY`
 - `RGGB`, `GBRG`, `GRBG`, `BGGR`
 - `Y10`, `Y10P`
-- `RG10`, `GB10`, `GR10`, `BG10`
-- `RG10P`, `GB10P`, `GR10P`, `BG10P`
+- `RG10`, `GB10`, `BA10`, `BG10`
+- `pRAA`, `pGAA`, `pgAA`, `pBAA`
 - `Y12`, `Y12P`
-- `RG12`, `GB12`, `GR12`, `BG12`
-- `RG12P`, `GB12P`, `GR12P`, `BG12P`
+- `RG12`, `GB12`, `BA12`, `BG12`
+- `pRCC`, `pGCC`, `pgCC`, `pBCC`
 - `Y14` (mono 14-bit)
-- `RG14`, `GB14`, `GR14`, `BG14`
-- `RG14P`, `GB14P`, `GR14P`, `BG14P`
+- `RG14`, `GB14`, `BA14`, `BG14`
+- `pREE`, `pGEE`, `pgEE`, `pBEE`
 - `YUYV`, `NV12`
 
 Behavior details:
@@ -132,7 +132,7 @@ Behavior details:
 - For RAW input, FileSource first tries to read sequence number, pixel format and image size from filename metadata (matching the naming written by `filesink`).
 - If RAW metadata values are present in filename, `width`, `height` and `format` parameters are ignored.
 - If one or more RAW metadata values are missing in filename, missing values are taken from node parameters.
-- `format` is an option parameter for RAW fallback parsing (`auto`, `GREY`, Bayer/packed Bayer, `YUYV`, `NV12`, including fourcc-like packed Bayer tokens).
+- `format` is an option parameter for RAW fallback parsing (`auto`, `GREY`, Bayer/packed Bayer, `YUYV`, `NV12`), using fourcc notation exclusively.
 - `width`, `height`, `stride` value range is `0..8192`.
 - `bitshift` value range is `0..8`.
 - Stride is auto-derived from format unless `stride` is explicitly set.

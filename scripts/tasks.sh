@@ -33,6 +33,7 @@ DEFAULT_FAST_DEV_ARM64_BUILD_DIR=build-runtime-arm64-fastdev
 DEFAULT_ARM64_IMAGE=camflow-arm64
 DEFAULT_ARM64_REBUILD_IMAGE=0
 DEFAULT_FAST_DEV=0
+DEFAULT_BUILT_TIMING=1
 
 TASKS_TIMER_START=${SECONDS}
 TASKS_TIMER_LAST_START=0
@@ -52,12 +53,20 @@ format_duration() {
 }
 
 timer_step_begin() {
+    if [[ "${BUILT_TIMING}" != "1" ]]; then
+        return
+    fi
+
     local label="$1"
     TASKS_TIMER_LAST_START=${SECONDS}
     echo "[timer] START ${label}"
 }
 
 timer_step_end() {
+    if [[ "${BUILT_TIMING}" != "1" ]]; then
+        return
+    fi
+
     local label="$1"
     local started_at="$2"
     local elapsed=$((SECONDS - started_at))
@@ -80,6 +89,10 @@ run_timed_step() {
 }
 
 print_timer_summary() {
+    if [[ "${BUILT_TIMING}" != "1" ]]; then
+        return
+    fi
+
     local exit_code="$1"
     local total_elapsed=$((SECONDS - TASKS_TIMER_START))
     local formatted_total
@@ -239,6 +252,7 @@ write_make_cfg() {
         cfg_assign UI_DEV_PORT "${UI_DEV_PORT}"
         cfg_assign UI_API_PORT "${UI_API_PORT}"
         cfg_assign FAST_DEV "${FAST_DEV}"
+        cfg_assign BUILT_TIMING "${BUILT_TIMING}"
     } > "${MAKE_CFG_PATH}"
 }
 
@@ -260,6 +274,7 @@ create_make_cfg_interactive() {
     UI_DEV_PORT=$(prompt_value "UI dev server port" "${DEFAULT_UI_DEV_PORT}")
     UI_API_PORT=$(prompt_value "UI proxy API port" "${DEFAULT_UI_API_PORT}")
     FAST_DEV=$(prompt_value "Fast dev mode (1/0)" "${DEFAULT_FAST_DEV}")
+    BUILT_TIMING=$(prompt_value "Build timing (1/0)" "${DEFAULT_BUILT_TIMING}")
     write_make_cfg
     echo "Created ${MAKE_CFG_PATH}"
 }
@@ -281,6 +296,7 @@ create_make_cfg_defaults() {
     UI_DEV_PORT=${DEFAULT_UI_DEV_PORT}
     UI_API_PORT=${DEFAULT_UI_API_PORT}
     FAST_DEV=${DEFAULT_FAST_DEV}
+    BUILT_TIMING=${DEFAULT_BUILT_TIMING}
     write_make_cfg
     echo "Created ${MAKE_CFG_PATH} from defaults"
 }
@@ -1241,6 +1257,7 @@ ARM64_REBUILD_IMAGE=${ARM64_REBUILD_IMAGE:-${DEFAULT_ARM64_REBUILD_IMAGE}}
 CLANG_FORMAT_BIN=${CLANG_FORMAT_BIN:-clang-format-15}
 DOCS_OUTPUT_DIR=${DOCS_OUTPUT_DIR:-${PROJECT_DIR}/docs/api}
 FAST_DEV=${FAST_DEV:-${DEFAULT_FAST_DEV}}
+BUILT_TIMING=${BUILT_TIMING:-${DEFAULT_BUILT_TIMING}}
 
 if [[ -n "${CLI_FAST_DEV}" ]]; then FAST_DEV=1; fi
 
@@ -1261,6 +1278,11 @@ if [[ -n "${CLI_DOCS_OUTPUT_DIR}" ]]; then DOCS_OUTPUT_DIR="${CLI_DOCS_OUTPUT_DI
 
 if [[ "${FAST_DEV}" != "0" && "${FAST_DEV}" != "1" ]]; then
     echo "Invalid FAST_DEV value: ${FAST_DEV} (expected 0 or 1)" >&2
+    exit 1
+fi
+
+if [[ "${BUILT_TIMING}" != "0" && "${BUILT_TIMING}" != "1" ]]; then
+    echo "Invalid BUILT_TIMING value: ${BUILT_TIMING} (expected 0 or 1)" >&2
     exit 1
 fi
 
@@ -1325,6 +1347,9 @@ for command in "${commands[@]}"; do
                 echo "Skipping run: no runnable product selected (runtime/ui)." >&2
                 continue
             fi
+
+            print_timer_summary 0
+            TASKS_TIMER_STEPS=()
 
             if [[ ${want_ui} -eq 1 && ${want_dev} -eq 0 ]]; then
                 echo "Skipping UI run: UI dev server is only supported on dev platform." >&2

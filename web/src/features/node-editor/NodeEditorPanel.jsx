@@ -41,6 +41,7 @@ export default function NodeEditorPanel({
         onToggleRuntimeLogPanel,
         onClearRuntimeLogs,
         runtimeLogFilterOpenRequest,
+        deviceTreeOpenRequest,
         filterCloseRequest,
         runtimeBaseUrl,
         selectedMediaElement,
@@ -50,6 +51,7 @@ export default function NodeEditorPanel({
 }) {
         const [edgeDraft, setEdgeDraft] = useState(null);
         const [targetMenu, setTargetMenu] = useState({ open: false, kind: '', direction: '', x: 0, y: 0, nodeId: '', edgeText: '', ports: [], visibleNames: [] });
+        const [deviceTreeMenu, setDeviceTreeMenu] = useState({ open: false, x: 0, y: 0, label: '', onSelect: null });
         const isEdgeDraftActive = Boolean(edgeDraft);
         const edgeDraftRef = useRef(null);
         const runtimesRef = useRef(editorGraph.runtimes);
@@ -61,6 +63,20 @@ export default function NodeEditorPanel({
         useEffect(() => {
                 runtimesRef.current = editorGraph.runtimes;
         }, [editorGraph.runtimes]);
+
+        useEffect(() => {
+                if (!deviceTreeMenu.open) {
+                        return undefined;
+                }
+                // Close before the browser emits contextmenu so the next right click can target another tree row.
+                const handler = (event) => {
+                        if (event.button === 2) {
+                                setDeviceTreeMenu((current) => ({ ...current, open: false }));
+                        }
+                };
+                document.addEventListener('mousedown', handler, true);
+                return () => document.removeEventListener('mousedown', handler, true);
+        }, [deviceTreeMenu.open]);
 
         useEffect(() => {
                 if (!isEdgeDraftActive) {
@@ -314,6 +330,8 @@ export default function NodeEditorPanel({
                                                         onStartRuntime={onStartRuntime}
                                                         onClearRuntimeLogs={onClearRuntimeLogs}
                                                         logFilterOpenRequest={runtimeLogFilterOpenRequest}
+                                                        deviceTreeOpenRequest={deviceTreeOpenRequest}
+                                                        onDeviceTreeContextMenu={(x, y, target) => setDeviceTreeMenu({ open: true, x, y, ...target })}
                                                         filterCloseRequest={filterCloseRequest}
                                                         runtimeBaseUrl={runtime.id === 'local' ? '' : runtimeBaseUrl(runtime.ip)}
                                                         selectedMediaElement={selectedMediaElement}
@@ -354,6 +372,20 @@ export default function NodeEditorPanel({
                                         }
                                 }] : []}
                                 emptyLabel="no ports"
+                        />
+                        <StandardContextMenu
+                                open={deviceTreeMenu.open}
+                                x={deviceTreeMenu.x}
+                                y={deviceTreeMenu.y}
+                                onClose={() => setDeviceTreeMenu((current) => ({ ...current, open: false }))}
+                                items={[{
+                                        id: 'copy',
+                                        label: deviceTreeMenu.label,
+                                        onSelect: () => {
+                                                deviceTreeMenu.onSelect?.();
+                                                setDeviceTreeMenu((current) => ({ ...current, open: false }));
+                                        }
+                                }]}
                         />
                 </section>
         );

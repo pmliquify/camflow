@@ -1,20 +1,24 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import RuntimeWindowIcon from './RuntimeWindowIcon.jsx';
 import NodeCard from './NodeCard.jsx';
 import EdgeLayer from './EdgeLayer.jsx';
 import RuntimeLogConsole from './RuntimeLogConsole.jsx';
 import MediaGraphView from './MediaGraphView.jsx';
+import DeviceTreeView from './DeviceTreeView.jsx';
 import logIcon from '../../assets/images/icon-log.svg';
 import mediaGraphIcon from '../../assets/images/icon-media-graph.svg';
 import reloadIcon from '../../assets/images/icon-reload.svg';
+import closeIcon from '../../assets/images/icon-close.svg';
 import Button from '../../components/Button.jsx';
+import Input from '../../components/Input.jsx';
 import InlineNameEditor from '../../components/InlineNameEditor.jsx';
 import ResetViewButton from '../../components/ResetViewButton.jsx';
-import { getMediaDevices, getMediaGraph } from '../../services/runtimeApi.js';
+import { getDeviceTree, getMediaDevices, getMediaGraph } from '../../services/runtimeApi.js';
 
 const RUNTIME_LOG_PREFS_STORAGE_PREFIX = 'camflow:runtime-log-prefs:';
 const RUNTIME_LOG_DEFAULT_FONT_STORAGE_KEY = 'camflow:runtime-log-default-font-size';
 const RUNTIME_MEDIA_PREFS_STORAGE_PREFIX = 'camflow:runtime-media-prefs:';
+const RUNTIME_DEVICE_TREE_PREFS_STORAGE_PREFIX = 'camflow:runtime-devicetree-prefs:';
 const LOG_FONT_MIN = 5;
 const LOG_FONT_MAX = 15;
 const LOG_FONT_DEFAULT = 10;
@@ -102,6 +106,17 @@ function loadRuntimeMediaPrefs(runtimeId) {
         }
 }
 
+function loadRuntimeDeviceTreeQuery(runtimeId) {
+        if (typeof window === 'undefined') {
+                return '';
+        }
+        try {
+                return String(window.localStorage.getItem(`${RUNTIME_DEVICE_TREE_PREFS_STORAGE_PREFIX}${runtimeId}`) || '');
+        } catch (_) {
+                return '';
+        }
+}
+
 export default function RuntimeLane({
         viewMode,
         runtime,
@@ -122,6 +137,8 @@ export default function RuntimeLane({
         onStartRuntime,
         onClearRuntimeLogs,
         logFilterOpenRequest,
+        deviceTreeOpenRequest,
+        onDeviceTreeContextMenu,
         filterCloseRequest = 0,
         runtimeBaseUrl = '',
         selectedMediaElement,
@@ -144,6 +161,14 @@ export default function RuntimeLane({
         const [mediaLoading, setMediaLoading] = useState(false);
         const [mediaError, setMediaError] = useState('');
         const [mediaConnectedOnly, setMediaConnectedOnly] = useState(() => initialMediaPrefs?.connectedOnly || false);
+        const [deviceTreeMode, setDeviceTreeMode] = useState(false);
+        const [deviceTree, setDeviceTree] = useState(null);
+        const [deviceTreeLoading, setDeviceTreeLoading] = useState(false);
+        const [deviceTreeError, setDeviceTreeError] = useState('');
+        const [deviceTreeQuery, setDeviceTreeQuery] = useState(() => loadRuntimeDeviceTreeQuery(runtime.id));
+        const [deviceTreeStatus, setDeviceTreeStatus] = useState({ text: '', invalid: false });
+        const [deviceTreeFocusSequence, setDeviceTreeFocusSequence] = useState(0);
+        const deviceTreeSearchRef = useRef(null);
         const runtimePanGestureRef = useRef({ moved: false, button: null });
         const runtimePanCleanupRef = useRef(null);
         const runtimeCanvasRef = useRef(null);
@@ -171,7 +196,7 @@ export default function RuntimeLane({
 
         const resetOrFitRuntimeViewport = () => {
                 const canvas = runtimeCanvasRef.current;
-                if (!canvas) {
+                if (!canvas || deviceTreeMode) {
                         return false;
                 }
 
@@ -245,6 +270,9 @@ export default function RuntimeLane({
         }, [hasStoredRuntimeViewport, mediaGraphSignature, mediaMode, runtimeNodeIdsSignature, viewMode]);
 
         const onRuntimeWheelCapture = (event) => {
+                if (deviceTreeMode) {
+                        return;
+                }
                 event.preventDefault();
                 event.stopPropagation();
 
@@ -284,6 +312,9 @@ export default function RuntimeLane({
         };
 
         const onRuntimePanMouseDownCapture = (event) => {
+                if (deviceTreeMode) {
+                        return;
+                }
                 if ((event.button !== 1 && event.button !== 2) || (event.target instanceof Element && event.target.closest('button,input,select,textarea'))) {
                         return;
                 }
@@ -402,6 +433,30 @@ export default function RuntimeLane({
                 }
         }, [mediaConnectedOnly, mediaDevice, runtime.id]);
 
+        useEffect(() => {
+                if (typeof window === 'undefined') {
+                        return;
+                }
+                try {
+                        window.localStorage.setItem(`${RUNTIME_DEVICE_TREE_PREFS_STORAGE_PREFIX}${runtime.id}`, deviceTreeQuery);
+                } catch (_) {
+                        // Ignore persistence failures (quota/private mode).
+                }
+        }, [deviceTreeQuery, runtime.id]);
+
+        async function loadDeviceTree() {
+                setDeviceTreeLoading(true);
+                setDeviceTreeError('');
+                try {
+                        setDeviceTree(await getDeviceTree(runtimeBaseUrl));
+                } catch (error) {
+                        setDeviceTree(null);
+                        setDeviceTreeError(error instanceof Error ? error.message : 'device tree unavailable');
+                } finally {
+                        setDeviceTreeLoading(false);
+                }
+        }
+
         async function loadMediaGraph(requestedDevice = mediaDevice) {
                 setMediaLoading(true);
                 setMediaError('');
@@ -432,6 +487,33 @@ export default function RuntimeLane({
                 // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [mediaMode, runtimeBaseUrl]);
 
+        useEffect(() => {
+                if (deviceTreeMode) void loadDeviceTree();
+                // Reload only when the mode is activated or the target runtime changes.
+                // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [deviceTreeMode, runtimeBaseUrl]);
+
+        useEffect(() => {
+                if (deviceTreeOpenRequest?.runtimeId !== runtime.id || deviceTreeOpenRequest.sequence <= 0) {
+                        return;
+                }
+                setDeviceTreeMode(true);
+                setMediaMode(false);
+                onSelectMediaElement?.(null);
+                setDeviceTreeFocusSequence(deviceTreeOpenRequest.sequence);
+                // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [deviceTreeOpenRequest, runtime.id]);
+
+        useEffect(() => {
+                if (!deviceTreeMode || deviceTreeFocusSequence === 0) {
+                        return;
+                }
+                deviceTreeSearchRef.current?.focus();
+                deviceTreeSearchRef.current?.select();
+        }, [deviceTreeFocusSequence, deviceTreeMode]);
+
+        const onDeviceTreeStatus = useCallback((text, invalid) => setDeviceTreeStatus({ text, invalid }), []);
+
         return (
                 <section
                         className="runtime-lane"
@@ -461,7 +543,55 @@ export default function RuntimeLane({
                                         />
                                         <span className={`runtime-state state-${runtime.status}`}>{runtime.status}</span>
                                 </div>
-                                <div className="runtime-header-right">
+                                <div className="runtime-header-tools">
+                                        {deviceTreeMode ? (
+                                                <div className="parameter-search-field runtime-device-tree-search">
+                                                        <Input
+                                                                ref={deviceTreeSearchRef}
+                                                                type="text"
+                                                                placeholder="search device tree (regex)"
+                                                                aria-label="search device tree"
+                                                                value={deviceTreeQuery}
+                                                                onMouseDown={(event) => event.stopPropagation()}
+                                                                onChange={(event) => setDeviceTreeQuery(event.target.value)}
+                                                                onKeyDown={(event) => {
+                                                                        if (event.key === 'Escape') {
+                                                                                event.stopPropagation();
+                                                                                event.currentTarget.blur();
+                                                                        }
+                                                                }}
+                                                        />
+                                                        <Button
+                                                                className={`parameter-search-clear${deviceTreeQuery ? '' : ' is-empty'}`}
+                                                                type="button"
+                                                                title="clear search"
+                                                                icon={closeIcon}
+                                                                iconOnly={true}
+                                                                onMouseDown={(event) => event.stopPropagation()}
+                                                                onClick={() => {
+                                                                        setDeviceTreeQuery('');
+                                                                        deviceTreeSearchRef.current?.focus();
+                                                                }}
+                                                        />
+                                                </div>
+                                        ) : null}
+                                        {deviceTreeMode ? (
+                                                <span className={`runtime-device-tree-status${deviceTreeStatus.invalid ? ' is-error' : ''}`}>{deviceTreeStatus.text}</span>
+                                        ) : null}
+                                        {deviceTreeMode ? (
+                                                <Button
+                                                        className="secondary runtime-device-tree-reload"
+                                                        variant="secondary"
+                                                        type="button"
+                                                        title="reload device tree"
+                                                        aria-label="reload device tree"
+                                                        icon={reloadIcon}
+                                                        iconOnly={true}
+                                                        disabled={deviceTreeLoading}
+                                                        onMouseDown={(event) => event.stopPropagation()}
+                                                        onClick={() => void loadDeviceTree()}
+                                                />
+                                        ) : null}
                                         {mediaMode ? (
                                                 <select
                                                         className="runtime-media-device"
@@ -504,6 +634,24 @@ export default function RuntimeLane({
                                                         onClick={() => void loadMediaGraph()}
                                                 />
                                         ) : null}
+                                </div>
+                                <div className="runtime-header-right">
+                                        <Button
+                                                className={`secondary runtime-device-tree-toggle${deviceTreeMode ? ' active' : ''}`}
+                                                variant="secondary"
+                                                compact={true}
+                                                type="button"
+                                                title="show device tree"
+                                                aria-label="show device tree"
+                                                onMouseDown={(event) => event.stopPropagation()}
+                                                onClick={() => {
+                                                        setDeviceTreeMode((current) => !current);
+                                                        setMediaMode(false);
+                                                        onSelectMediaElement?.(null);
+                                                }}
+                                        >
+                                                DT
+                                        </Button>
                                         <Button
                                                 className={`secondary runtime-media-toggle${mediaMode ? ' active' : ''}`}
                                                 variant="secondary"
@@ -515,6 +663,7 @@ export default function RuntimeLane({
                                                 onMouseDown={(event) => event.stopPropagation()}
                                                 onClick={() => {
                                                         setMediaMode((current) => !current);
+                                                        setDeviceTreeMode(false);
                                                         if (mediaMode) onSelectMediaElement?.(null);
                                                 }}
                                         />
@@ -548,7 +697,7 @@ export default function RuntimeLane({
                         </header>
                         <div
                                 ref={runtimeCanvasRef}
-                                className={`runtime-canvas${mediaMode ? ' media-mode' : ''}`}
+                                className={`runtime-canvas${mediaMode ? ' media-mode' : ''}${deviceTreeMode ? ' device-tree-mode' : ''}`}
                                 onWheelCapture={onRuntimeWheelCapture}
                                 onMouseDownCapture={onRuntimePanMouseDownCapture}
                                 onMouseUpCapture={onRuntimeContextMenuMouseUpCapture}
@@ -558,17 +707,28 @@ export default function RuntimeLane({
                                 }}
                         >
                                 <div className="runtime-canvas-tools">
-                                        <ResetViewButton
-                                                onClick={resetOrFitRuntimeViewport}
-                                                className="runtime-reset-view-button"
-                                                ariaLabel={`reset view for ${runtime.displayName || runtime.ip}`}
-                                        />
+                                        {deviceTreeMode ? null : (
+                                                <ResetViewButton
+                                                        onClick={resetOrFitRuntimeViewport}
+                                                        className="runtime-reset-view-button"
+                                                        ariaLabel={`reset view for ${runtime.displayName || runtime.ip}`}
+                                                />
+                                        )}
                                 </div>
                                 <div
-                                        className={`runtime-canvas-inner${mediaMode ? ' media-mode' : ''}`}
-                                        style={mediaMode ? undefined : { transform: `translate(${runtimePanX}px, ${runtimePanY}px) scale(${runtimeZoom})` }}
+                                        className={`runtime-canvas-inner${mediaMode ? ' media-mode' : ''}${deviceTreeMode ? ' device-tree-mode' : ''}`}
+                                        style={mediaMode || deviceTreeMode ? undefined : { transform: `translate(${runtimePanX}px, ${runtimePanY}px) scale(${runtimeZoom})` }}
                                 >
-                                        {mediaMode ? (
+                                        {deviceTreeMode ? (
+                                                <DeviceTreeView
+                                                        tree={deviceTree}
+                                                        loading={deviceTreeLoading}
+                                                        error={deviceTreeError}
+                                                        query={deviceTreeQuery}
+                                                        onOpenContextMenu={onDeviceTreeContextMenu}
+                                                        onStatusChange={onDeviceTreeStatus}
+                                                />
+                                        ) : mediaMode ? (
                                                 <MediaGraphView
                                                         graph={mediaGraph}
                                                         loading={mediaLoading}

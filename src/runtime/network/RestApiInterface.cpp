@@ -7,6 +7,7 @@
 #include "media/MediaGraphInspector.hpp"
 #include "parameters/Parameter.hpp"
 #include "parser/JsonPipelineParser.hpp"
+#include "system/DeviceTreeInspector.hpp"
 
 #include "version.h"
 
@@ -420,6 +421,19 @@ bool RestApiInterface::tryHandle(const std::string& method, const std::string& p
         std::string errorMessage;
         if (!MediaGraphInspector::graphJson(device, responseBody, errorMessage)) {
             statusCode = errorMessage == "media device not found" ? 404 : 500;
+            contentType = "application/json";
+            responseBody = "{\"error\":\"" + jsonEscape(errorMessage) + "\"}";
+            return true;
+        }
+        statusCode = 200;
+        contentType = "application/json";
+        return true;
+    }
+
+    if (method == "GET" && requestPath == "/api/devicetree") {
+        std::string errorMessage;
+        if (!DeviceTreeInspector::treeJson(responseBody, errorMessage)) {
+            statusCode = errorMessage == "device tree not available" ? 404 : 500;
             contentType = "application/json";
             responseBody = "{\"error\":\"" + jsonEscape(errorMessage) + "\"}";
             return true;

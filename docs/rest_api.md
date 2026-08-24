@@ -43,6 +43,7 @@ REST responses include:
 | `/api/runtime/version` | `GET` | none | `version`, `git`, `build`, `opencv` |
 | `/api/media` | `GET` | none | available `devices[]` |
 | `/api/media/{device}` | `GET` | path: `{device}` (for example `media0`) | media `entities[]`, pads and `links[]` |
+| `/api/devicetree` | `GET` | none | `root`, `node` (recursive), `nodeCount`, `truncated` |
 | `/api/pipeline` | `GET` | none | runtime graph JSON (`nodes`, `edges`, ...) |
 | `/api/pipeline` | `PUT` / `POST` | graph JSON (`nodes`, `edges`) | `ok` |
 | `/api/nodes` | `GET` | none | `sources`, `processors`, `sinks`, `schemas` |
@@ -82,6 +83,32 @@ Status codes:
 - `200 OK`: device list or graph snapshot returned
 - `404 Not Found`: requested media device is not present
 - `500 Internal Server Error`: the media device or topology could not be queried
+
+## GET /api/devicetree
+
+Returns a full snapshot of the flattened device tree exposed by the kernel. The runtime reads `/sys/firmware/devicetree/base`, falling back to `/proc/device-tree`. Symbolic links are skipped so alias shortcuts do not duplicate subtrees.
+
+Response fields:
+
+- `root`: the device tree directory that was read
+- `nodeCount`: number of serialized nodes
+- `truncated`: `true` when the node limit was reached and the tree is incomplete
+- `node`: the root node, recursively containing `name`, `path`, `properties[]` and `children[]`
+
+Each property carries `name`, `length` (bytes read), `truncated` (property longer than 4096 bytes) and a `type` that selects the value field:
+
+- `empty`: zero-length property, no value field
+- `string` / `stringList`: `strings[]`
+- `cells`: `cells[]` of big-endian unsigned 32-bit values
+- `bytes`: `bytes` as a lowercase hex string
+- `unreadable`: the property file could not be opened, no value field
+
+Property types are derived heuristically because the flattened device tree does not store them.
+
+Status codes:
+
+- `200 OK`: tree snapshot returned
+- `404 Not Found`: the host does not expose a device tree
 
 ## GET /api/nodes
 

@@ -121,6 +121,10 @@ export default function GlobalHeader({
                                                                 <span>Open selected runtime log filter</span>
                                                                 <span className="shortcut-keys"><kbd>{shortcutModifier}</kbd><span>+</span><kbd>G</kbd></span>
                                                         </div>
+                                                        <div className="shortcut-row">
+                                                                <span>Open device tree inspector</span>
+                                                                <span className="shortcut-keys"><kbd>{shortcutModifier}</kbd><span>+</span><kbd>D</kbd></span>
+                                                        </div>
                                                 </div>
                                         ) : null}
                                 </div>

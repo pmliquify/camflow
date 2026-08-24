@@ -677,6 +677,7 @@ export default function App() {
         const [parameterFilterOpenRequest, setParameterFilterOpenRequest] = useState(0);
         const [filterCloseRequest, setFilterCloseRequest] = useState(0);
         const [runtimeLogFilterOpenRequest, setRuntimeLogFilterOpenRequest] = useState({ runtimeId: '', sequence: 0 });
+        const [deviceTreeOpenRequest, setDeviceTreeOpenRequest] = useState({ runtimeId: '', sequence: 0 });
         const [runtimeMenu, setRuntimeMenu] = useState({ open: false, x: 0, y: 0, kind: 'background', runtimeId: null, nodeId: null, portDirection: '', portName: '', sources: [], processors: [], sinks: [] });
         const [dialogState, setDialogState] = useState({ open: false, mode: null, runtimeId: null, runtimeName: '', runtimeIp: '', nodeType: '', nodeId: '' });
         const [editorError, setEditorError] = useState('');
@@ -1984,6 +1985,12 @@ export default function App() {
                                 const runtimeId = selectedRuntimeIdRef.current;
                                 setRuntimeLogPanels((current) => ({ ...current, [runtimeId]: true }));
                                 setRuntimeLogFilterOpenRequest((request) => ({ runtimeId, sequence: request.sequence + 1 }));
+                                return;
+                        }
+                        if (event.code === 'KeyD') {
+                                event.preventDefault();
+                                setViewMode('editor');
+                                setDeviceTreeOpenRequest((request) => ({ runtimeId: selectedRuntimeIdRef.current, sequence: request.sequence + 1 }));
                         }
                 };
                 const pointerDownHandler = () => {
@@ -2610,6 +2617,7 @@ export default function App() {
                                         onToggleRuntimeLogPanel={onToggleRuntimeLogPanel}
                                         onClearRuntimeLogs={onClearRuntimeLogs}
                                         runtimeLogFilterOpenRequest={runtimeLogFilterOpenRequest}
+                                        deviceTreeOpenRequest={deviceTreeOpenRequest}
                                         filterCloseRequest={filterCloseRequest}
                                         runtimeBaseUrl={runtimeBaseUrl}
                                         selectedMediaElement={selectedMediaElement}

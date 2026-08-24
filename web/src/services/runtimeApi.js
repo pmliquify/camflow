@@ -59,6 +59,14 @@ export async function getMediaGraph(device, baseUrl = '') {
         return response.json();
 }
 
+export async function getDeviceTree(baseUrl = '') {
+        const response = await fetch(`${baseUrl}/api/devicetree?t=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) {
+                throw new Error(response.status === 404 ? 'device tree not available' : `device tree ${response.status}`);
+        }
+        return response.json();
+}
+
 export async function savePipeline(payload) {
         const response = await fetch('/api/pipeline', {
                 method: 'PUT',

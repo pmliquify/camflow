@@ -108,6 +108,11 @@ bool suppressStatusPollingLog(const std::string& method, const std::string& path
     return verbosity == 3 && method == "GET" && isRuntimeStatusPath(path);
 }
 
+bool isDeviceTreePath(const std::string& path)
+{
+    return path == "/api/devicetree" || path.rfind("/api/devicetree?", 0) == 0;
+}
+
 const char* logTypeName(LogType type)
 {
     switch (type) {
@@ -707,7 +712,9 @@ std::string WebServer::handleRequest(const std::string& method, const std::strin
             LOG_API_INFO("WebServer request body: " + formatVerboseBody(body, m_requestVerbosity));
         }
         if (path.rfind("/api/", 0) == 0) {
-            LOG_API_INFO("WebServer response: " + std::to_string(statusCode) + " " + formatVerboseBody(responseBody, m_requestVerbosity));
+            // The device tree snapshot is hundreds of kilobytes, so it is always truncated.
+            const int bodyVerbosity = isDeviceTreePath(path) ? 2 : m_requestVerbosity;
+            LOG_API_INFO("WebServer response: " + std::to_string(statusCode) + " " + formatVerboseBody(responseBody, bodyVerbosity));
         }
     }
 

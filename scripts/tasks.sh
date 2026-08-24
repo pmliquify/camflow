@@ -34,10 +34,19 @@ DEFAULT_ARM64_IMAGE=camflow-arm64
 DEFAULT_ARM64_REBUILD_IMAGE=0
 DEFAULT_FAST_DEV=0
 DEFAULT_BUILT_TIMING=1
+DEFAULT_TASK_DONE_SOUND_CMD=
+DEFAULT_TASK_DONE_SOUND_MIN_SECONDS=20
 
 TASKS_TIMER_START=${SECONDS}
 TASKS_TIMER_LAST_START=0
 declare -a TASKS_TIMER_STEPS=()
+TASK_HAS_BUILD_COMMAND=0
+TASK_BUILD_ELAPSED=0
+TASK_BUILD_SUCCESS=0
+TASK_SOUND_PLAYED=0
+BUILT_TIMING=${DEFAULT_BUILT_TIMING}
+TASK_DONE_SOUND_CMD=${DEFAULT_TASK_DONE_SOUND_CMD}
+TASK_DONE_SOUND_MIN_SECONDS=${DEFAULT_TASK_DONE_SOUND_MIN_SECONDS}
 
 format_duration() {
     local total_seconds="$1"
@@ -125,6 +134,27 @@ on_script_exit() {
     print_timer_summary "${exit_code}"
 }
 
+play_build_completion_sound_if_needed() {
+    if [[ "${TASK_SOUND_PLAYED}" -eq 1 ]]; then
+        return
+    fi
+
+    if [[ "${TASK_BUILD_SUCCESS}" -ne 1 || "${TASK_HAS_BUILD_COMMAND}" -ne 1 || -z "${TASK_DONE_SOUND_CMD:-}" ]]; then
+        return
+    fi
+
+    if [[ "${TASK_BUILD_ELAPSED}" -lt "${TASK_DONE_SOUND_MIN_SECONDS}" ]]; then
+        echo "[sound] Skipped: build time ${TASK_BUILD_ELAPSED}s is below threshold ${TASK_DONE_SOUND_MIN_SECONDS}s"
+        TASK_SOUND_PLAYED=1
+        return
+    fi
+
+    if ! bash -lc "${TASK_DONE_SOUND_CMD}" >/dev/null 2>&1; then
+        echo "Warning: failed to play build completion sound (TASK_DONE_SOUND_CMD)." >&2
+    fi
+    TASK_SOUND_PLAYED=1
+}
+
 trap on_script_exit EXIT
 
 print_help() {
@@ -171,6 +201,7 @@ Options:
     --clean        Clean docs output before the docs action.
     --output DIR   Docs output directory for the docs action.
     --install-deps Install documentation dependencies for the docs action.
+        --test-sound   Run TASK_DONE_SOUND_CMD immediately and exit (for sound setup checks).
   --help         Show this help text.
 
 Examples:
@@ -253,6 +284,8 @@ write_make_cfg() {
         cfg_assign UI_API_PORT "${UI_API_PORT}"
         cfg_assign FAST_DEV "${FAST_DEV}"
         cfg_assign BUILT_TIMING "${BUILT_TIMING}"
+        cfg_assign TASK_DONE_SOUND_CMD "${TASK_DONE_SOUND_CMD}"
+        cfg_assign TASK_DONE_SOUND_MIN_SECONDS "${TASK_DONE_SOUND_MIN_SECONDS}"
     } > "${MAKE_CFG_PATH}"
 }
 
@@ -275,6 +308,8 @@ create_make_cfg_interactive() {
     UI_API_PORT=$(prompt_value "UI proxy API port" "${DEFAULT_UI_API_PORT}")
     FAST_DEV=$(prompt_value "Fast dev mode (1/0)" "${DEFAULT_FAST_DEV}")
     BUILT_TIMING=$(prompt_value "Build timing (1/0)" "${DEFAULT_BUILT_TIMING}")
+    TASK_DONE_SOUND_CMD=$(prompt_value "Build done sound command (empty disables)" "${DEFAULT_TASK_DONE_SOUND_CMD}")
+    TASK_DONE_SOUND_MIN_SECONDS=$(prompt_value "Build done sound min duration in seconds" "${DEFAULT_TASK_DONE_SOUND_MIN_SECONDS}")
     write_make_cfg
     echo "Created ${MAKE_CFG_PATH}"
 }
@@ -297,6 +332,8 @@ create_make_cfg_defaults() {
     UI_API_PORT=${DEFAULT_UI_API_PORT}
     FAST_DEV=${DEFAULT_FAST_DEV}
     BUILT_TIMING=${DEFAULT_BUILT_TIMING}
+    TASK_DONE_SOUND_CMD=${DEFAULT_TASK_DONE_SOUND_CMD}
+    TASK_DONE_SOUND_MIN_SECONDS=${DEFAULT_TASK_DONE_SOUND_MIN_SECONDS}
     write_make_cfg
     echo "Created ${MAKE_CFG_PATH} from defaults"
 }
@@ -1119,6 +1156,7 @@ CLI_ARM64_REBUILD_IMAGE=
 CLI_CLANG_FORMAT_BIN=
 CLI_DOCS_OUTPUT_DIR=
 CLI_FAST_DEV=
+CLI_TEST_SOUND=0
 DOCS_CLEAN_FIRST=0
 DOCS_INSTALL_DEPS=0
 
@@ -1204,6 +1242,10 @@ while [[ $# -gt 0 ]]; do
             DOCS_INSTALL_DEPS=1
             shift
             ;;
+        --test-sound)
+            CLI_TEST_SOUND=1
+            shift
+            ;;
         --)
             shift
             break
@@ -1216,13 +1258,13 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ ${#commands[@]} -eq 0 ]]; then
+if [[ ${#commands[@]} -eq 0 && "${CLI_TEST_SOUND}" != "1" ]]; then
     echo "At least one command is required." >&2
     print_help
     exit 1
 fi
 
-if has_command build || has_command deploy || has_command run || has_command deps; then
+if has_command build || has_command deploy || has_command run || has_command deps || [[ "${CLI_TEST_SOUND}" == "1" ]]; then
     if [[ ${#platforms[@]} -eq 0 ]]; then
         platforms=(dev arm64)
     fi
@@ -1258,6 +1300,8 @@ CLANG_FORMAT_BIN=${CLANG_FORMAT_BIN:-clang-format-15}
 DOCS_OUTPUT_DIR=${DOCS_OUTPUT_DIR:-${PROJECT_DIR}/docs/api}
 FAST_DEV=${FAST_DEV:-${DEFAULT_FAST_DEV}}
 BUILT_TIMING=${BUILT_TIMING:-${DEFAULT_BUILT_TIMING}}
+TASK_DONE_SOUND_CMD=${TASK_DONE_SOUND_CMD:-${DEFAULT_TASK_DONE_SOUND_CMD}}
+TASK_DONE_SOUND_MIN_SECONDS=${TASK_DONE_SOUND_MIN_SECONDS:-${DEFAULT_TASK_DONE_SOUND_MIN_SECONDS}}
 
 if [[ -n "${CLI_FAST_DEV}" ]]; then FAST_DEV=1; fi
 
@@ -1275,6 +1319,22 @@ if [[ -n "${CLI_UI_API_PORT}" ]]; then UI_API_PORT="${CLI_UI_API_PORT}"; fi
 if [[ -n "${CLI_ARM64_REBUILD_IMAGE}" ]]; then ARM64_REBUILD_IMAGE="${CLI_ARM64_REBUILD_IMAGE}"; fi
 if [[ -n "${CLI_CLANG_FORMAT_BIN}" ]]; then CLANG_FORMAT_BIN="${CLI_CLANG_FORMAT_BIN}"; fi
 if [[ -n "${CLI_DOCS_OUTPUT_DIR}" ]]; then DOCS_OUTPUT_DIR="${CLI_DOCS_OUTPUT_DIR}"; fi
+
+if [[ "${CLI_TEST_SOUND}" == "1" ]]; then
+    if [[ -z "${TASK_DONE_SOUND_CMD}" ]]; then
+        echo "TASK_DONE_SOUND_CMD is empty. Set it in scripts/tasks.cfg first." >&2
+        exit 1
+    fi
+
+    echo "Testing build completion sound command..."
+    if bash -lc "${TASK_DONE_SOUND_CMD}"; then
+        echo "Sound command finished successfully."
+        exit 0
+    else
+        echo "Sound command failed. Check TASK_DONE_SOUND_CMD in scripts/tasks.cfg." >&2
+        exit 1
+    fi
+fi
 
 if [[ "${FAST_DEV}" != "0" && "${FAST_DEV}" != "1" ]]; then
     echo "Invalid FAST_DEV value: ${FAST_DEV} (expected 0 or 1)" >&2
@@ -1294,6 +1354,15 @@ fi
 if [[ "${ARM64_REBUILD_IMAGE}" != "0" && "${ARM64_REBUILD_IMAGE}" != "1" ]]; then
     echo "Invalid --rebuild-image value: ${ARM64_REBUILD_IMAGE} (expected 0 or 1)" >&2
     exit 1
+fi
+
+if [[ ! "${TASK_DONE_SOUND_MIN_SECONDS}" =~ ^[0-9]+$ ]]; then
+    echo "Invalid TASK_DONE_SOUND_MIN_SECONDS value: ${TASK_DONE_SOUND_MIN_SECONDS} (expected integer >= 0)" >&2
+    exit 1
+fi
+
+if has_command build; then
+    TASK_HAS_BUILD_COMMAND=1
 fi
 
 want_dev=0
@@ -1322,6 +1391,7 @@ for command in "${commands[@]}"; do
             run_timed_step "ui-release" freeze_ui_release_action
             ;;
         build)
+            build_started_at=${SECONDS}
             if [[ ${want_ui} -eq 1 ]]; then
                 run_timed_step "build ui" build_web_ui
             fi
@@ -1333,6 +1403,8 @@ for command in "${commands[@]}"; do
                     run_timed_step "build arm64 runtime" build_runtime_arm64
                 fi
             fi
+            TASK_BUILD_ELAPSED=$((TASK_BUILD_ELAPSED + SECONDS - build_started_at))
+            TASK_BUILD_SUCCESS=1
             ;;
         deploy)
             if [[ ${want_runtime} -eq 1 && ${want_arm64} -eq 1 ]]; then
@@ -1343,6 +1415,8 @@ for command in "${commands[@]}"; do
             fi
             ;;
         run)
+            play_build_completion_sound_if_needed
+
             if [[ ${want_runtime} -eq 0 && ${want_ui} -eq 0 ]]; then
                 echo "Skipping run: no runnable product selected (runtime/ui)." >&2
                 continue

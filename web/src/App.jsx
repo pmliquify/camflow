@@ -1952,7 +1952,13 @@ export default function App() {
                         if (focusParameterByTypeahead(event, parameterTypeaheadRef)) {
                                 return;
                         }
-                        if (event.defaultPrevented || event.repeat || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || areKeyboardShortcutsBlocked()) {
+                        const alreadyHandled = event.defaultPrevented;
+                        const isAltLetter = event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && event.code.startsWith('Key');
+                        if (isAltLetter && !alreadyHandled) {
+                                // Suppress the letter for every Alt combination, including key repeats, so focused inputs stay untouched.
+                                event.preventDefault();
+                        }
+                        if (!isAltLetter || alreadyHandled || event.repeat || areKeyboardShortcutsBlocked()) {
                                 return;
                         }
                         if (event.code === 'KeyV') {

@@ -204,6 +204,11 @@ ParameterSet Node::currentParameters() const
     return m_parameters;
 }
 
+void Node::syncParameterValue(const std::string& name, const ParameterValue& value)
+{
+    m_parameters.set(name, value);
+}
+
 void Node::shutdown() {}
 
 void Node::stop() {}

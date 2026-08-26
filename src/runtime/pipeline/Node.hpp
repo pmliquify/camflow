@@ -292,6 +292,19 @@ protected:
      */
     virtual bool onParameterChanged(const std::string& name, const ParameterValue& value, const ParameterValue* previousValue, std::string& errorMessage);
 
+    /**
+     * @brief Overwrites the stored value for @p name without invoking @ref onParameterChanged.
+     *
+     * Used by sources whose device-derived defaults (e.g. hardware-reported format) can only
+     * be discovered after @ref configure has already populated @ref m_parameters with a
+     * placeholder schema default; keeps the stored value in sync with reality so a later
+     * @ref setParameter call with that same real value is not mistaken for a no-op.
+     *
+     * @param name Parameter name.
+     * @param value Value to store.
+     */
+    void syncParameterValue(const std::string& name, const ParameterValue& value);
+
 private:
     friend class Pipeline;
 

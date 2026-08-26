@@ -826,6 +826,20 @@ void V4L2Source::updateImageGeometry()
             break;
         }
     }
+
+    // Node::configure() pre-fills m_parameters with the static schema default (before the
+    // device is opened); keep it in sync with what the hardware actually reports so a later
+    // setParameter() call requesting this same real value isn't mistaken for a no-op.
+    if (!isExplicitParameter("pixelformat")) {
+        syncParameterValue("pixelformat", pixelFormatToString(m_pixelFormat));
+    }
+    if (!isExplicitParameter("width")) {
+        syncParameterValue("width", static_cast<int64_t>(m_width));
+    }
+    if (!isExplicitParameter("height")) {
+        syncParameterValue("height", static_cast<int64_t>(m_height));
+    }
+
     LOG_INFO("V4L2 format (width=" + std::to_string(m_width) + ", height=" + std::to_string(m_height) + ", stride=" + std::to_string(m_stride) + ", format=" + pixelFormatToString(m_pixelFormat) +
              ")");
 }

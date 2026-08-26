@@ -128,7 +128,8 @@ bool Application::getPositionalPipelineArgument(int argc, char** argv, std::stri
 {
     for (int i = 1; i < argc; ++i) {
         const std::string current = argv[i];
-        if (current == "-n" || current == "-G" || current == "--graph" || current == "--port" || current == "--device" || current == "--subdevices" || current == "-L" || current == "--log-source") {
+        if (current == "-n" || current == "-G" || current == "--graph" || current == "--port" || current == "--device" || current == "--subdevices" || current == "--pixelformat" ||
+            current == "-L" || current == "--log-source") {
             ++i;
             continue;
         }
@@ -312,6 +313,8 @@ void Application::printHelp(const char* executableName, const GraphConfig& confi
     std::cout << "      --device PATH          V4L2 device for auto UI mode (default: /dev/video3)\n";
     std::cout << "      --subdevices LIST      Comma-separated V4L2 subdevices for auto UI mode\n";
     std::cout << "                             (default: /dev/v4l-subdev3)\n";
+    std::cout << "      --pixelformat FOURCC   V4L2 capture pixel format for auto UI mode\n";
+    std::cout << "                             (default: device start value)\n";
     std::cout << "                                                                       \n";
     std::cout << "Simple pipeline syntax:                             \n";
     std::cout << "  v4l2src(device=/dev/video0) -> tcpsink(ip=127.0.0.1,port=9000)\n\n";
@@ -371,6 +374,8 @@ int Application::runUiMode(int argc, char** argv)
         }
     }
     getArgumentValue(argc, argv, "--subdevices", subdevices);
+    std::string pixelformat;
+    const bool pixelformatProvided = getArgumentValue(argc, argv, "--pixelformat", pixelformat);
 
     GraphConfig config;
     NodeConfig sourceNode;
@@ -378,6 +383,9 @@ int Application::runUiMode(int argc, char** argv)
     sourceNode.type = "v4l2src";
     sourceNode.parameters.set("device", device);
     sourceNode.parameters.set("subdevices", subdevices);
+    if (pixelformatProvided) {
+        sourceNode.parameters.set("pixelformat", pixelformat);
+    }
     config.addNode(sourceNode);
 
     PipelineBuilder builder(m_factory, m_converter.get());

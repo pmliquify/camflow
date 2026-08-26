@@ -23,17 +23,20 @@
  * | `appendSequence`   | bool   | If @c true, appends the frame sequence number.                     |
  * | `appendPixelFormat`| bool   | If @c true, appends the written image's pixel format (fourcc-like).|
  * | `appendImageSize`  | bool   | If @c true, appends the image size as `<width>x<height>`.          |
+ * | `appendBitShift`   | bool   | If @c true, appends the image's bit shift as `bs<N>` (omitted when 0).|
  * | `format`           | option | Output file format (`jpg`, `png`, `raw`), used as file extension.  |
  *
  * The resulting file name is assembled as
- * `<filename>_<datetime>_<sequence>_<pixelFormat>_<width>x<height>.<format>`,
- * omitting any component whose `append*` parameter is disabled. RAW output
- * writes the in-memory image buffer byte-for-byte (no pixel format
- * conversion), so file size always matches `width * height * bytesPerPixel`.
+ * `<filename>_<datetime>_<sequence>_<pixelFormat>_<width>x<height>_bs<N>.<format>`,
+ * omitting any component whose `append*` parameter is disabled (and `bs<N>` whenever
+ * the bit shift is 0). RAW output writes the in-memory image buffer byte-for-byte (no
+ * pixel format conversion), so file size always matches `width * height * bytesPerPixel`;
+ * preserving the bit shift in the file name lets @ref FileSource restore it on reload.
  *
  * During processing these values are read from scoped context keys
  * `<thisNodeId>.filename`, `<thisNodeId>.appendDatetime`, `<thisNodeId>.appendSequence`,
- * `<thisNodeId>.appendPixelFormat`, `<thisNodeId>.appendImageSize` and `<thisNodeId>.format`.
+ * `<thisNodeId>.appendPixelFormat`, `<thisNodeId>.appendImageSize`, `<thisNodeId>.appendBitShift`
+ * and `<thisNodeId>.format`.
  *
  * @see Node
  * @see ImageBuffer
@@ -73,12 +76,14 @@ private:
      * @param appendSequence   Whether to append the frame sequence number.
      * @param appendPixelFormat Whether to append the written pixel format.
      * @param appendImageSize  Whether to append `<width>x<height>`.
+     * @param appendBitShift   Whether to append `bs<N>` (only when the bit shift is nonzero).
      * @param sequence         Frame sequence number.
      * @param pixelFormatName  Written image's pixel format name.
      * @param width            Written image width in pixels.
      * @param height           Written image height in pixels.
+     * @param bitShift         Written image's bit shift.
      * @return Full output file path string.
      */
-    std::string outputFileName(const std::string& baseFileName, const std::string& extension, bool appendDatetime, bool appendSequence, bool appendPixelFormat, bool appendImageSize, uint64_t sequence,
-                               const std::string& pixelFormatName, uint32_t width, uint32_t height) const;
+    std::string outputFileName(const std::string& baseFileName, const std::string& extension, bool appendDatetime, bool appendSequence, bool appendPixelFormat, bool appendImageSize,
+                               bool appendBitShift, uint64_t sequence, const std::string& pixelFormatName, uint32_t width, uint32_t height, uint8_t bitShift) const;
 };

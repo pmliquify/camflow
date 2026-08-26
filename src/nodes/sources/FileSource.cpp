@@ -400,12 +400,19 @@ bool FileSource::loadRawImage(const std::string& fileName, FrameContext& context
 
     ImageBuffer image;
     image.assign(normalizedData.data(), normalizedData.size(), width, height, stride, format);
-    const int64_t configuredBitShift = parameterInt("bitshift", 0);
+    const std::optional<uint8_t> parsedBitShift = parseBitShiftFromFileName(fileName);
+    const int64_t configuredBitShift = parsedBitShift.has_value() ? *parsedBitShift : parameterInt("bitshift", 0);
     image.setBitShift(static_cast<uint8_t>(std::clamp<int64_t>(configuredBitShift, 0, 8)));
 
     const std::optional<uint64_t> parsedSequence = parseSequenceFromFileName(fileName);
-    const uint64_t sequence = parsedSequence.has_value() ? *parsedSequence : (m_sequence + 1);
-    m_sequence = std::max(m_sequence, sequence);
+    uint64_t sequence = parsedSequence.has_value() ? *parsedSequence : (m_sequence + 1);
+    if (sequence <= m_sequence) {
+        // Files from different sources/sessions (e.g. mixed pixel formats collected in one
+        // directory) may not carry a globally increasing sequence token; the frame viewer
+        // treats sequence as frame identity and drops non-increasing values, so always advance.
+        sequence = m_sequence + 1;
+    }
+    m_sequence = sequence;
     image.setSequence(sequence);
 
     context.set("image", std::move(image));
@@ -440,6 +447,16 @@ std::optional<std::pair<uint32_t, uint32_t>> FileSource::parseDimensionsFromFile
         return std::nullopt;
     }
     return std::make_pair(static_cast<uint32_t>(std::stoul(match[1].str())), static_cast<uint32_t>(std::stoul(match[2].str())));
+}
+
+std::optional<uint8_t> FileSource::parseBitShiftFromFileName(const std::string& fileName) const
+{
+    static const std::regex bitShiftRegex(R"((?:^|_)bs([0-9]{1,2})(?:_|\.|$))");
+    std::smatch match;
+    if (!std::regex_search(fileName, match, bitShiftRegex) || match.size() < 2) {
+        return std::nullopt;
+    }
+    return static_cast<uint8_t>(std::clamp(std::stoul(match[1].str()), 0ul, 8ul));
 }
 
 PixelFormat FileSource::parseFormatString(const std::string& value) const

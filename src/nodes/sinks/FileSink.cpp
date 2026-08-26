@@ -74,13 +74,14 @@ NodeSchema FileSink::schema() const
                          {"appendSequence", ParameterType::Bool, "Append frame sequence number", true, false, true, {}, true},
                          {"appendPixelFormat", ParameterType::Bool, "Append the written image's pixel format", true, false, true, {}, true},
                          {"appendImageSize", ParameterType::Bool, "Append image size as <width>x<height>", true, false, true, {}, true},
+                         {"appendBitShift", ParameterType::Bool, "Append the image's bit shift as bs<N> (omitted when 0)", true, false, true, {}, true},
                          {"format", ParameterType::Option, "Output file format", std::string("jpg"), std::string(), std::string(), {"jpg", "png", "raw"}, true}};
     schema.inputs = {NodeInputInfo{"image", "image", "Input image", false}};
     return schema;
 }
 
 std::string FileSink::outputFileName(const std::string& baseFileName, const std::string& extension, bool appendDatetime, bool appendSequence, bool appendPixelFormat, bool appendImageSize,
-                                     uint64_t sequence, const std::string& pixelFormatName, uint32_t width, uint32_t height) const
+                                     bool appendBitShift, uint64_t sequence, const std::string& pixelFormatName, uint32_t width, uint32_t height, uint8_t bitShift) const
 {
     std::ostringstream stream;
     stream << baseFileName;
@@ -95,6 +96,9 @@ std::string FileSink::outputFileName(const std::string& baseFileName, const std:
     }
     if (appendImageSize) {
         stream << "_" << width << "x" << height;
+    }
+    if (appendBitShift && bitShift > 0) {
+        stream << "_bs" << static_cast<int>(bitShift);
     }
     stream << extension;
     return stream.str();
@@ -122,6 +126,7 @@ bool FileSink::process(FrameContext& context)
     const bool appendSequence = parameterBool("appendSequence", true);
     const bool appendPixelFormat = parameterBool("appendPixelFormat", true);
     const bool appendImageSize = parameterBool("appendImageSize", true);
+    const bool appendBitShift = parameterBool("appendBitShift", true);
 
     ImageBuffer convertedImage;
     const ImageBuffer* writeImage = image;
@@ -140,8 +145,8 @@ bool FileSink::process(FrameContext& context)
             writeImage = &convertedImage;
         }
 
-        const std::string fileName = outputFileName(baseFileName, fileExtension, appendDatetime, appendSequence, appendPixelFormat, appendImageSize, image->sequence(),
-                                                    pixelFormatToString(writeImage->format()), writeImage->width(), writeImage->height());
+        const std::string fileName = outputFileName(baseFileName, fileExtension, appendDatetime, appendSequence, appendPixelFormat, appendImageSize, appendBitShift, image->sequence(),
+                                                    pixelFormatToString(writeImage->format()), writeImage->width(), writeImage->height(), writeImage->bitShift());
         ensureParentDirectoryExists(fileName);
 
         cv::Mat bgr(static_cast<int>(writeImage->height()), static_cast<int>(writeImage->width()), CV_8UC3, const_cast<uint8_t*>(writeImage->data()), static_cast<size_t>(writeImage->stride()));
@@ -154,8 +159,8 @@ bool FileSink::process(FrameContext& context)
     }
 
     // RAW output is a byte-for-byte dump of the in-memory buffer, so the file size always matches width * height * bytesPerPixel.
-    const std::string fileName = outputFileName(baseFileName, fileExtension, appendDatetime, appendSequence, appendPixelFormat, appendImageSize, writeImage->sequence(),
-                                                pixelFormatToString(writeImage->format()), writeImage->width(), writeImage->height());
+    const std::string fileName = outputFileName(baseFileName, fileExtension, appendDatetime, appendSequence, appendPixelFormat, appendImageSize, appendBitShift, writeImage->sequence(),
+                                                pixelFormatToString(writeImage->format()), writeImage->width(), writeImage->height(), writeImage->bitShift());
     ensureParentDirectoryExists(fileName);
 
     std::ofstream file(fileName, std::ios::binary);

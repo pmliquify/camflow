@@ -99,6 +99,9 @@ private:
     /** @brief Parses width/height from a filename fragment like `...1920x1080...`. */
     std::optional<std::pair<uint32_t, uint32_t>> parseDimensionsFromFileName(const std::string& fileName) const;
 
+    /** @brief Parses a bit shift from a filename fragment like `..._bs6...` (as written by FileSink). */
+    std::optional<uint8_t> parseBitShiftFromFileName(const std::string& fileName) const;
+
     /** @brief Maps a configured format string (including V4L2 names) to @ref PixelFormat. */
     PixelFormat parseFormatString(const std::string& value) const;
 

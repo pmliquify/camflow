@@ -729,6 +729,8 @@ export default function App() {
         const lastRenderWallMsRef = useRef(0);
         const lastFrameSeenAtRef = useRef(0);
         const statusRef = useRef('starting');
+        const selectedNodeIdRef = useRef(selectedNodeId);
+        const selectedImageKeyRef = useRef(selectedImageKey);
         const selectedRuntimeIdRef = useRef(selectedRuntimeId);
         const parameterTypeaheadRef = useRef({ text: '', timestamp: 0, focusedElement: null });
         const debayerEnabledRef = useRef(debayerEnabled);
@@ -788,6 +790,8 @@ export default function App() {
         // Keep control refs in sync on every render so websocket callbacks and
         // local re-render paths use exactly the same current control values.
         debayerEnabledRef.current = debayerEnabled;
+        selectedNodeIdRef.current = selectedNodeId;
+        selectedImageKeyRef.current = selectedImageKey;
 
         useEffect(() => {
                 try {
@@ -1818,6 +1822,30 @@ export default function App() {
                 }
         }
 
+        function sendFrameSubscription(socket = frameSocketRef.current) {
+                if (!socket || socket.readyState !== WebSocket.OPEN) {
+                        return false;
+                }
+                const currentImageKey = selectedImageKeyRef.current;
+                const subscribeImageKey = currentImageKey.includes('.') ? currentImageKey : '';
+                socket.send(JSON.stringify({ cmd: 'subscribe', nodeId: selectedNodeIdRef.current, imageKey: subscribeImageKey }));
+                return true;
+        }
+
+        function clearFrameDisplay(waitForFrameContext = false) {
+                latestFrameBinaryRef.current = null;
+                lastFramePacketRef.current = null;
+                lastRenderedSequenceRef.current = -1;
+                expectedFrameSequenceRef.current = waitForFrameContext ? Number.MAX_SAFE_INTEGER : -1;
+                setFrameContextState(null);
+                setFrameMeta(null);
+                const canvas = frameCanvasRef.current;
+                const context = canvas?.getContext('2d');
+                if (canvas && context) {
+                        context.clearRect(0, 0, canvas.width, canvas.height);
+                }
+        }
+
         function closeFrameSockets() {
                 const streamSocket = frameSocketRef.current;
                 if (streamSocket && (streamSocket.readyState === WebSocket.OPEN || streamSocket.readyState === WebSocket.CONNECTING)) {
@@ -1825,9 +1853,7 @@ export default function App() {
                 }
 
                 frameSocketRef.current = null;
-                latestFrameBinaryRef.current = null;
-                lastRenderedSequenceRef.current = -1;
-                expectedFrameSequenceRef.current = -1;
+                clearFrameDisplay();
         }
 
         function appendRuntimeLog(runtimeId, record) {
@@ -2046,20 +2072,25 @@ export default function App() {
                 frameSocket.binaryType = 'arraybuffer';
                 frameSocketRef.current = frameSocket;
                 frameSocket.onopen = () => {
-                        const subscribeImageKey = selectedImageKey.includes('.') ? selectedImageKey : '';
-                        frameSocket.send(JSON.stringify({ cmd: 'subscribe', nodeId: selectedNodeId, imageKey: subscribeImageKey }));
+                        sendFrameSubscription(frameSocket);
                 };
                 frameSocket.onmessage = (event) => {
                         if (typeof event.data === 'string') {
                                 try {
                                         const data = JSON.parse(event.data);
+                                        const expectedNodeId = String(selectedNodeIdRef.current || sourceNodeId).trim();
+                                        const eventNodeId = String(data?.nodeId || '').trim();
+                                        if (expectedNodeId && eventNodeId && eventNodeId !== expectedNodeId) {
+                                                return;
+                                        }
                                         setFrameContextState(data);
 
                                         const imageList = Array.isArray(data.images) ? data.images : [];
                                         if (imageList.length > 0) {
-                                                const preferredImage = imageList.find((img) => img.key === selectedImageKey) || imageList[0];
-                                                const nextImageKey = preferredImage?.key || selectedImageKey;
-                                                if (nextImageKey !== selectedImageKey) {
+                                                const currentImageKey = selectedImageKeyRef.current;
+                                                const preferredImage = imageList.find((img) => img.key === currentImageKey) || imageList[0];
+                                                const nextImageKey = preferredImage?.key || currentImageKey;
+                                                if (nextImageKey !== currentImageKey) {
                                                         setSelectedImageKey(nextImageKey);
                                                 }
                                                 if (preferredImage && Number.isFinite(preferredImage.sequence)) {
@@ -2154,13 +2185,8 @@ export default function App() {
 
         useEffect(() => {
                 const socket = frameSocketRef.current;
-                latestFrameBinaryRef.current = null;
-                if (socket && socket.readyState === WebSocket.OPEN) {
-                        const subscribeImageKey = selectedImageKey.includes('.') ? selectedImageKey : '';
-                        socket.send(JSON.stringify({ cmd: 'subscribe', nodeId: selectedNodeId, imageKey: subscribeImageKey }));
-                }
-                lastRenderedSequenceRef.current = -1;
-                expectedFrameSequenceRef.current = -1;
+                clearFrameDisplay(true);
+                sendFrameSubscription(socket);
                 // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [selectedNodeId]);
 
@@ -2194,10 +2220,7 @@ export default function App() {
 
         useEffect(() => {
                 const socket = frameSocketRef.current;
-                if (socket && socket.readyState === WebSocket.OPEN) {
-                        const subscribeImageKey = selectedImageKey.includes('.') ? selectedImageKey : '';
-                        socket.send(JSON.stringify({ cmd: 'subscribe', nodeId: selectedNodeId, imageKey: subscribeImageKey }));
-                }
+                sendFrameSubscription(socket);
                 // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [selectedImageKey]);
 

@@ -162,6 +162,7 @@ if(BUILD_RUNTIME)
             src/runtime/pipeline/PipelineProfiler.cpp
             src/runtime/media/MediaGraphInspector.cpp
             src/runtime/system/DeviceTreeInspector.cpp
+            src/runtime/system/ModuleDebugInspector.cpp
             src/runtime/network/RestApiInterface.cpp
             src/runtime/network/WebInterface.cpp
             src/runtime/network/WebServer.cpp

@@ -67,6 +67,26 @@ export async function getDeviceTree(baseUrl = '') {
         return response.json();
 }
 
+export async function getModuleDebugList(baseUrl = '') {
+        const response = await fetch(`${baseUrl}/api/moduledebug?t=${Date.now()}`, { cache: 'no-store' });
+        if (!response.ok) {
+                throw new Error(`module debug ${response.status}`);
+        }
+        return response.json();
+}
+
+export async function setModuleDebugLevel(moduleName, value, baseUrl = '') {
+        const response = await fetch(`${baseUrl}/api/moduledebug/${encodeURIComponent(moduleName)}`, {
+                method: 'PUT',
+                body: String(value)
+        });
+        if (!response.ok) {
+                const detail = await response.json().catch(() => null);
+                throw new Error(detail?.error || `set module debug ${response.status}`);
+        }
+        return response.json();
+}
+
 export async function savePipeline(payload) {
         const response = await fetch('/api/pipeline', {
                 method: 'PUT',

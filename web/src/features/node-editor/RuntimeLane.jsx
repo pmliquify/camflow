@@ -5,20 +5,23 @@ import EdgeLayer from './EdgeLayer.jsx';
 import RuntimeLogConsole from './RuntimeLogConsole.jsx';
 import MediaGraphView from './MediaGraphView.jsx';
 import DeviceTreeView from './DeviceTreeView.jsx';
+import ModuleDebugView from './ModuleDebugView.jsx';
 import logIcon from '../../assets/images/icon-log.svg';
 import mediaGraphIcon from '../../assets/images/icon-media-graph.svg';
+import moduleDebugIcon from '../../assets/images/icon-debug-bug.svg';
 import reloadIcon from '../../assets/images/icon-reload.svg';
 import closeIcon from '../../assets/images/icon-close.svg';
 import Button from '../../components/Button.jsx';
 import Input from '../../components/Input.jsx';
 import InlineNameEditor from '../../components/InlineNameEditor.jsx';
 import ResetViewButton from '../../components/ResetViewButton.jsx';
-import { getDeviceTree, getMediaDevices, getMediaGraph } from '../../services/runtimeApi.js';
+import { getDeviceTree, getMediaDevices, getMediaGraph, getModuleDebugList, setModuleDebugLevel } from '../../services/runtimeApi.js';
 
 const RUNTIME_LOG_PREFS_STORAGE_PREFIX = 'camflow:runtime-log-prefs:';
 const RUNTIME_LOG_DEFAULT_FONT_STORAGE_KEY = 'camflow:runtime-log-default-font-size';
 const RUNTIME_MEDIA_PREFS_STORAGE_PREFIX = 'camflow:runtime-media-prefs:';
 const RUNTIME_DEVICE_TREE_PREFS_STORAGE_PREFIX = 'camflow:runtime-devicetree-prefs:';
+const RUNTIME_MODULE_DEBUG_PREFS_STORAGE_PREFIX = 'camflow:runtime-moduledebug-prefs:';
 const LOG_FONT_MIN = 5;
 const LOG_FONT_MAX = 15;
 const LOG_FONT_DEFAULT = 10;
@@ -117,6 +120,17 @@ function loadRuntimeDeviceTreeQuery(runtimeId) {
         }
 }
 
+function loadRuntimeModuleDebugQuery(runtimeId) {
+        if (typeof window === 'undefined') {
+                return '';
+        }
+        try {
+                return String(window.localStorage.getItem(`${RUNTIME_MODULE_DEBUG_PREFS_STORAGE_PREFIX}${runtimeId}`) || '');
+        } catch (_) {
+                return '';
+        }
+}
+
 export default function RuntimeLane({
         viewMode,
         runtime,
@@ -169,6 +183,15 @@ export default function RuntimeLane({
         const [deviceTreeStatus, setDeviceTreeStatus] = useState({ text: '', invalid: false });
         const [deviceTreeFocusSequence, setDeviceTreeFocusSequence] = useState(0);
         const deviceTreeSearchRef = useRef(null);
+        const [moduleDebugMode, setModuleDebugMode] = useState(false);
+        const [moduleDebugList, setModuleDebugList] = useState([]);
+        const [moduleDebugLoading, setModuleDebugLoading] = useState(false);
+        const [moduleDebugError, setModuleDebugError] = useState('');
+        const [moduleDebugDrafts, setModuleDebugDrafts] = useState({});
+        const [moduleDebugApplying, setModuleDebugApplying] = useState({});
+        const [moduleDebugQuery, setModuleDebugQuery] = useState(() => loadRuntimeModuleDebugQuery(runtime.id));
+        const [moduleDebugStatus, setModuleDebugStatus] = useState({ text: '', invalid: false });
+        const moduleDebugSearchRef = useRef(null);
         const runtimePanGestureRef = useRef({ moved: false, button: null });
         const runtimePanCleanupRef = useRef(null);
         const runtimeCanvasRef = useRef(null);
@@ -196,7 +219,7 @@ export default function RuntimeLane({
 
         const resetOrFitRuntimeViewport = () => {
                 const canvas = runtimeCanvasRef.current;
-                if (!canvas || deviceTreeMode) {
+                if (!canvas || deviceTreeMode || moduleDebugMode) {
                         return false;
                 }
 
@@ -270,7 +293,7 @@ export default function RuntimeLane({
         }, [hasStoredRuntimeViewport, mediaGraphSignature, mediaMode, runtimeNodeIdsSignature, viewMode]);
 
         const onRuntimeWheelCapture = (event) => {
-                if (deviceTreeMode) {
+                if (deviceTreeMode || moduleDebugMode) {
                         return;
                 }
                 event.preventDefault();
@@ -312,7 +335,7 @@ export default function RuntimeLane({
         };
 
         const onRuntimePanMouseDownCapture = (event) => {
-                if (deviceTreeMode) {
+                if (deviceTreeMode || moduleDebugMode) {
                         return;
                 }
                 if ((event.button !== 1 && event.button !== 2) || (event.target instanceof Element && event.target.closest('button,input,select,textarea'))) {
@@ -444,6 +467,17 @@ export default function RuntimeLane({
                 }
         }, [deviceTreeQuery, runtime.id]);
 
+        useEffect(() => {
+                if (typeof window === 'undefined') {
+                        return;
+                }
+                try {
+                        window.localStorage.setItem(`${RUNTIME_MODULE_DEBUG_PREFS_STORAGE_PREFIX}${runtime.id}`, moduleDebugQuery);
+                } catch (_) {
+                        // Ignore persistence failures (quota/private mode).
+                }
+        }, [moduleDebugQuery, runtime.id]);
+
         async function loadDeviceTree() {
                 setDeviceTreeLoading(true);
                 setDeviceTreeError('');
@@ -493,12 +527,58 @@ export default function RuntimeLane({
                 // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [deviceTreeMode, runtimeBaseUrl]);
 
+        async function loadModuleDebug() {
+                setModuleDebugLoading(true);
+                setModuleDebugError('');
+                try {
+                        const payload = await getModuleDebugList(runtimeBaseUrl);
+                        const modules = Array.isArray(payload?.modules) ? payload.modules : [];
+                        setModuleDebugList(modules);
+                        setModuleDebugDrafts(Object.fromEntries(modules.map((module) => [module.name, module.value])));
+                } catch (error) {
+                        setModuleDebugList([]);
+                        setModuleDebugError(error instanceof Error ? error.message : 'module debug list unavailable');
+                } finally {
+                        setModuleDebugLoading(false);
+                }
+        }
+
+        useEffect(() => {
+                if (moduleDebugMode) void loadModuleDebug();
+                // Reload only when the mode is activated or the target runtime changes.
+                // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [moduleDebugMode, runtimeBaseUrl]);
+
+        const onModuleDebugDraftChange = useCallback((moduleName, value) => {
+                setModuleDebugDrafts((current) => ({ ...current, [moduleName]: value }));
+        }, []);
+
+        const onModuleDebugCommit = useCallback(async (moduleName) => {
+                const module = moduleDebugList.find((item) => item.name === moduleName);
+                const draftValue = moduleDebugDrafts[moduleName];
+                if (!module || draftValue === undefined || String(draftValue) === String(module.value)) {
+                        return;
+                }
+                setModuleDebugApplying((current) => ({ ...current, [moduleName]: true }));
+                try {
+                        await setModuleDebugLevel(moduleName, draftValue, runtimeBaseUrl);
+                        setModuleDebugList((current) => current.map((item) => (item.name === moduleName ? { ...item, value: String(draftValue) } : item)));
+                        setModuleDebugError('');
+                } catch (error) {
+                        setModuleDebugDrafts((current) => ({ ...current, [moduleName]: module.value }));
+                        setModuleDebugError(error instanceof Error ? error.message : 'failed to set debug level');
+                } finally {
+                        setModuleDebugApplying((current) => ({ ...current, [moduleName]: false }));
+                }
+        }, [moduleDebugDrafts, moduleDebugList, runtimeBaseUrl]);
+
         useEffect(() => {
                 if (deviceTreeOpenRequest?.runtimeId !== runtime.id || deviceTreeOpenRequest.sequence <= 0) {
                         return;
                 }
                 setDeviceTreeMode(true);
                 setMediaMode(false);
+                setModuleDebugMode(false);
                 onSelectMediaElement?.(null);
                 setDeviceTreeFocusSequence(deviceTreeOpenRequest.sequence);
                 // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -513,6 +593,8 @@ export default function RuntimeLane({
         }, [deviceTreeFocusSequence, deviceTreeMode]);
 
         const onDeviceTreeStatus = useCallback((text, invalid) => setDeviceTreeStatus({ text, invalid }), []);
+
+        const onModuleDebugStatus = useCallback((text, invalid) => setModuleDebugStatus({ text, invalid }), []);
 
         return (
                 <section
@@ -592,6 +674,54 @@ export default function RuntimeLane({
                                                         onClick={() => void loadDeviceTree()}
                                                 />
                                         ) : null}
+                                        {moduleDebugMode ? (
+                                                <div className="parameter-search-field runtime-module-debug-search">
+                                                        <Input
+                                                                ref={moduleDebugSearchRef}
+                                                                type="text"
+                                                                placeholder="search modules (regex)"
+                                                                aria-label="search kernel modules"
+                                                                value={moduleDebugQuery}
+                                                                onMouseDown={(event) => event.stopPropagation()}
+                                                                onChange={(event) => setModuleDebugQuery(event.target.value)}
+                                                                onKeyDown={(event) => {
+                                                                        if (event.key === 'Escape') {
+                                                                                event.stopPropagation();
+                                                                                event.currentTarget.blur();
+                                                                        }
+                                                                }}
+                                                        />
+                                                        <Button
+                                                                className={`parameter-search-clear${moduleDebugQuery ? '' : ' is-empty'}`}
+                                                                type="button"
+                                                                title="clear search"
+                                                                icon={closeIcon}
+                                                                iconOnly={true}
+                                                                onMouseDown={(event) => event.stopPropagation()}
+                                                                onClick={() => {
+                                                                        setModuleDebugQuery('');
+                                                                        moduleDebugSearchRef.current?.focus();
+                                                                }}
+                                                        />
+                                                </div>
+                                        ) : null}
+                                        {moduleDebugMode ? (
+                                                <span className={`runtime-device-tree-status${moduleDebugStatus.invalid ? ' is-error' : ''}`}>{moduleDebugStatus.text}</span>
+                                        ) : null}
+                                        {moduleDebugMode ? (
+                                                <Button
+                                                        className="secondary runtime-module-debug-reload"
+                                                        variant="secondary"
+                                                        type="button"
+                                                        title="reload kernel modules"
+                                                        aria-label="reload kernel modules"
+                                                        icon={reloadIcon}
+                                                        iconOnly={true}
+                                                        disabled={moduleDebugLoading}
+                                                        onMouseDown={(event) => event.stopPropagation()}
+                                                        onClick={() => void loadModuleDebug()}
+                                                />
+                                        ) : null}
                                         {mediaMode ? (
                                                 <select
                                                         className="runtime-media-device"
@@ -647,6 +777,7 @@ export default function RuntimeLane({
                                                 onClick={() => {
                                                         setDeviceTreeMode((current) => !current);
                                                         setMediaMode(false);
+                                                        setModuleDebugMode(false);
                                                         onSelectMediaElement?.(null);
                                                 }}
                                         >
@@ -664,7 +795,24 @@ export default function RuntimeLane({
                                                 onClick={() => {
                                                         setMediaMode((current) => !current);
                                                         setDeviceTreeMode(false);
+                                                        setModuleDebugMode(false);
                                                         if (mediaMode) onSelectMediaElement?.(null);
+                                                }}
+                                        />
+                                        <Button
+                                                className={`secondary runtime-module-debug-toggle${moduleDebugMode ? ' active' : ''}`}
+                                                variant="secondary"
+                                                type="button"
+                                                title="show kernel module debug levels"
+                                                aria-label="show kernel module debug levels"
+                                                icon={moduleDebugIcon}
+                                                iconOnly={true}
+                                                onMouseDown={(event) => event.stopPropagation()}
+                                                onClick={() => {
+                                                        setModuleDebugMode((current) => !current);
+                                                        setDeviceTreeMode(false);
+                                                        setMediaMode(false);
+                                                        if (moduleDebugMode) onSelectMediaElement?.(null);
                                                 }}
                                         />
                                         <Button
@@ -697,7 +845,7 @@ export default function RuntimeLane({
                         </header>
                         <div
                                 ref={runtimeCanvasRef}
-                                className={`runtime-canvas${mediaMode ? ' media-mode' : ''}${deviceTreeMode ? ' device-tree-mode' : ''}`}
+                                className={`runtime-canvas${mediaMode ? ' media-mode' : ''}${deviceTreeMode ? ' device-tree-mode' : ''}${moduleDebugMode ? ' module-debug-mode' : ''}`}
                                 onWheelCapture={onRuntimeWheelCapture}
                                 onMouseDownCapture={onRuntimePanMouseDownCapture}
                                 onMouseUpCapture={onRuntimeContextMenuMouseUpCapture}
@@ -707,7 +855,7 @@ export default function RuntimeLane({
                                 }}
                         >
                                 <div className="runtime-canvas-tools">
-                                        {deviceTreeMode ? null : (
+                                        {deviceTreeMode || moduleDebugMode ? null : (
                                                 <ResetViewButton
                                                         onClick={resetOrFitRuntimeViewport}
                                                         className="runtime-reset-view-button"
@@ -716,8 +864,8 @@ export default function RuntimeLane({
                                         )}
                                 </div>
                                 <div
-                                        className={`runtime-canvas-inner${mediaMode ? ' media-mode' : ''}${deviceTreeMode ? ' device-tree-mode' : ''}`}
-                                        style={mediaMode || deviceTreeMode ? undefined : { transform: `translate(${runtimePanX}px, ${runtimePanY}px) scale(${runtimeZoom})` }}
+                                        className={`runtime-canvas-inner${mediaMode ? ' media-mode' : ''}${deviceTreeMode ? ' device-tree-mode' : ''}${moduleDebugMode ? ' module-debug-mode' : ''}`}
+                                        style={mediaMode || deviceTreeMode || moduleDebugMode ? undefined : { transform: `translate(${runtimePanX}px, ${runtimePanY}px) scale(${runtimeZoom})` }}
                                 >
                                         {deviceTreeMode ? (
                                                 <DeviceTreeView
@@ -727,6 +875,18 @@ export default function RuntimeLane({
                                                         query={deviceTreeQuery}
                                                         onOpenContextMenu={onDeviceTreeContextMenu}
                                                         onStatusChange={onDeviceTreeStatus}
+                                                />
+                                        ) : moduleDebugMode ? (
+                                                <ModuleDebugView
+                                                        modules={moduleDebugList}
+                                                        loading={moduleDebugLoading}
+                                                        error={moduleDebugError}
+                                                        drafts={moduleDebugDrafts}
+                                                        applyingModules={moduleDebugApplying}
+                                                        onDraftChange={onModuleDebugDraftChange}
+                                                        onCommit={onModuleDebugCommit}
+                                                        query={moduleDebugQuery}
+                                                        onStatusChange={onModuleDebugStatus}
                                                 />
                                         ) : mediaMode ? (
                                                 <MediaGraphView

@@ -910,6 +910,7 @@ button:hover {
 
 .runtime-media-toggle.active,
 .runtime-device-tree-toggle.active,
+.runtime-module-debug-toggle.active,
 .runtime-media-connected-toggle.active {
         color: var(--text);
         border-color: var(--accent);
@@ -917,7 +918,9 @@ button:hover {
 }
 
 .runtime-media-toggle,
+.runtime-module-debug-toggle,
 .runtime-device-tree-reload,
+.runtime-module-debug-reload,
 .runtime-media-reload {
         width: 24px;
         min-width: 24px;
@@ -925,7 +928,9 @@ button:hover {
 }
 
 .runtime-media-toggle .button-icon,
+.runtime-module-debug-toggle .button-icon,
 .runtime-device-tree-reload .button-icon,
+.runtime-module-debug-reload .button-icon,
 .runtime-media-reload .button-icon {
         width: 12px;
         height: 12px;
@@ -936,19 +941,22 @@ button:hover {
         padding: 0 7px;
 }
 
-.runtime-device-tree-search {
+.runtime-device-tree-search,
+.runtime-module-debug-search {
         flex: 0 1 200px;
         min-width: 96px;
 }
 
-.runtime-device-tree-search input[type='text'] {
+.runtime-device-tree-search input[type='text'],
+.runtime-module-debug-search input[type='text'] {
         height: 24px;
         padding-top: 3px;
         padding-bottom: 3px;
 }
 
 /* The header only leaves 4px above and below the field, so the ring uses a tighter offset. */
-.runtime-device-tree-search input[type='text']:focus-visible {
+.runtime-device-tree-search input[type='text']:focus-visible,
+.runtime-module-debug-search input[type='text']:focus-visible {
         outline-offset: 1px;
 }
 
@@ -1516,6 +1524,101 @@ button:hover {
         gap: 8px;
         padding: 1px 8px 1px 4px;
         color: #8fb6c4;
+}
+
+.module-debug-panel {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+}
+
+.module-debug-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+        padding: 8px 0;
+}
+
+.module-debug-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 0 10px;
+}
+
+.module-debug-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 8px 10px;
+        border: 1px solid #235a63;
+        border-radius: 8px;
+        background: rgba(13, 34, 40, 0.6);
+}
+
+.module-debug-row:hover {
+        background: rgba(35, 142, 156, 0.18);
+}
+
+.module-debug-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+        flex: 1 1 auto;
+}
+
+.module-debug-title {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        min-width: 0;
+}
+
+.module-debug-name {
+        color: #d4fbff;
+        font-size: 12px;
+        flex: 0 0 auto;
+}
+
+.module-debug-path {
+        color: #4f7f89;
+        font-size: 10px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+}
+
+.module-debug-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        color: #78cbd3;
+        font-size: 10px;
+}
+
+.module-debug-readonly {
+        color: #ff8e9b;
+}
+
+.module-debug-control {
+        flex: 0 0 220px;
+}
+
+.module-debug-state {
+        display: grid;
+        place-items: center;
+        height: 100%;
+        color: #78cbd3;
+        font-size: 11px;
+}
+
+.module-debug-state.is-error {
+        color: #ff8e9b;
 }
 
 .device-tree-property.matched {

@@ -8,6 +8,7 @@
 #include "parameters/Parameter.hpp"
 #include "parser/JsonPipelineParser.hpp"
 #include "system/DeviceTreeInspector.hpp"
+#include "system/ModuleDebugInspector.hpp"
 
 #include "version.h"
 
@@ -440,6 +441,28 @@ bool RestApiInterface::tryHandle(const std::string& method, const std::string& p
         }
         statusCode = 200;
         contentType = "application/json";
+        return true;
+    }
+
+    if (method == "GET" && requestPath == "/api/moduledebug") {
+        statusCode = 200;
+        contentType = "application/json";
+        responseBody = ModuleDebugInspector::listJson();
+        return true;
+    }
+
+    if (method == "PUT" && requestPath.rfind("/api/moduledebug/", 0) == 0) {
+        const std::string moduleName = decodeUrl(requestPath.substr(17));
+        std::string errorMessage;
+        if (!ModuleDebugInspector::setDebugLevel(moduleName, trim(body), errorMessage)) {
+            statusCode = errorMessage == "module debug parameter not found" ? 404 : 400;
+            contentType = "application/json";
+            responseBody = "{\"ok\":false,\"error\":\"" + jsonEscape(errorMessage) + "\"}";
+            return true;
+        }
+        statusCode = 200;
+        contentType = "application/json";
+        responseBody = "{\"ok\":true}";
         return true;
     }
 

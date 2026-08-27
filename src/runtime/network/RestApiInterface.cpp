@@ -4,7 +4,7 @@
 #include "RestApiInterface.hpp"
 
 #include "core/Logger.hpp"
-#include "media/MediaGraphInspector.hpp"
+#include "system/MediaGraphInspector.hpp"
 #include "parameters/Parameter.hpp"
 #include "parser/JsonPipelineParser.hpp"
 #include "system/DeviceTreeInspector.hpp"

@@ -3,11 +3,11 @@
   camflow v0.2.0
 </h1>
 
-camflow contains one application:
+camflow is a Linux runtime for building, inspecting and operating graph-based camera image-processing pipelines on x86_64 and ARM64 systems. It is designed for embedded vision development and camera-driver validation, from experimenting with a pipeline on a development machine to deploying the same runtime to an ARM64 target.
 
-- `camflow`: Linux runtime for camera pipelines on x86_64 and ARM64 targets.
+Pipelines connect sources, processors and sinks and can be defined through CLI expressions or JSON graph files. The runtime supports V4L2 cameras, file-based input and output, TCP streaming and logging, with OpenCV-based image conversion and processing. An integrated web UI provides live frame viewing, runtime parameter editing and system diagnostics, while REST and WebSocket interfaces support automation, status inspection, graph introspection and frame-context access.
 
-The runtime uses OpenCV 4.12 and links the needed OpenCV modules statically.
+The project includes workflows for local development, ARM64 cross-compilation and deployment. The `camflow` executable is self-contained apart from the target's Linux and camera interfaces: OpenCV 4.12 is linked statically with only the required modules.
 
 ## Documentation
 

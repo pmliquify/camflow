@@ -10,56 +10,9 @@ permissions:
 
 jobs:
   runtime:
-    name: Runtime ${{ matrix.target.name }}
-    runs-on: ${{ matrix.target.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-          - name: linux-x86_64
-            runner: ubuntu-24.04
-            artifact: camflow-runtime-linux-x86_64
-            packages: cmake g++ ninja-build zip libeigen3-dev libjpeg-dev libpng-dev zlib1g-dev
-            opencv_arch: x86_64
-          - name: linux-arm64
-            runner: ubuntu-24.04-arm
-            artifact: camflow-runtime-linux-arm64
-            packages: cmake g++ ninja-build zip libeigen3-dev libjpeg-dev libpng-dev zlib1g-dev
-            opencv_arch: arm64
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ${{ matrix.target.packages }}
-      - name: Cache OpenCV 4.12.0
-        uses: actions/cache@v4
-        with:
-          path: ${{ github.workspace }}/opencv/4.12.0/linux-${{ matrix.target.opencv_arch }}
-          key: opencv-4.12.0-${{ matrix.target.name }}-${{ runner.os }}-${{ runner.arch }}
-      - name: Install OpenCV 4.12.0
-        run: .github/scripts/install-opencv-4.12.0.sh ${{ github.workspace }}/opencv/4.12.0/linux-${{ matrix.target.opencv_arch }} ${{ github.workspace }}/opencv/4.12.0/build-linux-${{ matrix.target.opencv_arch }}
-      - name: Configure runtime
-        run: |
-          cmake -S . -B build-runtime -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DBUILD_RUNTIME=ON \
-            -DOpenCV_DIR=${{ github.workspace }}/opencv/4.12.0/linux-${{ matrix.target.opencv_arch }}/lib/cmake/opencv4
-      - name: Build runtime
-        run: cmake --build build-runtime --config Release --parallel
-      - name: Package runtime
-        run: |
-          mkdir -p package/bin package/docs
-          cp build-runtime/camflow package/bin/
-          cp INSTALL.md LICENSE VERSION.md package/
-          cp docs/release/*.md package/docs/
-          (cd package && zip -r ../${{ matrix.target.artifact }}-${{ github.ref_name }}.zip .)
-      - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.target.artifact }}-${{ github.ref_name }}
-          path: ${{ matrix.target.artifact }}-${{ github.ref_name }}.zip
+    uses: ./.github/workflows/build-release-package.yml
+    with:
+      version: ${{ github.ref_name }}
 
   release:
     needs: [runtime]

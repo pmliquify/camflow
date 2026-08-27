@@ -317,8 +317,9 @@ ParameterInfo V4L2ControlAccess::toParameterInfo(const V4L2Control& control)
         maximumValue = std::string();
     }
 
-    ParameterInfo info{control.parameterName, type, "V4L2 control: " + control.controlName, defaultValue, minimumValue, maximumValue, control.options, control.runtimeWritable, control.options,
-                       std::string("v4l2"), control.sourceDevice};
+    ParameterInfo info{
+        control.parameterName, type, "V4L2 control: " + control.controlName, defaultValue, minimumValue, maximumValue, control.options, control.runtimeWritable, control.options, std::string("v4l2"),
+        control.sourceDevice};
     info.readOnly = !control.writable;
     return info;
 }

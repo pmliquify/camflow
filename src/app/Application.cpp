@@ -128,8 +128,8 @@ bool Application::getPositionalPipelineArgument(int argc, char** argv, std::stri
 {
     for (int i = 1; i < argc; ++i) {
         const std::string current = argv[i];
-        if (current == "-n" || current == "-G" || current == "--graph" || current == "--port" || current == "--device" || current == "--subdevices" || current == "--pixelformat" ||
-            current == "-L" || current == "--log-source") {
+        if (current == "-n" || current == "-G" || current == "--graph" || current == "--port" || current == "--device" || current == "--subdevices" || current == "--pixelformat" || current == "-L" ||
+            current == "--log-source") {
             ++i;
             continue;
         }

@@ -355,8 +355,8 @@ bool ImageConverter::convertToBgr888(const ImageBuffer& source, ImageBuffer& des
         destination.setTimestampNs(source.timestampNs());
         return true;
     }
-    if (source.format() == PixelFormat::Raw8 || source.format() == PixelFormat::Raw10 || source.format() == PixelFormat::Raw12 || source.format() == PixelFormat::Raw16
-        || isBayerFormat(source.format())) {
+    if (source.format() == PixelFormat::Raw8 || source.format() == PixelFormat::Raw10 || source.format() == PixelFormat::Raw12 || source.format() == PixelFormat::Raw16 ||
+        isBayerFormat(source.format())) {
         // Bayer RAW is treated like any other RAW format here: reduced to greyscale, not demosaiced. Use debayer() for color output.
         ImageBuffer mono8;
         if (!convertToMono8(source, mono8)) {

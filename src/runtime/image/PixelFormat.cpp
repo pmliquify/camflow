@@ -119,9 +119,9 @@ std::string pixelFormatToString(PixelFormat format)
 
 PixelFormat pixelFormatFromString(const std::string& value)
 {
-    static const std::map<std::string, PixelFormat> packedBayerFormats = {
-        {"pRAA", PixelFormat::RG10P}, {"pRCC", PixelFormat::RG12P}, {"pREE", PixelFormat::RG14P}, {"pgAA", PixelFormat::GR10P}, {"pgCC", PixelFormat::GR12P}, {"pgEE", PixelFormat::GR14P},
-        {"pBAA", PixelFormat::BG10P}, {"pBCC", PixelFormat::BG12P}, {"pBEE", PixelFormat::BG14P}, {"pGAA", PixelFormat::GB10P}, {"pGCC", PixelFormat::GB12P}, {"pGEE", PixelFormat::GB14P}};
+    static const std::map<std::string, PixelFormat> packedBayerFormats = {{"pRAA", PixelFormat::RG10P}, {"pRCC", PixelFormat::RG12P}, {"pREE", PixelFormat::RG14P}, {"pgAA", PixelFormat::GR10P},
+                                                                          {"pgCC", PixelFormat::GR12P}, {"pgEE", PixelFormat::GR14P}, {"pBAA", PixelFormat::BG10P}, {"pBCC", PixelFormat::BG12P},
+                                                                          {"pBEE", PixelFormat::BG14P}, {"pGAA", PixelFormat::GB10P}, {"pGCC", PixelFormat::GB12P}, {"pGEE", PixelFormat::GB14P}};
     const auto packed = packedBayerFormats.find(value);
     if (packed != packedBayerFormats.end()) {
         return packed->second;

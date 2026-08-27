@@ -199,9 +199,8 @@ NodeSchema FileSource::schema() const
          std::string("auto"),
          std::string(),
          std::string(),
-         {"auto",  "GREY", "RGGB", "GBRG", "GRBG", "BGGR", "Y10",  "Y10P", "RG10", "GB10", "BA10", "BG10", "Y12",  "Y12P", "RG12", "GB12",
-          "BA12",  "BG12", "Y14",  "RG14", "GB14", "BA14", "BG14", "YUYV", "NV12", "pRAA", "pRCC", "pREE", "pgAA", "pgCC", "pgEE", "pBAA",
-          "pBCC",  "pBEE", "pGAA", "pGCC", "pGEE"},
+         {"auto", "GREY", "RGGB", "GBRG", "GRBG", "BGGR", "Y10",  "Y10P", "RG10", "GB10", "BA10", "BG10", "Y12",  "Y12P", "RG12", "GB12", "BA12", "BG12", "Y14",
+          "RG14", "GB14", "BA14", "BG14", "YUYV", "NV12", "pRAA", "pRCC", "pREE", "pgAA", "pgCC", "pgEE", "pBAA", "pBCC", "pBEE", "pGAA", "pGCC", "pGEE"},
          true},
         {"repeat", ParameterType::Bool, "Repeat file sequence", false, false, true, {}, true}};
     schema.outputs = {NodeOutputInfo{"image", "image", "Decoded frame"}};

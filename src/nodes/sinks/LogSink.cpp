@@ -49,8 +49,8 @@ bool LogSink::process(FrameContext& context)
         deltaMsText << std::setw(4) << "n/a";
     }
 
-    LOG_INFO(id() + " [#" + sequenceText.str() + ", ts=" + timestampMsText.str() + ", t=" + deltaMsText.str() + " ms, " + pixelFormatToString(image->format()) + "/" +
-             std::to_string(image->width()) + "x" + std::to_string(image->height()) + "]");
+    LOG_INFO(id() + " [#" + sequenceText.str() + ", ts=" + timestampMsText.str() + ", t=" + deltaMsText.str() + " ms, " + pixelFormatToString(image->format()) + "/" + std::to_string(image->width()) +
+             "x" + std::to_string(image->height()) + "]");
 
     m_previousTimestampNs = timestampNs;
     m_hasPreviousTimestamp = true;

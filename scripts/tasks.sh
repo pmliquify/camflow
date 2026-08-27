@@ -1117,7 +1117,7 @@ generate_docs_action() {
 
     cat > "${config_file}" <<EOF
 PROJECT_NAME           = "camflow runtime"
-PROJECT_NUMBER         = "0.5.2"
+PROJECT_NUMBER         = "0.2.0"
 PROJECT_BRIEF          = "Modular real-time vision processing pipeline"
 OUTPUT_DIRECTORY       = "${output_dir}"
 CREATE_SUBDIRS         = NO

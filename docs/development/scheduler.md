@@ -4,7 +4,7 @@ The pipeline is represented as a directed acyclic graph. A node is executable wh
 
 ## Current execution model
 
-The runtime contains a graph-based execution model that supports branches and merge points. v0.5.0 keeps the implementation simple but documents the intended scheduler semantics.
+The runtime contains a graph-based execution model that supports branches and merge points. This version keeps the implementation simple but documents the intended scheduler semantics.
 
 ## Parallel execution requirement
 

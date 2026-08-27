@@ -2,6 +2,11 @@
 
 Nodes are the executable units of a CamFlow graph. They are divided into Sources, Processors and Sinks.
 
+This document lists the nodes built into the standard release binary. `ccm`,
+`compositor` and `nvargussrc` are optional nodes disabled by default
+(`ENABLE_PROCESSOR_CCM`, `ENABLE_PROCESSOR_COMPOSITOR`, `ENABLE_GSTREAMER`) and
+are not part of the release build.
+
 ## Runtime Parameter Model
 
 - `NodeSchema` is the node contract and is split into `parameters`, `inputs` and `outputs`.
@@ -12,7 +17,7 @@ Nodes are the executable units of a CamFlow graph. They are divided into Sources
 - Node-owned configured values are read through `Node::parameter(...)` and typed
 	accessors (`parameterBool`, `parameterInt`, `parameterDouble`, `parameterString`).
 - Input bindings are configured in the pipeline expression as `<input>=<nodeId>.<output>`.
-- Inputs may allow multiple bindings (for example compositor image input).
+- Inputs may allow multiple bindings depending on the node.
 
 ## Naming
 
@@ -21,9 +26,7 @@ Factory names are lowercase. User-facing source names use `src` instead of `sour
 Examples:
 
 - `v4l2src`
-- `nvargussrc`
 - `filesrc`
-- `compositor`
 - `filesink`
 - `logsink`
 - `tcpsink`
@@ -176,45 +179,4 @@ Behavior details:
 
 Factory name: `debayer`
 
-Converts Bayer RAW input formats to `BGR888` using OpenCV demosaicing. The processor rejects non-Bayer input. This is the only node that performs actual Bayer demosaicing; automatic RAW-to-color conversion elsewhere (`filesink`, `ccm`) reduces Bayer RAW to greyscale instead.
-
-### CCMProcessor
-
-Factory name: `ccm`
-
-Applies a 3x3 Color Correction Matrix in BGR space. RAW input (including Bayer) is converted to greyscale, not demosaiced; use a `debayer` node upstream for color CCM output from Bayer RAW input.
-
-### CompositorProcessor
-
-Factory name: `compositor`
-
-Composites multiple bound images into one image.
-
-Input binding:
-
-- `image=<nodeId>.<output>[,<nodeId>.<output>...]`
-
-Node parameters:
-
-- `xpos` comma-separated x offsets
-- `ypos` comma-separated y offsets
-- `zorder` comma-separated z values
-
-The input `image` allows multiple bindings. The parameter arrays are mapped by image index.
-
-Defaults:
-
-- `xpos=0`, `ypos=0`, `zorder=0`
-
-## GStreamer-dependent nodes
-
-### NvArgusSource
-
-Factory name: `nvargussrc`
-
-Uses GStreamer to access NVIDIA Argus camera pipelines. It is built only when GStreamer is found.
-
-
-## v0.5.2 update
-
-`TCPSink` remains the image transport sink for runtime deployments.
+Converts Bayer RAW input formats to `BGR888` using OpenCV demosaicing. The processor rejects non-Bayer input. This is the only node in this build that performs actual Bayer demosaicing; automatic RAW-to-color conversion elsewhere (`filesink`) reduces Bayer RAW to greyscale instead.

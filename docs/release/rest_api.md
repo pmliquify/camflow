@@ -44,6 +44,8 @@ REST responses include:
 | `/api/media` | `GET` | none | available `devices[]` |
 | `/api/media/{device}` | `GET` | path: `{device}` (for example `media0`) | media `entities[]`, pads and `links[]` |
 | `/api/devicetree` | `GET` | none | `root`, `node` (recursive), `nodeCount`, `truncated` |
+| `/api/moduledebug` | `GET` | none | `modules[]` |
+| `/api/moduledebug/{name}` | `PUT` | path: `{name}`; body: new debug level as text | `ok` |
 | `/api/pipeline` | `GET` | none | runtime graph JSON (`nodes`, `edges`, ...) |
 | `/api/pipeline` | `PUT` / `POST` | graph JSON (`nodes`, `edges`) | `ok` |
 | `/api/nodes` | `GET` | none | `sources`, `processors`, `sinks`, `schemas` |
@@ -66,7 +68,9 @@ Response body is the runtime graph JSON as produced by the runtime controller.
 Typical top-level fields:
 
 - `nodes`: array of node objects
-- `edges`: array of edge expressions
+- `edges`: array of `fromId.fromPort -> toId.toPort` edge expression strings
+
+See [JSON Graph Format](graph_json.md) for the full document shape.
 
 Status codes:
 
@@ -110,6 +114,46 @@ Status codes:
 - `200 OK`: tree snapshot returned
 - `404 Not Found`: the host does not expose a device tree
 
+## GET /api/moduledebug
+
+Lists loaded kernel modules that expose a writable `debug` parameter under `/sys/module/<name>/parameters/debug`.
+
+Response fields:
+
+- `modules`: array of module entries, each with:
+  - `name`: `string`
+  - `path`: `string` (path to the `debug` parameter file)
+  - `value`: `string` (current debug level)
+  - `writable`: `boolean`
+  - `version`: `string` (module version, empty if not exposed)
+  - `refcnt`: `string` (module reference count, empty if not exposed)
+  - `initstate`: `string` (module init state, empty if not exposed)
+  - `parameters`: `string[]` (other module parameter names)
+
+Status codes:
+
+- `200 OK`
+
+## PUT /api/moduledebug/{name}
+
+Sets a kernel module's debug level.
+
+Request body: the new debug level as plain text (integer, optionally negative).
+
+Response body:
+
+```json
+{
+  "ok": true
+}
+```
+
+Status codes:
+
+- `200 OK`: debug level updated
+- `400 Bad Request`: invalid module name or non-integer value
+- `404 Not Found`: module or debug parameter not found
+
 ## GET /api/nodes
 
 Returns registered node type names grouped by source, processor and sink, plus their schemas.
@@ -125,9 +169,9 @@ Example response:
 
 ```json
 {
-  "sources": ["v4l2src", "filesrc"],
-  "processors": ["debayer", "ccm", "compositor"],
-  "sinks": ["tcpsink", "filesink", "logsink"],
+  "sources": ["filesrc", "v4l2src"],
+  "processors": ["debayer"],
+  "sinks": ["filesink", "logsink", "tcpsink"],
   "schemas": {
     "v4l2src": {
       "parameters": [],
@@ -137,6 +181,9 @@ Example response:
   }
 }
 ```
+
+`sources`, `processors` and `sinks` are returned in alphabetical order and only
+list node types actually registered in this build (see [Nodes](nodes.md)).
 
 Status codes:
 
@@ -150,7 +197,8 @@ Replaces the full graph configuration.
 
 Request body:
 
-- JSON graph document with top-level `nodes` and `edges`.
+- JSON graph document with top-level `nodes` and `edges`, as described in
+  [JSON Graph Format](graph_json.md).
 
 Response body on success:
 
@@ -504,7 +552,7 @@ Notes:
   - `outputs`: provided node outputs
 - Input bindings are configured in pipeline expressions through parameters using:
   - `<input>=<nodeId>.<output>`
-  - Example: `compositor(image=cam0.image,cam1.image,xpos=0,100)`
+  - Example: `debayer(image=cam0.image)`
 - For runtime-discovered nodes such as `v4l2src`, the live schema includes currently available controls.
 
 Example response:

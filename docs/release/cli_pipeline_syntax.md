@@ -29,7 +29,6 @@ Examples:
 ```text
 cam:v4l2src(device=/dev/video0)
 v4l2src(device=/dev/video0)
-compositor{cam0,cam1}(cam0.xpos=0,cam1.xpos=320)
 compositor(image=cam0.image,cam1.image,xpos=0,320)
 ```
 
@@ -38,6 +37,8 @@ Rules:
 - The id is optional.
 - If no id is provided, an automatic id is generated from the node type and an index.
 - Node type names are normalized internally to lowercase and without separators.
+- Legacy `type{scope1,scope2}(...)` node scope selectors are no longer supported and are
+  rejected with a parse error. Bind inputs via `<input>=<nodeId>.<output>` instead.
 
 ## Parameters
 
@@ -212,6 +213,10 @@ This example binds two source outputs into the compositor image input:
 - `image` allows multiple bindings
 - position and order arrays are aligned by image index
 - missing trailing values reuse the last provided value
+
+`compositor` and `ccm` are optional nodes disabled by default
+(`ENABLE_PROCESSOR_COMPOSITOR`, `ENABLE_PROCESSOR_CCM`) and are not part of
+the standard release build; see [Nodes](nodes.md).
 
 ## Notes
 

@@ -1,6 +1,6 @@
 # Architecture
 
-CamFlow v0.5.0 is a runtime-only Linux project.
+CamFlow v0.2.0 is a runtime-only Linux project.
 
 ## Runtime
 

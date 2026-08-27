@@ -1,0 +1,19 @@
+name: Release Candidate
+
+# Builds the exact same artifacts as the Release workflow, but without
+# creating a tag or publishing a GitHub release. Use this to test release
+# artifacts before pushing a "v*.*.*" tag.
+on:
+  workflow_dispatch: {}
+  pull_request:
+    branches:
+      - "**"
+
+permissions:
+  contents: read
+
+jobs:
+  runtime:
+    uses: ./.github/workflows/build-release-package.yml
+    with:
+      version: rc-${{ github.sha }}

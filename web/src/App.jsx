@@ -1853,7 +1853,6 @@ export default function App() {
                 }
 
                 frameSocketRef.current = null;
-                clearFrameDisplay();
         }
 
         function appendRuntimeLog(runtimeId, record) {
@@ -2067,6 +2066,11 @@ export default function App() {
                         closeFrameSockets();
                         return undefined;
                 }
+
+                // A fresh runtime restarts its own frame sequence numbering from zero, so stale
+                // high-water marks left over from the previous run must not suppress new frames.
+                lastRenderedSequenceRef.current = -1;
+                expectedFrameSequenceRef.current = -1;
 
                 const frameSocket = new WebSocket(wsUrl(WS_FRAME));
                 frameSocket.binaryType = 'arraybuffer';

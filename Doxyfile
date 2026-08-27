@@ -1,7 +1,7 @@
 PROJECT_NAME           = "camflow runtime"
 PROJECT_NUMBER         = "0.5.2"
 PROJECT_BRIEF          = "Modular real-time vision processing pipeline"
-OUTPUT_DIRECTORY       = "docs/api"
+OUTPUT_DIRECTORY       = "docs/development/api"
 CREATE_SUBDIRS         = NO
 ALLOW_UNICODE_NAMES    = NO
 OUTPUT_LANGUAGE        = English
@@ -31,9 +31,9 @@ DISABLE_INDEX          = NO
 GENERATE_TREEVIEW      = NO
 
 HTML_EXTRA_STYLESHEET  = \
-  "docs/doxygen-awesome/doxygen-awesome.css" \
-  "docs/doxygen-awesome/doxygen-awesome-sidebar-only.css" \
-  "docs/doxygen-awesome/doxygen-awesome-sidebar-only-darkmode-toggle.css"
+  "docs/development/doxygen-awesome/doxygen-awesome.css" \
+  "docs/development/doxygen-awesome/doxygen-awesome-sidebar-only.css" \
+  "docs/development/doxygen-awesome/doxygen-awesome-sidebar-only-darkmode-toggle.css"
 
 USE_MDFILE_AS_MAINPAGE = "README.md"
 MARKDOWN_SUPPORT       = YES

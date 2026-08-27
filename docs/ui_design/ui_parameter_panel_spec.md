@@ -7,9 +7,9 @@ This document is the canonical specification for the Parameter Panel used in the
 - Component: `ParameterPanel` and `ParameterRow`.
 - Runtime integration owner: `App` state and runtime API functions.
 - This document supersedes parameter panel descriptions that were previously spread across:
-  - `docs/web_ui.md`,
-  - `docs/ui_design.md`,
-  - `docs/ui_react_design.md`.
+  - `docs/development/web_ui.md`,
+  - `docs/ui_design/ui_design.md`,
+  - `docs/ui_design/ui_react_design.md`.
 
 ## 2. Purpose
 

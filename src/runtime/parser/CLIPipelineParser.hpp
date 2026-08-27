@@ -25,7 +25,7 @@
  * | Branch (parallel)    | `src -> (proc1->sink1, proc2->sink2)`               |
  * | Merge                | `(src1,src2) -> merge -> sink`                      |
  *
- * For a complete formal specification see `docs/cli_pipeline_syntax.md`.
+ * For a complete formal specification see `docs/release/cli_pipeline_syntax.md`.
  *
  * ### Parsing strategy
  * The parser operates in three recursive stages:

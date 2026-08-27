@@ -2,8 +2,8 @@ build*/
 archive/
 tests/output/
 tests/images/generated/
-docs/api/
-docs/doxygen-awesome/
+docs/development/api/
+docs/development/doxygen-awesome/
 *.o
 *.a
 *.so

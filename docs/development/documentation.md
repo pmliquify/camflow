@@ -2,14 +2,14 @@
 
 ## UI Specifications
 
-- Visual Design and Layout: `docs/ui_design.md`
-- React Architecture: `docs/ui_react_design.md`
-- Parameter Panel: `docs/ui_parameter_panel_spec.md`
-- Header: `docs/ui_header_spec.md`
-- Editor Panel: `docs/ui_editor_panel_spec.md`
-- Media Graph: `docs/ui_media_graph_spec.md`
-- Viewer Panel: `docs/ui_viewer_panel_spec.md`
-- Web UI Service and Development: `docs/web_ui.md`
+- Visual Design and Layout: `docs/ui_design/ui_design.md`
+- React Architecture: `docs/ui_design/ui_react_design.md`
+- Parameter Panel: `docs/ui_design/ui_parameter_panel_spec.md`
+- Header: `docs/ui_design/ui_header_spec.md`
+- Editor Panel: `docs/ui_design/ui_editor_panel_spec.md`
+- Media Graph: `docs/ui_design/ui_media_graph_spec.md`
+- Viewer Panel: `docs/ui_design/ui_viewer_panel_spec.md`
+- Web UI Service and Development: `docs/development/web_ui.md`
 
 CamFlow API documentation is generated with Doxygen and styled with doxygen-awesome.
 
@@ -18,7 +18,7 @@ CamFlow API documentation is generated with Doxygen and styled with doxygen-awes
 - Doxygen: https://www.doxygen.nl/
 - doxygen-awesome: https://github.com/jothepro/doxygen-awesome-css
 
-The `tasks.sh docs` action downloads theme CSS files into docs/doxygen-awesome and applies them automatically.
+The `tasks.sh docs` action downloads theme CSS files into docs/development/doxygen-awesome and applies them automatically.
 
 ## Generate Docs
 
@@ -52,11 +52,11 @@ brew install doxygen graphviz curl
 
 Default output path:
 
-- docs/api
+- docs/development/api
 
 Theme assets path:
 
-- docs/doxygen-awesome
+- docs/development/doxygen-awesome
 
 ## Comment Style
 

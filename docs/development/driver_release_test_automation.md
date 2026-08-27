@@ -6,7 +6,7 @@ This document defines a central CamFlow use case: automated, reproducible camera
 
 The following JSON structure models the full scenario and can be consumed by a future experiment runner.
 
-A runnable template variant is also provided in `docs/examples/driver_release_test_plan.example.json`.
+A runnable template variant is also provided in `docs/development/examples/driver_release_test_plan.example.json`.
 
 ```json
 {

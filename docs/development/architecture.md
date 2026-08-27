@@ -25,6 +25,9 @@ camflow/
   src/
     runtime/
   docs/
+    release/
+    development/
+    ui_design/
   tests/
   scripts/
 ```

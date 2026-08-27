@@ -2,7 +2,7 @@
 
 This document is the canonical specification for `NodeEditorPanel`,
 `RuntimeLane`, node/edge editing, runtime-local navigation and runtime logs.
-Media graph rendering is detailed in `docs/ui_media_graph_spec.md`.
+Media graph rendering is detailed in `docs/ui_design/ui_media_graph_spec.md`.
 
 ## 1. Scope
 
@@ -148,7 +148,7 @@ Media graph rendering is detailed in `docs/ui_media_graph_spec.md`.
 - The runtime header toggles between the node graph and media graph without
   changing the owning runtime window or its local viewport.
 - Device selection, connected-only filtering, reload, selection and inspection
-  behavior are defined in `docs/ui_media_graph_spec.md`.
+  behavior are defined in `docs/ui_design/ui_media_graph_spec.md`.
 
 ## 10. Stability and cancel rules
 

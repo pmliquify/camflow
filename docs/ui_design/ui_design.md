@@ -92,7 +92,7 @@ The header combines brand/version, runtime status, graph/error status, global
 Start/Stop and the `viewer`/`editor` segmented mode switch. There is no separate
 status strip and no graph-edit action in the header.
 
-Canonical behavior: `docs/ui_header_spec.md`.
+Canonical behavior: `docs/ui_design/ui_header_spec.md`.
 
 ## 5. Editor and runtimes
 
@@ -101,9 +101,9 @@ windows contain an independently navigable node graph or media graph plus an
 optional diagnostic log console. Outer editor navigation and each runtime's
 inner navigation are deliberately isolated.
 
-Canonical behavior: `docs/ui_editor_panel_spec.md`.
+Canonical behavior: `docs/ui_design/ui_editor_panel_spec.md`.
 
-Media topology behavior: `docs/ui_media_graph_spec.md`.
+Media topology behavior: `docs/ui_design/ui_media_graph_spec.md`.
 
 ## 6. Frame Viewer
 
@@ -112,7 +112,7 @@ pixels and overlays compact metadata and format-aware controls. The fixed frame
 box clips a separately transformed canvas, allowing pointer-centered zoom and
 pan without affecting surrounding layout.
 
-Canonical behavior: `docs/ui_viewer_panel_spec.md`.
+Canonical behavior: `docs/ui_design/ui_viewer_panel_spec.md`.
 
 ## 7. Parameter Panel
 
@@ -121,7 +121,7 @@ read-only inspector for selected media entities, pads and links. It uses compact
 type-specific controls, grouped rows, persistent visibility filtering and
 runtime-aware editability.
 
-Canonical behavior: `docs/ui_parameter_panel_spec.md`.
+Canonical behavior: `docs/ui_design/ui_parameter_panel_spec.md`.
 
 ## 8. Interaction language
 
@@ -136,10 +136,10 @@ Canonical behavior: `docs/ui_parameter_panel_spec.md`.
 - Context menus open only on explicitly owned free-canvas surfaces; native menus
   are suppressed where right drag or application actions own the gesture.
 - Global `Alt`/`Option` shortcuts provide view, runtime, filter, log and help
-  actions. Canonical behavior: `docs/ui_header_spec.md`.
+  actions. Canonical behavior: `docs/ui_design/ui_header_spec.md`.
 - `Tab`, `Shift+Tab` and letter sequences provide direct navigation among
   visible parameter controls. Canonical behavior:
-  `docs/ui_parameter_panel_spec.md`.
+  `docs/ui_design/ui_parameter_panel_spec.md`.
 
 ## 9. Accessibility
 

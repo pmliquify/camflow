@@ -2,7 +2,7 @@
 
 This document describes how the current React implementation realizes the UI
 design. It is an architecture reference, not a chronological decision log.
-Visual rules live in `docs/ui_design.md`; component behavior lives in the
+Visual rules live in `docs/ui_design/ui_design.md`; component behavior lives in the
 canonical panel specifications.
 
 ## 1. Technology and entry points
@@ -77,7 +77,7 @@ scroll areas, context menus, inline name editing and reset controls.
 
 The UI uses runtime endpoints for status/version, pipeline graph, node catalog,
 node parameters, graph mutation and media-device/topology discovery. API details
-remain canonical in `docs/rest_api.md`.
+remain canonical in `docs/release/rest_api.md`.
 
 ### 4.2 WebSockets
 
@@ -172,10 +172,10 @@ inlined into those bundles so the built-in UI remains self-contained.
 
 ## 11. Canonical specifications
 
-- Global visual/layout design: `docs/ui_design.md`
-- Header: `docs/ui_header_spec.md`
-- Editor, runtimes, nodes, edges and logs: `docs/ui_editor_panel_spec.md`
-- Media graph: `docs/ui_media_graph_spec.md`
-- Viewer: `docs/ui_viewer_panel_spec.md`
-- Parameter Panel: `docs/ui_parameter_panel_spec.md`
-- Web service and launch path: `docs/web_ui.md`
+- Global visual/layout design: `docs/ui_design/ui_design.md`
+- Header: `docs/ui_design/ui_header_spec.md`
+- Editor, runtimes, nodes, edges and logs: `docs/ui_design/ui_editor_panel_spec.md`
+- Media graph: `docs/ui_design/ui_media_graph_spec.md`
+- Viewer: `docs/ui_design/ui_viewer_panel_spec.md`
+- Parameter Panel: `docs/ui_design/ui_parameter_panel_spec.md`
+- Web service and launch path: `docs/development/web_ui.md`

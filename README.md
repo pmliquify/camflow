@@ -11,20 +11,20 @@ The runtime uses OpenCV 4.12 and links the needed OpenCV modules statically.
 
 ## Documentation
 
-- [Specification](docs/specification.md)
-- [Architecture](docs/architecture.md)
-- [Nodes](docs/nodes.md)
-- [FrameContext](docs/frame_context.md)
-- [Scheduler](docs/scheduler.md)
-- [Image Conversion](docs/image_conversion.md)
-- [JSON Graph Format](docs/graph_json.md)
-- [REST API](docs/rest_api.md)
-- [Web UI Service](docs/web_ui.md)
-- [Driver Release Test Automation Use Case](docs/driver_release_test_automation.md)
-- [Web UI Design](docs/ui_design.md)
-- [Documentation Guide](docs/documentation.md)
-- [Debugging](docs/debugging.md)
-- [Development Guide](docs/development.md)
+- [Specification](docs/development/specification.md)
+- [Architecture](docs/development/architecture.md)
+- [Nodes](docs/release/nodes.md)
+- [FrameContext](docs/development/frame_context.md)
+- [Scheduler](docs/development/scheduler.md)
+- [Image Conversion](docs/development/image_conversion.md)
+- [JSON Graph Format](docs/release/graph_json.md)
+- [REST API](docs/release/rest_api.md)
+- [Web UI Service](docs/development/web_ui.md)
+- [Driver Release Test Automation Use Case](docs/development/driver_release_test_automation.md)
+- [Web UI Design](docs/ui_design/ui_design.md)
+- [Documentation Guide](docs/development/documentation.md)
+- [Debugging](docs/development/debugging.md)
+- [Development Guide](docs/development/development.md)
 
 ## Runtime build
 

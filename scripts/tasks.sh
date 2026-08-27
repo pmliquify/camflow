@@ -1075,7 +1075,7 @@ install_doc_dependencies_action() {
 
 download_doxygen_theme() {
     local base_url="https://raw.githubusercontent.com/jothepro/doxygen-awesome-css/main"
-    local theme_dir="${PROJECT_DIR}/docs/doxygen-awesome"
+    local theme_dir="${PROJECT_DIR}/docs/development/doxygen-awesome"
 
     mkdir -p "${theme_dir}"
     curl -fsSL "${base_url}/doxygen-awesome.css" -o "${theme_dir}/doxygen-awesome.css"
@@ -1085,7 +1085,7 @@ download_doxygen_theme() {
 
 generate_docs_action() {
     local output_dir="${DOCS_OUTPUT_DIR}"
-    local theme_dir="${PROJECT_DIR}/docs/doxygen-awesome"
+    local theme_dir="${PROJECT_DIR}/docs/development/doxygen-awesome"
     local config_file="${PROJECT_DIR}/Doxyfile.generated"
     local html_count
 
@@ -1343,7 +1343,7 @@ UI_DEV_PORT=${UI_DEV_PORT:-${DEFAULT_UI_DEV_PORT}}
 UI_API_PORT=${UI_API_PORT:-${DEFAULT_UI_API_PORT}}
 ARM64_REBUILD_IMAGE=${ARM64_REBUILD_IMAGE:-${DEFAULT_ARM64_REBUILD_IMAGE}}
 CLANG_FORMAT_BIN=${CLANG_FORMAT_BIN:-clang-format-15}
-DOCS_OUTPUT_DIR=${DOCS_OUTPUT_DIR:-${PROJECT_DIR}/docs/api}
+DOCS_OUTPUT_DIR=${DOCS_OUTPUT_DIR:-${PROJECT_DIR}/docs/development/api}
 FAST_DEV=${FAST_DEV:-${DEFAULT_FAST_DEV}}
 BUILT_TIMING=${BUILT_TIMING:-${DEFAULT_BUILT_TIMING}}
 TASK_DONE_SOUND_CMD=${TASK_DONE_SOUND_CMD:-${DEFAULT_TASK_DONE_SOUND_CMD}}

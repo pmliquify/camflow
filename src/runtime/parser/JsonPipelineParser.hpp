@@ -15,7 +15,7 @@
  * are supported.
  *
  * ### JSON format
- * The expected JSON structure is documented in `docs/graph_json.md`. At the top level
+ * The expected JSON structure is documented in `docs/release/graph_json.md`. At the top level
  * the document contains a `nodes` array and an optional `edges` array:
  * @code{.json}
  * {

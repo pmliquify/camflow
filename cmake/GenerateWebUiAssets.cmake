@@ -1,10 +1,11 @@
-if(NOT DEFINED INPUT_HTML OR NOT DEFINED INPUT_CSS OR NOT DEFINED INPUT_JS OR NOT DEFINED OUTPUT_HEADER)
-    message(FATAL_ERROR "GenerateWebUiAssets.cmake requires INPUT_HTML, INPUT_CSS, INPUT_JS and OUTPUT_HEADER")
+if(NOT DEFINED INPUT_HTML OR NOT DEFINED INPUT_CSS OR NOT DEFINED INPUT_JS OR NOT DEFINED INPUT_VERSION OR NOT DEFINED OUTPUT_HEADER)
+    message(FATAL_ERROR "GenerateWebUiAssets.cmake requires INPUT_HTML, INPUT_CSS, INPUT_JS, INPUT_VERSION and OUTPUT_HEADER")
 endif()
 
 file(READ "${INPUT_HTML}" UI_HTML_RAW)
 file(READ "${INPUT_CSS}" UI_CSS_RAW)
 file(READ "${INPUT_JS}" UI_JS_RAW)
+file(READ "${INPUT_VERSION}" VERSION_RAW)
 
 string(REPLACE "\\" "\\\\" UI_HTML_ESC "${UI_HTML_RAW}")
 string(REPLACE "\"" "\\\"" UI_HTML_ESC "${UI_HTML_ESC}")
@@ -21,6 +22,11 @@ string(REPLACE "\"" "\\\"" UI_JS_ESC "${UI_JS_ESC}")
 string(REPLACE "\n" "\\n" UI_JS_ESC "${UI_JS_ESC}")
 string(REPLACE "??" "?\\?" UI_JS_ESC "${UI_JS_ESC}")
 
+string(REPLACE "\\" "\\\\" VERSION_ESC "${VERSION_RAW}")
+string(REPLACE "\"" "\\\"" VERSION_ESC "${VERSION_ESC}")
+string(REPLACE "\n" "\\n" VERSION_ESC "${VERSION_ESC}")
+string(REPLACE "??" "?\\?" VERSION_ESC "${VERSION_ESC}")
+
 get_filename_component(OUTPUT_DIR "${OUTPUT_HEADER}" DIRECTORY)
 file(MAKE_DIRECTORY "${OUTPUT_DIR}")
 
@@ -30,4 +36,5 @@ file(APPEND "${OUTPUT_HEADER}" "namespace camflow::webui {\n")
 file(APPEND "${OUTPUT_HEADER}" "inline constexpr const char* kUiIndexHtml = \"${UI_HTML_ESC}\";\n")
 file(APPEND "${OUTPUT_HEADER}" "inline constexpr const char* kUiAppCss = \"${UI_CSS_ESC}\";\n")
 file(APPEND "${OUTPUT_HEADER}" "inline constexpr const char* kUiAppJs = \"${UI_JS_ESC}\";\n")
+file(APPEND "${OUTPUT_HEADER}" "inline constexpr const char* kVersionMarkdown = \"${VERSION_ESC}\";\n")
 file(APPEND "${OUTPUT_HEADER}" "} // namespace camflow::webui\n")

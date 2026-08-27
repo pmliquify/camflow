@@ -95,6 +95,7 @@ set(CAMFLOW_WEB_HTML "${CAMFLOW_WEB_DIST_DIR}/index.html")
 set(CAMFLOW_WEB_CSS "${CAMFLOW_WEB_DIST_DIR}/assets/app.css")
 set(CAMFLOW_WEB_JS "${CAMFLOW_WEB_DIST_DIR}/assets/app.js")
 set(CAMFLOW_WEB_HEADER "${PROJECT_BINARY_DIR}/generated/web/WebUiAssets.hpp")
+set(CAMFLOW_VERSION_FILE "${PROJECT_SOURCE_DIR}/VERSION.md")
 
 set(CAMFLOW_WEB_UI_SOURCES
     "${CAMFLOW_WEB_SOURCE_DIR}/index.html"
@@ -121,12 +122,14 @@ add_custom_command(
         -DINPUT_HTML=${CAMFLOW_WEB_HTML}
         -DINPUT_CSS=${CAMFLOW_WEB_CSS}
         -DINPUT_JS=${CAMFLOW_WEB_JS}
+        -DINPUT_VERSION=${CAMFLOW_VERSION_FILE}
         -DOUTPUT_HEADER=${CAMFLOW_WEB_HEADER}
         -P "${PROJECT_SOURCE_DIR}/cmake/GenerateWebUiAssets.cmake"
     DEPENDS
         "${CAMFLOW_WEB_HTML}"
         "${CAMFLOW_WEB_CSS}"
         "${CAMFLOW_WEB_JS}"
+        "${CAMFLOW_VERSION_FILE}"
         "${PROJECT_SOURCE_DIR}/cmake/GenerateWebUiAssets.cmake"
     VERBATIM
 )

@@ -14,7 +14,8 @@ export default function GlobalHeader({
         viewMode,
         onSetViewMode,
         shortcutPanelOpen,
-        onSetShortcutPanelOpen
+        onSetShortcutPanelOpen,
+        onOpenVersion
 }) {
         const shortcutPanelRef = useRef(null);
         const shortcutButtonRef = useRef(null);
@@ -56,13 +57,13 @@ export default function GlobalHeader({
                                 <div className="brand-line">
                                         <strong>
                                                 camflow
-                                                <span className="runtime-version runtime-version-compact" tabIndex={0}>
+                                                <button className="runtime-version runtime-version-compact" type="button" aria-label="Open version history" onClick={onOpenVersion}>
                                                         <span className="runtime-version-primary"> {versionParts.primary}</span>
                                                         <span className="runtime-version-tooltip" role="tooltip" aria-label="full runtime version">
                                                                 <span className="runtime-version-primary">{versionParts.primary}</span>
                                                                 {normalizedSecondary ? <span className="runtime-version-secondary">{normalizedSecondary}</span> : null}
                                                         </span>
-                                                </span>
+                                                </button>
                                         </strong>
                                         <Label
                                                 size="medium"

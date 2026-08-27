@@ -98,7 +98,7 @@ input {
 .brand-line {
         display: inline-flex;
         align-items: center;
-        gap: 12px;
+        gap: 6px;
         white-space: nowrap;
         min-width: 0;
 }
@@ -314,8 +314,23 @@ input {
         position: relative;
         display: inline-flex;
         align-items: center;
-        cursor: default;
-        margin-left: 10px;
+        cursor: pointer;
+        margin-left: 4px;
+        min-height: 26px;
+        padding: 3px 10px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        background: transparent;
+        box-shadow: none;
+        color: inherit;
+        font: inherit;
+        font-size: 14px;
+        line-height: 1;
+}
+
+.runtime-version-compact:hover,
+.runtime-version-compact:focus-visible {
+        border-color: var(--line);
 }
 
 .runtime-version-tooltip {
@@ -2752,6 +2767,39 @@ select {
         display: flex;
         justify-content: flex-end;
         gap: 8px;
+}
+
+.version-dialog {
+        top: 8%;
+        width: min(92vw, 820px);
+        max-height: 84vh;
+        grid-template-rows: auto minmax(0, 1fr);
+}
+
+.version-dialog-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+}
+
+.version-dialog-header h3 {
+        min-width: 0;
+}
+
+.version-dialog-scroll {
+        min-height: 0;
+        max-height: calc(84vh - 70px);
+}
+
+.version-dialog-content {
+        margin: 0;
+        color: var(--text);
+        font-family: var(--font-mono);
+        font-size: 11px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
 }
 
 :where(button,

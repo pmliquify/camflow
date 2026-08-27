@@ -6,6 +6,7 @@ import FrameViewerPanel from './features/frame-context-viewer/FrameViewerPanel.j
 import ParameterPanel from './features/parameter-browser/ParameterPanel.jsx';
 import Button from './components/Button.jsx';
 import Input from './components/Input.jsx';
+import ScrollArea from './components/ScrollArea.jsx';
 import useRemoteRuntimeStatus from './hooks/useRemoteRuntimeStatus.js';
 import {
         addNode,
@@ -674,6 +675,9 @@ export default function App() {
         const [debayerEnabled, setDebayerEnabled] = useState(false);
         const [viewMode, setViewMode] = useState(readInitialViewMode);
         const [shortcutPanelOpen, setShortcutPanelOpen] = useState(false);
+        const [versionDialogOpen, setVersionDialogOpen] = useState(false);
+        const [versionMarkdown, setVersionMarkdown] = useState('');
+        const [versionMarkdownLoading, setVersionMarkdownLoading] = useState(false);
         const [parameterFilterOpenRequest, setParameterFilterOpenRequest] = useState(0);
         const [filterCloseRequest, setFilterCloseRequest] = useState(0);
         const [runtimeLogFilterOpenRequest, setRuntimeLogFilterOpenRequest] = useState({ runtimeId: '', sequence: 0 });
@@ -971,6 +975,25 @@ export default function App() {
         function openRuntimeDialog() {
                 const hostDefault = localIp && localIp !== '127.0.0.1' ? localIp : 'localhost';
                 setDialogState({ open: true, mode: 'runtime', runtimeId: null, runtimeName: nextName('runtime', editorGraph.runtimes), runtimeIp: hostDefault, nodeType: '', nodeId: '' });
+        }
+
+        async function openVersionDialog() {
+                setVersionDialogOpen(true);
+                if (versionMarkdown || versionMarkdownLoading) {
+                        return;
+                }
+                setVersionMarkdownLoading(true);
+                try {
+                        const response = await fetch('/api/version.md');
+                        if (!response.ok) {
+                                throw new Error(`HTTP ${response.status}`);
+                        }
+                        setVersionMarkdown(await response.text());
+                } catch (_) {
+                        setVersionMarkdown('Version history unavailable.');
+                } finally {
+                        setVersionMarkdownLoading(false);
+                }
         }
 
         async function persistGraph(nextDraftRuntimes, extraEdges = []) {
@@ -2532,6 +2555,7 @@ export default function App() {
                                 onSetViewMode={setViewMode}
                                 shortcutPanelOpen={shortcutPanelOpen}
                                 onSetShortcutPanelOpen={setShortcutPanelOpen}
+                                onOpenVersion={() => void openVersionDialog()}
                         />
 
                         <main
@@ -2775,6 +2799,25 @@ export default function App() {
                                         filterCloseRequest={filterCloseRequest}
                                 />
                         </main>
+
+                        {versionDialogOpen ? (
+                                <div className="dialog-backdrop" onClick={() => setVersionDialogOpen(false)}>
+                                        <div className="dialog version-dialog" role="dialog" aria-modal="true" aria-labelledby="version-dialog-title" tabIndex={-1} autoFocus onClick={(event) => event.stopPropagation()} onKeyDown={(event) => {
+                                                if (event.key === 'Escape') {
+                                                        event.preventDefault();
+                                                        setVersionDialogOpen(false);
+                                                }
+                                        }}>
+                                                <div className="version-dialog-header">
+                                                        <h3 id="version-dialog-title">Version History</h3>
+                                                        <Button className="secondary" variant="secondary" type="button" aria-label="Close version history" onClick={() => setVersionDialogOpen(false)}>Close</Button>
+                                                </div>
+                                                <ScrollArea className="version-dialog-scroll parameter-scroll-area">
+                                                        <pre className="version-dialog-content">{versionMarkdownLoading ? 'Loading version history...' : versionMarkdown}</pre>
+                                                </ScrollArea>
+                                        </div>
+                                </div>
+                        ) : null}
 
                         {dialogState.open && dialogState.mode === 'runtime' ? (
                                 <div className="dialog-backdrop" onClick={() => setDialogState({ open: false, mode: null, runtimeId: null, runtimeName: '', runtimeIp: '', nodeType: '', nodeId: '' })}>

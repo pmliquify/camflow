@@ -82,6 +82,13 @@ bool WebInterface::tryHandle(const std::string& method, const std::string& path,
         return true;
     }
 
+    if (requestPath == "/api/version.md") {
+        statusCode = 200;
+        contentType = "text/markdown; charset=utf-8";
+        responseBody = camflow::webui::kVersionMarkdown;
+        return true;
+    }
+
     return false;
 }
 

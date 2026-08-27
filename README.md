@@ -1,6 +1,6 @@
 <h1>
   <img src="web/src/assets/logos/camflow_icon.svg" alt="camflow icon" width="64" align="absmiddle" />
-  camflow v0.1.0
+  camflow v0.2.0
 </h1>
 
 camflow contains one application:

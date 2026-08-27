@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(camflow VERSION 0.1.0 LANGUAGES CXX)
+project(camflow VERSION 0.2.0 LANGUAGES CXX)
 
 option(BUILD_RUNTIME "Build the Linux camflow runtime application" ON)
 option(ENABLE_GSTREAMER "Enable GStreamer based nodes" ON)

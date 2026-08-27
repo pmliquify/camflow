@@ -382,6 +382,50 @@ default_arm64_build_dir() {
     fi
 }
 
+ensure_ui_node_version() {
+    local required_major="${CAMFLOW_NODE_VERSION:-20}"
+    local current_major=""
+    local nvm_dir="${NVM_DIR:-${HOME}/.nvm}"
+
+    if [[ -s "${nvm_dir}/nvm.sh" ]]; then
+        # shellcheck disable=SC1090
+        . "${nvm_dir}/nvm.sh"
+        export NVM_DIR="${nvm_dir}"
+    fi
+
+    if command -v node >/dev/null 2>&1; then
+        current_major="$(node -p "process.versions.node.split('.')[0]")"
+    fi
+
+    if [[ "${current_major}" == "${required_major}" ]]; then
+        return 0
+    fi
+
+    if command -v nvm >/dev/null 2>&1; then
+        if ! nvm ls "${required_major}" >/dev/null 2>&1; then
+            nvm install "${required_major}" >/dev/null 2>&1 || true
+        fi
+        if nvm use "${required_major}" >/dev/null 2>&1; then
+            current_major="$(node -p "process.versions.node.split('.')[0]")"
+            if [[ "${current_major}" == "${required_major}" ]]; then
+                return 0
+            fi
+        fi
+    fi
+
+    if ! command -v node >/dev/null 2>&1; then
+        echo "ERROR: node is required for UI build tasks." >&2
+        echo "Install Node ${required_major} or enable nvm before running UI tasks." >&2
+        exit 1
+    fi
+
+    current_major="$(node -p "process.versions.node.split('.')[0]" 2>/dev/null || echo "unknown")"
+    echo "ERROR: camflow UI build requires Node ${required_major}, but this host is using Node ${current_major}." >&2
+    echo "Install/use the expected version before running UI tasks, e.g.:" >&2
+    echo "  nvm install ${required_major} && nvm use ${required_major}" >&2
+    exit 1
+}
+
 install_ui_dependencies() {
     local ui_dir="$1"
     local lock_file="${ui_dir}/package-lock.json"
@@ -392,6 +436,8 @@ install_ui_dependencies() {
     local stored_hash=""
     local current_env=""
     local stored_env=""
+
+    ensure_ui_node_version
 
     if ! command -v npm >/dev/null 2>&1; then
         echo "npm is required but not found" >&2
@@ -438,10 +484,10 @@ install_ui_dependencies() {
         return
     fi
 
-    echo "Installing React dependencies in ${ui_dir}"
+    echo "Installing React dependencies in ${ui_dir} using the committed lockfile"
     (
         cd "${ui_dir}"
-        npm install
+        npm ci
     )
 
     if [[ -n "${current_hash}" ]]; then

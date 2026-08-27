@@ -34,11 +34,11 @@ jobs:
         target:
           - name: linux-x86_64-opencv-4.12.0
             runner: ubuntu-24.04
-            packages: cmake g++ ninja-build libeigen3-dev
+            packages: cmake g++ ninja-build libeigen3-dev libjpeg-dev libpng-dev zlib1g-dev
             opencv_arch: x86_64
           - name: linux-arm64-opencv-4.12.0
             runner: ubuntu-24.04-arm
-            packages: cmake g++ ninja-build libeigen3-dev
+            packages: cmake g++ ninja-build libeigen3-dev libjpeg-dev libpng-dev zlib1g-dev
             opencv_arch: arm64
     steps:
       - uses: actions/checkout@v4

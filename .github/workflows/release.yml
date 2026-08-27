@@ -19,12 +19,12 @@ jobs:
           - name: linux-x86_64
             runner: ubuntu-24.04
             artifact: camflow-runtime-linux-x86_64
-            packages: cmake g++ ninja-build zip libeigen3-dev
+            packages: cmake g++ ninja-build zip libeigen3-dev libjpeg-dev libpng-dev zlib1g-dev
             opencv_arch: x86_64
           - name: linux-arm64
             runner: ubuntu-24.04-arm
             artifact: camflow-runtime-linux-arm64
-            packages: cmake g++ ninja-build zip libeigen3-dev
+            packages: cmake g++ ninja-build zip libeigen3-dev libjpeg-dev libpng-dev zlib1g-dev
             opencv_arch: arm64
     steps:
       - uses: actions/checkout@v4

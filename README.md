@@ -9,6 +9,10 @@ Pipelines connect sources, processors and sinks and can be defined through CLI e
 
 The project includes workflows for local development, ARM64 cross-compilation and deployment. The `camflow` executable is self-contained apart from the target's Linux and camera interfaces: OpenCV 4.12 is linked statically with only the required modules.
 
+## Support the project
+
+If camflow is useful to you, please consider supporting its continued development with a donation via [PayPal](https://www.paypal.me/pmliquify). Thank you for your support!
+
 ## Install a release
 
 Download the release archive that matches the target architecture (`linux-x86_64` or `linux-arm64`), unpack it on the development machine and copy the executable to the target:

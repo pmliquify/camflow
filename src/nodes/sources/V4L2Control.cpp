@@ -79,7 +79,8 @@ void V4L2ControlAccess::enumerateFd(int fd, const std::string& sourceDevice, std
             control.defaultValue = query.default_value;
             control.fd = fd;
             control.flags = query.flags;
-            control.writable = (query.flags & (V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_GRABBED | V4L2_CTRL_FLAG_INACTIVE)) == 0;
+            control.readable = (query.flags & V4L2_CTRL_FLAG_WRITE_ONLY) == 0;
+            control.writable = (query.flags & V4L2_CTRL_FLAG_READ_ONLY) == 0;
             control.runtimeWritable = control.writable && (query.flags & V4L2_CTRL_FLAG_MODIFY_LAYOUT) == 0;
             control.sourceDevice = sourceDevice;
 
@@ -95,6 +96,7 @@ void V4L2ControlAccess::enumerateFd(int fd, const std::string& sourceDevice, std
                         } else {
                             control.options.emplace_back(std::to_string(menu.value));
                         }
+                        control.optionValues.push_back(index);
                     }
                 }
             }
@@ -107,7 +109,7 @@ void V4L2ControlAccess::enumerateFd(int fd, const std::string& sourceDevice, std
 
 bool V4L2ControlAccess::read(const V4L2Control& control, int64_t& value)
 {
-    if (control.fd < 0) {
+    if (control.fd < 0 || !control.readable) {
         return false;
     }
 
@@ -136,7 +138,7 @@ bool V4L2ControlAccess::read(const V4L2Control& control, int64_t& value)
 
 bool V4L2ControlAccess::read(const V4L2Control& control, std::string& value)
 {
-    if (control.fd < 0) {
+    if (control.fd < 0 || !control.readable) {
         return false;
     }
 
@@ -181,12 +183,6 @@ bool V4L2ControlAccess::write(const V4L2Control& control, int64_t value, std::st
     }
     if ((control.flags & V4L2_CTRL_FLAG_READ_ONLY) != 0) {
         return reject("is read-only");
-    }
-    if ((control.flags & V4L2_CTRL_FLAG_GRABBED) != 0) {
-        return reject("is currently grabbed by the driver");
-    }
-    if ((control.flags & V4L2_CTRL_FLAG_INACTIVE) != 0) {
-        return reject("is currently inactive");
     }
     if (!control.writable) {
         return reject("is currently not writable");
@@ -242,12 +238,6 @@ bool V4L2ControlAccess::write(const V4L2Control& control, const std::string& val
     if ((control.flags & V4L2_CTRL_FLAG_READ_ONLY) != 0) {
         return reject("is read-only");
     }
-    if ((control.flags & V4L2_CTRL_FLAG_GRABBED) != 0) {
-        return reject("is currently grabbed by the driver");
-    }
-    if ((control.flags & V4L2_CTRL_FLAG_INACTIVE) != 0) {
-        return reject("is currently inactive");
-    }
     if (!control.writable) {
         return reject("is currently not writable");
     }
@@ -302,7 +292,8 @@ ParameterInfo V4L2ControlAccess::toParameterInfo(const V4L2Control& control)
         maximumValue = true;
     }
     if (type == ParameterType::Option && !control.options.empty()) {
-        defaultValue = control.options.front();
+        const auto valueIt = std::find(control.optionValues.begin(), control.optionValues.end(), control.defaultValue);
+        defaultValue = valueIt == control.optionValues.end() ? control.options.front() : control.options[static_cast<size_t>(std::distance(control.optionValues.begin(), valueIt))];
         minimumValue = std::string();
         maximumValue = std::string();
     }

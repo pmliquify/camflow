@@ -212,12 +212,21 @@ bool RuntimeController::setParameterFromString(const std::string& nodeId, const 
     }
     try {
         if (clean.find('.') != std::string::npos) {
-            return setParameter(nodeId, parameterName, std::stod(clean), errorMessage);
+            size_t parsedLength = 0;
+            const double parsedValue = std::stod(clean, &parsedLength);
+            if (parsedLength == clean.size()) {
+                return setParameter(nodeId, parameterName, parsedValue, errorMessage);
+            }
+        } else {
+            size_t parsedLength = 0;
+            const int64_t parsedValue = static_cast<int64_t>(std::stoll(clean, &parsedLength));
+            if (parsedLength == clean.size()) {
+                return setParameter(nodeId, parameterName, parsedValue, errorMessage);
+            }
         }
-        return setParameter(nodeId, parameterName, static_cast<int64_t>(std::stoll(clean)), errorMessage);
     } catch (...) {
-        return setParameter(nodeId, parameterName, clean, errorMessage);
     }
+    return setParameter(nodeId, parameterName, clean, errorMessage);
 }
 
 bool RuntimeController::replaceGraph(const GraphConfig& config)

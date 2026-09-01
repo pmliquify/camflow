@@ -340,18 +340,27 @@ bool V4L2Source::applyControlParameterLocked(const std::string& name, const Para
         return true;
     }
 
+    const auto menuValueForOption = [&control = it->second](const std::string& option, int64_t& controlValue) {
+        const auto optionIt = std::find(control.options.begin(), control.options.end(), option);
+        if (optionIt == control.options.end()) {
+            return false;
+        }
+        const size_t optionIndex = static_cast<size_t>(std::distance(control.options.begin(), optionIt));
+        controlValue = control.optionValues[optionIndex];
+        return true;
+    };
+
     int64_t controlValue = 0;
     if (std::holds_alternative<int64_t>(value)) {
         controlValue = std::get<int64_t>(value);
+        if (it->second.type == V4L2_CTRL_TYPE_MENU || it->second.type == V4L2_CTRL_TYPE_INTEGER_MENU) {
+            menuValueForOption(std::to_string(controlValue), controlValue);
+        }
     } else if (std::holds_alternative<bool>(value)) {
         controlValue = std::get<bool>(value) ? 1 : 0;
     } else if (std::holds_alternative<std::string>(value)) {
         const auto& text = std::get<std::string>(value);
-        const auto& options = it->second.options;
-        auto optionIt = std::find(options.begin(), options.end(), text);
-        if (optionIt != options.end()) {
-            controlValue = it->second.minimum + static_cast<int64_t>(std::distance(options.begin(), optionIt));
-        } else {
+        if (!menuValueForOption(text, controlValue)) {
             try {
                 controlValue = std::stoll(text);
             } catch (...) {
@@ -412,8 +421,9 @@ ParameterSet V4L2Source::currentParameters() const
             if (item.second.type == V4L2_CTRL_TYPE_BOOLEAN) {
                 value = currentValue != 0;
             } else if (item.second.type == V4L2_CTRL_TYPE_MENU || item.second.type == V4L2_CTRL_TYPE_INTEGER_MENU) {
-                if (!item.second.options.empty() && currentValue >= 0 && currentValue < static_cast<int64_t>(item.second.options.size())) {
-                    value = item.second.options[static_cast<size_t>(currentValue)];
+                const auto valueIt = std::find(item.second.optionValues.begin(), item.second.optionValues.end(), currentValue);
+                if (valueIt != item.second.optionValues.end()) {
+                    value = item.second.options[static_cast<size_t>(std::distance(item.second.optionValues.begin(), valueIt))];
                 } else {
                     value = currentValue;
                 }
@@ -789,8 +799,9 @@ void V4L2Source::refreshCurrentParameterValues() const
         if (control.type == ParameterType::Bool) {
             control.defaultValue = currentValue != 0;
         } else if (control.type == ParameterType::Option) {
-            if (!it->second.options.empty() && currentValue >= 0 && currentValue < static_cast<int64_t>(it->second.options.size())) {
-                control.defaultValue = it->second.options[static_cast<size_t>(currentValue)];
+            const auto valueIt = std::find(it->second.optionValues.begin(), it->second.optionValues.end(), currentValue);
+            if (valueIt != it->second.optionValues.end()) {
+                control.defaultValue = it->second.options[static_cast<size_t>(std::distance(it->second.optionValues.begin(), valueIt))];
             } else {
                 control.defaultValue = currentValue;
             }

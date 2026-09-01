@@ -23,20 +23,22 @@
  */
 struct V4L2Control
 {
-    std::string parameterName;        ///< CamFlow parameter name (e.g. `"exposure"`).
-    std::string controlName;          ///< V4L2 control name string from the kernel.
-    uint32_t id = 0;                  ///< V4L2 control identifier (V4L2_CID_*).
-    uint32_t type = 0;                ///< V4L2 control type (V4L2_CTRL_TYPE_*).
-    int64_t minimum = 0;              ///< Minimum allowed value.
-    int64_t maximum = 0;              ///< Maximum allowed value.
-    int64_t step = 0;                 ///< Granularity step between values.
-    int64_t defaultValue = 0;         ///< Driver default value.
-    int fd = -1;                      ///< Open file descriptor for the device that owns this control.
-    uint32_t flags = 0;               ///< Current V4L2_CTRL_FLAG_* state reported by the driver.
-    bool writable = true;             ///< @c true if the control is currently writable.
-    bool runtimeWritable = true;      ///< @c true if the control may be changed while capture buffers are active.
-    std::vector<std::string> options; ///< Valid option strings for menu controls.
-    std::string sourceDevice;         ///< Human-readable V4L2 source device path.
+    std::string parameterName;         ///< CamFlow parameter name (e.g. `"exposure"`).
+    std::string controlName;           ///< V4L2 control name string from the kernel.
+    uint32_t id = 0;                   ///< V4L2 control identifier (V4L2_CID_*).
+    uint32_t type = 0;                 ///< V4L2 control type (V4L2_CTRL_TYPE_*).
+    int64_t minimum = 0;               ///< Minimum allowed value.
+    int64_t maximum = 0;               ///< Maximum allowed value.
+    int64_t step = 0;                  ///< Granularity step between values.
+    int64_t defaultValue = 0;          ///< Driver default value.
+    int fd = -1;                       ///< Open file descriptor for the device that owns this control.
+    uint32_t flags = 0;                ///< Current V4L2_CTRL_FLAG_* state reported by the driver.
+    bool readable = true;              ///< @c true unless the control is explicitly write-only.
+    bool writable = true;              ///< @c true if the control is currently writable.
+    bool runtimeWritable = true;       ///< @c true if the control may be changed while capture buffers are active.
+    std::vector<std::string> options;  ///< Valid option strings for menu controls.
+    std::vector<int64_t> optionValues; ///< V4L2 menu indices corresponding to @ref options.
+    std::string sourceDevice;          ///< Human-readable V4L2 source device path.
 };
 
 /**

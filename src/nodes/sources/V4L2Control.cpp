@@ -9,6 +9,7 @@
 #include <cerrno>
 #include <cctype>
 #include <cstring>
+#include <sstream>
 #include <sys/ioctl.h>
 #include <linux/videodev2.h>
 
@@ -60,10 +61,21 @@ void V4L2ControlAccess::enumerateFd(int fd, const std::string& sourceDevice, std
 
     v4l2_query_ext_ctrl query;
     std::memset(&query, 0, sizeof(query));
-    query.id = V4L2_CTRL_FLAG_NEXT_CTRL;
+    query.id = V4L2_CTRL_FLAG_NEXT_CTRL | V4L2_CTRL_FLAG_NEXT_COMPOUND;
 
     while (::ioctl(fd, VIDIOC_QUERY_EXT_CTRL, &query) == 0) {
-        if ((query.flags & V4L2_CTRL_FLAG_DISABLED) == 0 && query.type != V4L2_CTRL_TYPE_CTRL_CLASS) {
+        // Compound controls (u8/u16/u32 arrays, elems > 1) require the p_u8/p_u16/p_u32 payload
+        // pointer in v4l2_ext_control rather than the scalar .value/.value64 fields; they are
+        // exposed as a comma-separated string parameter (see read/write(std::string&) overloads).
+        // Only U8/U16/U32 element types are supported this way; anything else (e.g. compound
+        // struct controls) can't be represented generically and is skipped.
+        const bool isCompoundControl = query.elems > 1 && query.type != V4L2_CTRL_TYPE_STRING;
+        const bool isUnsupportedCompound = isCompoundControl && compoundElementSize(query.type) == 0;
+        if ((query.flags & V4L2_CTRL_FLAG_DISABLED) == 0 && query.type != V4L2_CTRL_TYPE_CTRL_CLASS && isUnsupportedCompound) {
+            LOG_WARNING("Skipping unsupported compound V4L2 control '" + std::string(reinterpret_cast<const char*>(query.name)) + "' (" + std::to_string(query.elems) + " elements) on " +
+                        sourceDevice);
+        }
+        if ((query.flags & V4L2_CTRL_FLAG_DISABLED) == 0 && query.type != V4L2_CTRL_TYPE_CTRL_CLASS && !isUnsupportedCompound) {
             V4L2Control control;
             control.controlName = reinterpret_cast<const char*>(query.name);
             control.parameterName = parameterNameFromControlName(control.controlName);
@@ -79,6 +91,7 @@ void V4L2ControlAccess::enumerateFd(int fd, const std::string& sourceDevice, std
             control.defaultValue = query.default_value;
             control.fd = fd;
             control.flags = query.flags;
+            control.elems = query.elems == 0 ? 1 : query.elems;
             control.readable = (query.flags & V4L2_CTRL_FLAG_WRITE_ONLY) == 0;
             control.writable = (query.flags & V4L2_CTRL_FLAG_READ_ONLY) == 0;
             control.runtimeWritable = control.writable && (query.flags & V4L2_CTRL_FLAG_MODIFY_LAYOUT) == 0;
@@ -103,7 +116,7 @@ void V4L2ControlAccess::enumerateFd(int fd, const std::string& sourceDevice, std
 
             controls.push_back(control);
         }
-        query.id |= V4L2_CTRL_FLAG_NEXT_CTRL;
+        query.id |= V4L2_CTRL_FLAG_NEXT_CTRL | V4L2_CTRL_FLAG_NEXT_COMPOUND;
     }
 }
 
@@ -136,10 +149,109 @@ bool V4L2ControlAccess::read(const V4L2Control& control, int64_t& value)
     return false;
 }
 
+size_t V4L2ControlAccess::compoundElementSize(uint32_t type)
+{
+    switch (type) {
+    case V4L2_CTRL_TYPE_U8:
+        return 1;
+    case V4L2_CTRL_TYPE_U16:
+        return 2;
+    case V4L2_CTRL_TYPE_U32:
+        return 4;
+    default:
+        return 0;
+    }
+}
+
+namespace
+{
+
+void assignCompoundPointer(v4l2_ext_control& extControl, uint32_t type, uint8_t* data)
+{
+    switch (type) {
+    case V4L2_CTRL_TYPE_U8:
+        extControl.p_u8 = data;
+        break;
+    case V4L2_CTRL_TYPE_U16:
+        extControl.p_u16 = reinterpret_cast<uint16_t*>(data);
+        break;
+    case V4L2_CTRL_TYPE_U32:
+        extControl.p_u32 = reinterpret_cast<uint32_t*>(data);
+        break;
+    default:
+        break;
+    }
+}
+
+uint64_t readCompoundElement(uint32_t type, const uint8_t* data, uint32_t index)
+{
+    switch (type) {
+    case V4L2_CTRL_TYPE_U8:
+        return data[index];
+    case V4L2_CTRL_TYPE_U16:
+        return reinterpret_cast<const uint16_t*>(data)[index];
+    case V4L2_CTRL_TYPE_U32:
+        return reinterpret_cast<const uint32_t*>(data)[index];
+    default:
+        return 0;
+    }
+}
+
+void writeCompoundElement(uint32_t type, uint8_t* data, uint32_t index, uint64_t value)
+{
+    switch (type) {
+    case V4L2_CTRL_TYPE_U8:
+        data[index] = static_cast<uint8_t>(value);
+        break;
+    case V4L2_CTRL_TYPE_U16:
+        reinterpret_cast<uint16_t*>(data)[index] = static_cast<uint16_t>(value);
+        break;
+    case V4L2_CTRL_TYPE_U32:
+        reinterpret_cast<uint32_t*>(data)[index] = static_cast<uint32_t>(value);
+        break;
+    default:
+        break;
+    }
+}
+
+} // namespace
+
 bool V4L2ControlAccess::read(const V4L2Control& control, std::string& value)
 {
     if (control.fd < 0 || !control.readable) {
         return false;
+    }
+
+    if (control.elems > 1 && control.type != V4L2_CTRL_TYPE_STRING) {
+        const size_t elementSize = V4L2ControlAccess::compoundElementSize(control.type);
+        if (elementSize == 0) {
+            return false;
+        }
+        std::vector<uint8_t> buffer(static_cast<size_t>(control.elems) * elementSize, 0);
+
+        v4l2_ext_control extControl;
+        std::memset(&extControl, 0, sizeof(extControl));
+        extControl.id = control.id;
+        extControl.size = static_cast<unsigned int>(buffer.size());
+        assignCompoundPointer(extControl, control.type, buffer.data());
+
+        v4l2_ext_controls extControls;
+        std::memset(&extControls, 0, sizeof(extControls));
+        extControls.count = 1;
+        extControls.controls = &extControl;
+        if (::ioctl(control.fd, VIDIOC_G_EXT_CTRLS, &extControls) != 0) {
+            value.clear();
+            return false;
+        }
+
+        value.clear();
+        for (uint32_t index = 0; index < control.elems; ++index) {
+            if (index > 0) {
+                value += ",";
+            }
+            value += std::to_string(readCompoundElement(control.type, buffer.data(), index));
+        }
+        return true;
     }
 
     const size_t bufferSize = std::max<size_t>(64u, static_cast<size_t>(std::max<int64_t>(control.maximum + 1, 1)));
@@ -246,6 +358,47 @@ bool V4L2ControlAccess::write(const V4L2Control& control, const std::string& val
         errorMessage->clear();
     }
 
+    if (control.elems > 1 && control.type != V4L2_CTRL_TYPE_STRING) {
+        const size_t elementSize = V4L2ControlAccess::compoundElementSize(control.type);
+        if (elementSize == 0) {
+            return reject("has an unsupported compound element type");
+        }
+
+        std::vector<uint64_t> parsedValues;
+        std::stringstream stream(value);
+        std::string token;
+        while (std::getline(stream, token, ',')) {
+            try {
+                parsedValues.push_back(std::stoull(token));
+            } catch (...) {
+                return reject("has an invalid array value '" + value + "'");
+            }
+        }
+        if (parsedValues.size() != control.elems) {
+            return reject("expects " + std::to_string(control.elems) + " comma-separated values, got " + std::to_string(parsedValues.size()));
+        }
+
+        std::vector<uint8_t> buffer(static_cast<size_t>(control.elems) * elementSize, 0);
+        for (uint32_t index = 0; index < control.elems; ++index) {
+            writeCompoundElement(control.type, buffer.data(), index, parsedValues[index]);
+        }
+
+        v4l2_ext_control extControl;
+        std::memset(&extControl, 0, sizeof(extControl));
+        extControl.id = control.id;
+        extControl.size = static_cast<unsigned int>(buffer.size());
+        assignCompoundPointer(extControl, control.type, buffer.data());
+
+        v4l2_ext_controls extControls;
+        std::memset(&extControls, 0, sizeof(extControls));
+        extControls.count = 1;
+        extControls.controls = &extControl;
+        if (::ioctl(control.fd, VIDIOC_S_EXT_CTRLS, &extControls) == 0) {
+            return true;
+        }
+        return reject("write failed: " + std::string(std::strerror(errno)) + " (errno " + std::to_string(errno) + ")");
+    }
+
     const size_t bufferSize = std::max<size_t>(64u, value.size() + 1u);
     std::vector<char> buffer(bufferSize, '\0');
     std::memcpy(buffer.data(), value.c_str(), value.size());
@@ -279,7 +432,7 @@ ParameterInfo V4L2ControlAccess::toParameterInfo(const V4L2Control& control)
     if (control.type == V4L2_CTRL_TYPE_MENU || control.type == V4L2_CTRL_TYPE_INTEGER_MENU) {
         type = ParameterType::Option;
     }
-    if (control.type == V4L2_CTRL_TYPE_STRING) {
+    if (control.type == V4L2_CTRL_TYPE_STRING || (control.elems > 1 && control.type != V4L2_CTRL_TYPE_STRING)) {
         type = ParameterType::String;
     }
 

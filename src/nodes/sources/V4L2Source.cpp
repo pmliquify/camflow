@@ -326,7 +326,7 @@ bool V4L2Source::applyControlParameterLocked(const std::string& name, const Para
         return false;
     }
 
-    if (it->second.type == V4L2_CTRL_TYPE_STRING) {
+    if (it->second.type == V4L2_CTRL_TYPE_STRING || it->second.elems > 1) {
         if (!std::holds_alternative<std::string>(value)) {
             if (errorMessage != nullptr) {
                 *errorMessage = "invalid value for V4L2 control '" + name + "'";
@@ -406,7 +406,7 @@ ParameterSet V4L2Source::currentParameters() const
 
     for (const auto& item : m_controlByParameter) {
         ParameterValue value;
-        if (item.second.type == V4L2_CTRL_TYPE_STRING) {
+        if (item.second.type == V4L2_CTRL_TYPE_STRING || item.second.elems > 1) {
             std::string currentString;
             if (!V4L2ControlAccess::read(item.second, currentString)) {
                 continue;

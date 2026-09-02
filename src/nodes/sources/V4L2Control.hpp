@@ -33,6 +33,7 @@ struct V4L2Control
     int64_t defaultValue = 0;          ///< Driver default value.
     int fd = -1;                       ///< Open file descriptor for the device that owns this control.
     uint32_t flags = 0;                ///< Current V4L2_CTRL_FLAG_* state reported by the driver.
+    uint32_t elems = 1;                ///< Number of array elements (>1 for compound U8/U16/U32 controls).
     bool readable = true;              ///< @c true unless the control is explicitly write-only.
     bool writable = true;              ///< @c true if the control is currently writable.
     bool runtimeWritable = true;       ///< @c true if the control may be changed while capture buffers are active.
@@ -131,4 +132,11 @@ private:
      * @param names    Map used to detect and resolve duplicate control names.
      */
     static void enumerateFd(int fd, const std::string& sourceDevice, std::vector<V4L2Control>& controls, std::map<std::string, int>& names);
+
+    /**
+     * @brief Returns the byte size of a single element for a compound U8/U16/U32 control type.
+     * @param type V4L2_CTRL_TYPE_* value.
+     * @return Element size in bytes, or 0 if @p type is not a supported compound integer array type.
+     */
+    static size_t compoundElementSize(uint32_t type);
 };

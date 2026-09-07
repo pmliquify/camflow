@@ -24,11 +24,20 @@ jobs:
                                           artifact: camflow-runtime-linux-x86_64
                                           packages: cmake g++ ninja-build zip libeigen3-dev libjpeg-dev libpng-dev zlib1g-dev
                                           opencv_arch: x86_64
+                                          toolchain: host
+                                          container_dockerfile: ""
+                                          container_platform: ""
+                                        # Built inside the Ubuntu 20.04 image (glibc 2.31 baseline) instead of
+                                        # on the ubuntu-24.04-arm runner (glibc 2.39), otherwise the binary
+                                        # requires GLIBC_2.36/2.38 and fails on JetPack 5.x / Pi OS targets.
                                         - name: linux-arm64
                                           runner: ubuntu-24.04-arm
                                           artifact: camflow-runtime-linux-arm64
-                                          packages: cmake g++ ninja-build zip libeigen3-dev libjpeg-dev libpng-dev zlib1g-dev
+                                          packages: zip
                                           opencv_arch: arm64
+                                          toolchain: ubuntu-20.04-container
+                                          container_dockerfile: docker/ubuntu-arm64
+                                          container_platform: linux/arm64
                 steps:
                         - uses: actions/checkout@v4
                           with:
@@ -37,21 +46,72 @@ jobs:
                           run: |
                                   sudo apt-get update
                                   sudo apt-get install -y ${{ matrix.target.packages }}
+                        - name: Set up Node.js for the UI build
+                          if: matrix.target.container_dockerfile != ''
+                          uses: actions/setup-node@v4
+                          with:
+                                  node-version: 20
+                        - name: Build web UI assets on the runner
+                          if: matrix.target.container_dockerfile != ''
+                          # The build image ships no Node.js, so the UI bundle is produced here and
+                          # picked up as an up-to-date artifact by the containerized CMake build.
+                          run: |
+                                  ./scripts/tasks.sh build dev ui \
+                                    --ui-out "${{ github.workspace }}/build-runtime/web-dist" \
+                                    --ui-work "${{ github.workspace }}/build-runtime/web-build"
+                        - name: Build toolchain image
+                          if: matrix.target.container_dockerfile != ''
+                          run: |
+                                  docker build --platform ${{ matrix.target.container_platform }} \
+                                    -t camflow-build-toolchain \
+                                    ${{ matrix.target.container_dockerfile }}
                         - name: Cache OpenCV 4.12.0
                           uses: actions/cache@v4
                           with:
                                   path: ${{ github.workspace }}/opencv/4.12.0/linux-${{ matrix.target.opencv_arch }}
-                                  key: opencv-4.12.0-${{ matrix.target.name }}-${{ runner.os }}-${{ runner.arch }}
+                                  key: opencv-4.12.0-${{ matrix.target.name }}-${{ matrix.target.toolchain }}-${{ runner.os }}-${{ runner.arch }}
                         - name: Install OpenCV 4.12.0
+                          if: matrix.target.container_dockerfile == ''
                           run: .github/scripts/install-opencv-4.12.0.sh ${{ github.workspace }}/opencv/4.12.0/linux-${{ matrix.target.opencv_arch }} ${{ github.workspace }}/opencv/4.12.0/build-linux-${{ matrix.target.opencv_arch }}
                         - name: Configure runtime
+                          if: matrix.target.container_dockerfile == ''
                           run: |
                                   cmake -S . -B build-runtime -G Ninja \
                                     -DCMAKE_BUILD_TYPE=Release \
                                     -DBUILD_RUNTIME=ON \
                                     -DOpenCV_DIR=${{ github.workspace }}/opencv/4.12.0/linux-${{ matrix.target.opencv_arch }}/lib/cmake/opencv4
                         - name: Build runtime
+                          if: matrix.target.container_dockerfile == ''
                           run: cmake --build build-runtime --config Release --parallel
+                        - name: Install OpenCV and build runtime in container
+                          if: matrix.target.container_dockerfile != ''
+                          run: |
+                                  docker run --rm --platform ${{ matrix.target.container_platform }} \
+                                    --user "$(id -u):$(id -g)" \
+                                    -e HOME=/tmp \
+                                    -e CAMFLOW_SKIP_APT=1 \
+                                    -v "${{ github.workspace }}:/workspace" \
+                                    -w /workspace \
+                                    camflow-build-toolchain \
+                                    bash -lc 'set -euo pipefail
+                                      git config --global --add safe.directory /workspace
+                                      ./.github/scripts/install-opencv-4.12.0.sh /workspace/opencv/4.12.0/linux-${{ matrix.target.opencv_arch }} /workspace/opencv/4.12.0/build-linux-${{ matrix.target.opencv_arch }}
+                                      cmake -S . -B build-runtime -G Ninja \
+                                        -DCMAKE_BUILD_TYPE=Release \
+                                        -DBUILD_RUNTIME=ON \
+                                        -DOpenCV_DIR=/workspace/opencv/4.12.0/linux-${{ matrix.target.opencv_arch }}/lib/cmake/opencv4
+                                      cmake --build build-runtime --config Release --parallel'
+                        - name: Verify glibc baseline
+                          if: matrix.target.container_dockerfile != ''
+                          run: |
+                                  max_glibc=$(objdump -T build-runtime/camflow \
+                                    | sed -n 's/.*GLIBC_\([0-9.]*\).*/\1/p' \
+                                    | sort -V | tail -n 1)
+                                  echo "Highest required glibc symbol version: ${max_glibc}"
+                                  if [ "$(printf '%s\n2.31\n' "${max_glibc}" | sort -V | tail -n 1)" != "2.31" ]; then
+                                    echo "Binary requires GLIBC_${max_glibc}, above the 2.31 baseline." >&2
+                                    exit 1
+                                  fi
                         - name: Package runtime
                           run: |
                                   mkdir -p package/bin package/docs

@@ -1,5 +1,14 @@
 # CamFlow Version History
 
+## v0.2.1 (V4L2 Control Handling and Release Packaging)
+* Improvements
+  * Added support for compound V4L2 controls, with unsupported compound types skipped and reported as a warning instead of being exposed as broken parameters.
+  * Added an installation guide that ships with the release package.
+* Bugfixes
+  * Fixed menu controls being mapped by list position instead of the driver's menu value, which selected the wrong entry for non-contiguous menus.
+  * Fixed parameter strings that only partially parse as a number being silently truncated instead of being passed on as text.
+  * Fixed prebuilt ARM64 release binaries requiring GLIBC_2.36/2.38, which prevented them from starting on targets with older C libraries.
+
 ## v0.2.0 (Runtime Diagnostics and Viewer Improvements)
 * New Features
   * Added a device tree inspector to the runtime web UI.

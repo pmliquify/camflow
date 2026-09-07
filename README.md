@@ -1,6 +1,6 @@
 <h1>
   <img src="web/src/assets/logos/camflow_icon.svg" alt="camflow icon" width="64" align="absmiddle" />
-  camflow v0.2.0
+  camflow v0.2.1
 </h1>
 
 camflow is a Linux runtime for building, inspecting and operating graph-based camera image-processing pipelines on x86_64 and ARM64 systems. It is designed for embedded vision development and camera-driver validation, from experimenting with a pipeline on a development machine to deploying the same runtime to an ARM64 target.

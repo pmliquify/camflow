@@ -416,7 +416,7 @@ Example response:
 
 ```json
 {
-  "version": "v0.2.0",
+  "version": "v0.2.1",
   "git": "ac5b8dd-dirty",
   "build": "2026-01-11 12:34:56 UTC",
   "opencv": "4.12.0"

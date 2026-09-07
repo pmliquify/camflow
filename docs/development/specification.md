@@ -1,4 +1,4 @@
-# CamFlow Specification v0.2.0
+# CamFlow Specification v0.2.1
 
 This document is the normative entry point for CamFlow.
 
